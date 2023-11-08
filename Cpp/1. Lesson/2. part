@@ -1,0 +1,176 @@
+Hocanın derste bahsettiği ve C++ 11’i esas alan ve temel olarak örnek verebileceği kitap:
+https://www.amazon.com/Primer-5th-Stanley-B-Lippman/dp/0321714113 diğer temel olarak örnek verebileceği kitap: https://www.amazon.com/Standard-Library-Tutorial-Reference-2nd/dp/0321623215
+
+C de C++ ta statik tür sistemine sahip dillerdir. Statik tür sistemine sahip dil demek çevirici program koda bakarak varlıkların neler olduğunu, onların türlerinin neler olduğunu anlıyor 
+yani programın çalışma zamanında değil de kaynak koddan direk anlıyorsa bu dil statik tür sistemine sahip deriz.
+Dinamik tür sisteminde ise türler programın çalışma zamanında anlaşılıyor. C dilinde türlere yönelik  yapılan kontoller C++'a göre daha gevşek(lose control)'dir.
+
+C ve C++ Arasındaki Farklılıklar
+
+Fonksiyonlar Açısından Farklılıklar
+C’nin ilk standartı olan C89 dan sonra major bazı değişiklikleri içeren C99 standartında olan bazı şeyler C++'ta bulunmuyor. İşte C’de olup C++'ta olmayan bazı konular:
+1.Compound literals
+2.restrict keyword'ü/pointer’ları
+3.flexible array members
+
+C99 ile beraber kalkan fakat  geçmişe doğru uyumu korumak için hala birçok derleyicide uygulanmayan implicit int kuralı C++'ta sentaks hatasıdır. İmplicit int kuralı şudur: Tür bilgisi yazmamız gereken yerde 
+tür bilgisi yazılmamışsa sanki orada tür olarak int yazılmış gibi varsayılması kuralıdır. Örneğin:
+
+func(void)
+
+{
+
+,,,,,
+
+}
+C derleyicisi şu şekilde değerlendirilir:
+int func(void)
+
+{
+
+,,,,,
+
+}
+Hem C de hem de C++'ta main’in içine bir return statment yazılmamışsa derleyici sanki return 0; yazılmış gibi işlemi gerçekleştirir.
+
+C’de:
+int func();
+int bar(void);
+
+Burada func'ın parametre değişkenleri hakkında bilgi verilmediği anlamında gelirken bar'ın ise parametresi olmadığı anlamına gelir. Fakat C++'ta bu hem func'ın hem de bar'ın parametre almadığı anlamına gelir!!!
+
+C’de 99 standartlı ile dilden kaldırılsada C’de hala geçerli olan implicit function declaration oldukça tehlikelidir. C’de bir isim fonksiyon çağrı operatörünün operandı olmuşsa ve bu aranıp bulunmamışsa 
+derleyici external geri dönüş değeri int olan parametrik yapısı belirtilmemiş bir fonksiyon olduğunu varsayıyor, buna implicit function declaration denir. Örneğin:
+yazılan kod:
+
+int main(void)
+{
+  foo(); 
+}
+
+derleyicinin varsaydığı kod:
+
+int foo(); //implicit function declaration.
+int main(void)
+{
+  foo(); 
+}
+
+Fakat C++'ta direk sentaks hatasıdır.
+
+Yine C’de her ne kadar kaldırılmış olsada derleyicilerin hala desteklemediği ve C++'ta sentaks hatası (hiçbir zaman legal olmadı ) olan bir diğer şey “old-style functions definitions”
+int foo(x, y, x) // impicit int kuralı buradada geçerlidir. Yani parametre türü 
+double y,z;      //int olanların türünü belirtmeye gerek yok.
+{
+    //
+    return 1;
+}
+
+Türler  Açısından Farklılıklar
+
+C ve C++ arasındaki en önemli kategorik farklılklar türler ve tür dönüşümleri ile alakalıdır. 
+
+C’de karakter sabitlerinin türü int C++'ta char’dır.
+
+C’de string literal’leri statik tür sistemi  açısından baktığımız zaman char dizilerdir. Fakat C++'ta const char dizilerdir. Fakat string literallerini değiştirmek hem C de hem de C++'ta tanımsız davranış (ub)'tır.
+int main(void)
+{
+    char *p = "murat";
+    *p = 's'; //ub
+}
+
+undefined behavior
+unspecified behavior
+  implementation behavior
+
+
+
+undefined behavior
+
+Öyle bir kod ki derleyici bana bir sentaks hatası vermek zorunda değil ama çalışma zamanında ne olacağı konusunda hiçbir garanti yoktur.  Zaten hangi davranışın tanımsız davranış olacağı standartlarca bellidir, 
+dolayısıyla bu davranışa neden olacak bir şeyi asla yapmamalıyız!!! Örnekler:
+null dereference
+
+1.otomatik ömürlü nesneyi çöp değeri (indetermined value) ile kullanmak
+bitsel kaydırma işleminde (bit wise right/left shift ) sağ operandın sol operadın ilişkin olduğu türün bit sayısından büyük veya negatif olması.
+
+2.bir ifade içinde yan etkiye uğramış bir nesnenin aynı ifade içinde tekrar kullanılması (yani bir sequence point olmadan yeniden kullanılması )
+
+3.dangling pointer'ı kullanmak ( dangling pointere atama yaparsak ub değildir ).
+
+4.tam sayılı bölmeden 0’a bölme ub
+
+5.işaretli tam sayı türlerinde taşma ub
+
+6.bir diziyi taşırmak 
+
+7.string literal’lerini değiştirme girişimi vb.
+
+8.memcpy, strcpy, strcat vb gibi fonksiyonlarda overlap bloklar üzerinde yani kaynak blok ile hedef bloğun kesişen bir kısmının olması ub’dir.
+
+C’de ub olan her davranış C++'de de ub değildir.
+Neden tanımsız davranış var?
+
+Çünkü bu derleyicilere daha iyi kod üretme fırsatı veriyor. Bu dillerde popüler olarak kullanılan “as if rule” kuralı vardır.  Bu şu demek derleyici kodu makine koduna çevirirken birebir aynı yazılan 
+kod gibi çevirmiyor. Tabii bunu yaparken kodun semantik karşılığı asla değişmez; zaten öyle olsa kod yazmanın bir önemi kalmaz. Buna zaten “compiler optimization” denir. 
+
+Unspecified Behavior ( Belirlenmemiş Davranış )
+
+Öyle yerler var ki C veya C++ dillerinin standartı derleyicilerin belirli bir şekilde kod üretme garantisini derleyicilerden istemiyor yani derleyiciyi serbest bırakıyor kod üretimi konusunda.  Örneğin:
+
+int foo(void);
+int bar(void);
+
+int main(void)
+{
+  int x = foo() + 5*bar();
+}
+
+Burada şöyle bir soru sorulsa ve denseki foo mu yoksa bar mı önce çağırılır ve buna da çarpma işlemi önceliğinden dolayı bar denilse cevap yanlış olur sorunun işlem önceliği ile bir alaksı yoktur; 
+burada unspecified behavior vardır ve foo da önce çağırabilir bar da  eğer biz kodumuzu semantik olarak önce bar çağıracak şekilde yazmamışsak burada herhangi bir sorun yoktur. Başka bir örnek daha verirsek eğer:
+
+
+
+int main(void)
+{
+  char *p1 = "mavi";
+  char *p2 = "mavi";
+  
+  if( p1 == p2 )
+  {
+    //
+  }
+}
+
+Bu pseudo code’da yine unspecified behavior’a örnektir. p1 == p2 de olabilir, olmayabilir de.
+
+Ayrıca tüm unspecified behavior her çalıştırıldığında aynı şeyi yapmaz örneğin ilk çalışmada p1 == p2 çıkarken 2. çalışmada çıkmayabilir. İlk etapta söylendiği gibi kodumuzun lojik mantığı buna göre yazılmamışsa 
+hiçbir sorun teşkil etmez unspecified behavior. 
+
+Implementation Defined
+
+Unspecified behavior'ın bir alt kategorisidir. Yani her implementation defined unspecified behavior’dir ama her unspecified behavior' implementation defined değildir. implementation defined derleyicinin nasıl kod 
+ürettiğini belgelemek zorunda olduğu durumlardır. Örneğin:
+1.Tür olarak char'ın signed mı unsigned mı olcağı
+2.C’de sağa bitsel kaydırma işleminde eğer sol operand negatif ise bu durumda soldan yapılacak meslemenin 1 ile mı 0’la mı yapılacağı 
+3.Veri türlerinin boyutları implementation behavior’dır
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
