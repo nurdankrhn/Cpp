@@ -1,0 +1,214 @@
+kısım 2:
+
+NOT: const neyden önce gelirse const olan odur!!!
+
+int main(void)
+{
+  int x = 24;
+  int y = 56;
+  
+  int *p1 = &x;
+  int *p2 = &y;
+  
+  int **ptr = &p1;
+  
+  ptr = &p2;
+  *ptr = &x;
+  **ptr = 876;
+  
+  
+}
+
+Eğer şuraya const keywordu konulursa:
+
+int main(void)
+{
+  int x = 24;
+  int y = 56;
+  
+  int *p1 = &x;
+  int *p2 = &y;
+  
+  int** const ptr = &p1;
+  
+  ptr = &p2; // sentaks  hatası olur
+  *ptr = &x;
+  **ptr = 876;
+  
+  
+}
+
+Eğer const keywordu şu şekilde konulursa:
+
+int main(void)
+{
+  int x = 24;
+  int y = 56;
+  
+  int *p1 = &x;
+  int *p2 = &y;
+  
+  int* const * ptr = &p1;
+  
+  ptr = &p2; 
+  *ptr = &x; // sentaks  hatası olur
+  **ptr = 876;
+  
+  
+}
+
+Eğer const keywordunu buraya koyarsak şu şekilde olur:
+
+int main(void)
+{
+  int x = 24;
+  int y = 56;
+  
+  int *p1 = &x;
+  int *p2 = &y;
+  
+  int const ** ptr = &p1;
+  
+  ptr = &p2; 
+  *ptr = &x; 
+  **ptr = 876; // sentaks  hatası olur
+  
+  
+}
+
+Bir diğer örnek const keyword’unu birkaç yerde kullanılacak şekilde olsun:
+
+int main(void)
+{
+  int x = 24;
+  int y = 56;
+  
+  int *p1 = &x;
+  int *p2 = &y;
+  
+  int* const * const ptr = &p1;
+  
+  ptr = &p2; // sentaks  hatası olur
+  *ptr = &x; // sentaks  hatası olur
+  **ptr = 876; 
+   
+}
+
+Tür eş isimleri
+typedef int num; //num artık int türü gibi kullanılabilir
+
+Pointerlar içinde tür eş isimleri oluşturabiliriz:
+
+typedef int* iptr;
+
+ÖNEMLİ: Bir pointer tür eş ismi const anahtar sözcüğü ile kullanılırsa her zaman top level const’tur.
+
+typedef int* iptr;
+int main(void)
+{
+    int x = 10;
+    const iptr p = &x;
+    // int* const p = &x; //----> KURAL GEREĞİ BUNA EŞTİR
+    //const int *p = &x; // buna eş değer değildir!!!
+    
+  
+}
+
+C++'ta const’luk konusunda sadece const anahtar sözcüğü değil “constexpr” ve “consteval” gibi anahtar sözcükleride mevcuttur. 
+
+expression: değişkenlerin, sabitlerin tek başına veya sabitlerin veya değişkenlerin birbirleri ile operatörler kullanılarak bir arada bulundukları varlıklardır.
+x
+
+10
+
+10 + 20
+
+x + y
+
+x + y > 10
+
+İfadeleri niteleyen ve dilin sentaksı açısından son derece önemli olan 2 3 tane temel kavram vardır:
+data type
+
+value category
+C’de R value ve L value olmak üzere 2’ye ayrılır. C++'ta ise L value PR value ve X value olmak üzere 3’e ayrılır.
+
+constant expression ve non-constant expression ( variable expression ) olarakta nitelendirilir:
+constant expression: Derleyici yani çevirici program koda baktığında bazı ifadelerin dilin kurallarına göre koda bakarak anlayabiliyor; yani run time ile hiçbir ilgisi yok. 
+Yani değeri compile time’da evalute edilen ifadelere C’de de C++'ta da constant expression denilir. Örn:
+
+int x = 10 * 20 - 5 + 9; // int x = 204; ile aynı
+
+ÖNEMLİ: sizeof operatörü bir complier time operatödür. Örn:
+
+int a[10];
+
+sizeof(a) ----> bir const expressiondır her iki dilde de.
+
+Bu konu şundan önemlidir her 2 dilde de constant expression kullanımın zorunlu olduğu alanlar vardır:
+C’de örnek vermek gerekirse: dizi boyutunu belirtmede, switch deyiminin case label’ları, global değişkene ilk değer verme (C++'ta böyle bir zorunluluk yok), yapıların bitfield member’larında 
+kaç bitlik yer ayrılacağını gösteren ifadeler sabit ifadesi olmak zorunda. 
+
+struct Data {
+
+int a : 3;
+
+int b : 5;
+
+};
+
+C ve C++ dillerinde const anahtar sözcüğünün kullanımıyla ilgili incompatibilities ( uyumsuzluklar )
+
+1.const int x = 10; şeklinde tanımlanan değişkeni const expression kullanılması gereken yerlerde kullanabilir miyim? Cevap: C ve C++'ta cevaplar farklı C de HAYIR C++'ta EVET!!!
+
+Şuna dikkat edilmeli C++'ta kural şu değil: const nesnelerin oluşturduğu ifadeler sabit ifadesidir değil ilk değerini sabit ifadesi ile almış sabit const nesneler bu şekilde kullanılabilir.
+Örneğin burada ilk değerini sabit ifade olarak almayan const değşkende const expression'ın kullanıldığı yerde kullanılamaz.
+
+int foo();
+
+int main()
+{
+  const int size = foo();
+  int a[size]; //sentaks hatası
+  
+}
+expression statement ise geçerli bir ifade’nin sonuna ; eklenmesiyle meydana gelir.
+
+2.C dilinde kendisi const olan bir nesneye ilk değer vermemek sentaks hatası değil fakat C++'ta sentaks hatasıdır. Örn: const int x; // C de sentaks hatası değil C++'ta sentaks hatası
+
+linkage ( bağlantı )
+Değişken ve fonskiyon isimlerinin bir özelliğidir. Projede birden çok kaynak dosya vardır. Ve bu kaynak dosyalarda birden fazla isimler vardır. Eğer bu isim farklı dosyalarda kullanıldığında aynı varlığa işaret 
+etmesi--> extrernal linkage. 
+
+İç bağlantıya ait isimler öyle isimler ki projeyi oluşturan kaynak dosyaların birinde nereden kullanılırsa kullanılsın aynı varlığa aitken farklı kaynak dosyalarda aynı olan bu 
+isim farklı varlığa ait olur.---> internal linkage
+
+yerel değişkenler ise ---> no linkage C’de de C++'ta da global değişken ve fonksiyonlarınız default olarak external linkage’dır.  C’de eğerki global olarak tanımlanan ama aynı zamanda internal linkage sahip 
+olmasını istediğim fonskiyon ve değişkenlerin başına static keywordunu eklemem gerekir.
+
+static int g = 10;
+
+static void func(int x)
+{
+  
+}
+
+Bir makro tanımlayıp yerine gelecek ifadeyi boş bırakırsak bu makroyu ön işlemci komutları dışında kullanırsak ön işlemci program o makroyu siler:
+
+#define PRIVATE static
+#define PUBLIC  
+
+PUBLIC int g = 10;
+yani derleyici int g = 10; olarak görür ve makro sayesinde de kodu okuyana bilgi vermiş oluruz.
+
+
+
+
+
+
+
+
+
+
+
+
