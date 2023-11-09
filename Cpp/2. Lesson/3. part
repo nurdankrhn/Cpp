@@ -1,0 +1,128 @@
+kısım 3:
+
+C’de global olarak tanımlanan değişken const yapıldığında default olarak hala external linkage’a sahip olurken C++'ta bu artık internal linkage’a sahip olur. 
+
+Global isimleri iç bağlantıya ait kılmak için C++'ta C’deki static keyword’u her ne kadar geçerli olsada şu kullanım çok daha iyidir:
+
+namespace {
+
+int x = 10;
+
+void foo(void)
+
+{
+
+}
+
+}
+
+C ve C++ dillerindeki önemli farklılıklardan bir diğeri ise bool veri türüdür:
+C’de bool semantiği yerine işaretli int türü kullanılıyor. Bu geleneksel yapıyı gösteren ctype kütüphanesidir. C’nin 99 standartlarıyla _Bool türü dile eklendi. Fakat bu hala  
+C programcıları tarafından çok tercih edilmiyor.
+
+C’de bool semantiğine benzerlik sağlamak için stdbool.h kütüphanesi dışında şöyle bir yöntemde kullanılmakta:
+
+#include <stdbool.h>
+
+typedef enum {FALSE, TRUE}BOOL;
+
+int main()
+{
+	BOOL flag = TRUE;
+}
+
+C’de bool değerin çakma olması yani karşılaştırmaların int türden olması şöyle işlemleri çok kolaylaştırır:
+
+1. Örneğin bir sayı 0’dan büyükse 1 küçükse -1 ve 0’a eşitse 0 değeri üretilmesi istensin o halde işlem şu şekilde yapılabilir:
+
+int main()
+{
+
+	int x;
+
+  	( x > 0 ) - ( x < 0 )
+}
+
+2. Bir diğer örnek x, y, z ve t gibi değişkenler için değeri 0’dan büyük sayılardan kaç tane olduğu tutulsun o halde şu şekilde yapılabilir:
+
+int main()
+{
+
+	int x, y, z, t;
+
+  	//code
+   int pos_count = ( x > 0 ) + ( y > 0 ) + ( z > 0 ) + ( t > 0 );
+}
+
+
+C++'ta bool türü
+C++'ta bool bir keyword yani C’deki gibi bir makro değildir!!! Dolayısla bool, true ve false birer keyword’dur. 
+Ve bool statik tür sisteminde işaretsiz bir tam sayı türüdür. Diğer int altı türler gibi integral promotion’a tabidir.
+
+Yani false ve true bolean türden sabitlerdir. Bool türü C’deki gibi 1 bytelık alana sahiptir. Aritmetik türlerden bool türüne implicit dönüşüm vardır. 0-->false non-zero değerler---> true’ya dönüşür.
+
+Pointer türlerinden bool türüne implicit dönüşüm vardır. null pointer-->false diğer tüm pointerlar-->true
+
+Bool türden aritmetik türlerede örtülü (implicit) dönüşüm vardır. true-->1 / false-->0
+
+Bool türünden pointer türüne örtülü dönüşüm yoktur.
+
+C++'ta statik ömürlü bir değişkeni default initialize edersek önce zero initialization denilen kural işletilir.
+
+Bir değişken zero initialize edildiğinde aritmetik türdense değeri 0 olur, boolean ise false pointer ise null pointer olur. Yani C++ta karşılaştırma ve lojik operatörlerle oluşturlan ifaelerin C’deki gibi int değil bool’dur.
+
+boolean bir değişkeni ++ veya – operatörünün operandı yapamam, doğrudan sentaks hatasıdır. 
+
+Eğerki birçok değişkenin bool değerini tutmamız gerekirse boşuna bellekten yer almamak için bir bitlik alan sunan vector sınıfının bool açılımı kullanabiliriz (hocanın önerisi)
+
+#include <iostream>
+#include <bitset>
+#include <vector>
+
+int main()
+{
+	std:vector<bool>
+}
+
+C’de bu şekilde bir dizi tanımlamak sentaks hatası değilken, (tabii bu diziyi null-terminated stream olarak kullanmamamız gerekir):
+
+char str[4] = “kaya”; C++'ta bu sentaks hatasıdır. Çünkü C++ string literallerin sonuna null karakteri her zaman eklemeyi zorunlu kıldığı için dizi taşmıştır. Bunun şu şekilde kullanımı 
+C’de de ub’dir çünkü puts fonksiyonu null karakter görene kadar ekranan yazar bu dizi ise null-terminated stream değildir!
+
+#include <stdio.h>
+
+
+int main()
+{
+
+ 	char str[4] = "kaya"; //C++'ta bu şekilde tanım direk sentaks hatası
+  	puts(str); //ub (C için)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
