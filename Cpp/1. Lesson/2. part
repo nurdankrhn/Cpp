@@ -116,7 +116,7 @@ kod gibi çevirmiyor. Tabii bunu yaparken kodun semantik karşılığı asla de�
 
 Unspecified Behavior ( Belirlenmemiş Davranış )
 
-Öyle yerler var ki C veya C++ dillerinin standartı derleyicilerin belirli bir şekilde kod üretme garantisini derleyicilerden istemiyor yani derleyiciyi serbest bırakıyor kod üretimi konusunda.  Örneğin:
+Öyle yerler var ki C veya C++ dillerinin standartı derleyicilerin belirli bir şekilde kod üretme garantisini derleyicilerden istenmiyor yani derleyiciyi serbest bırakıyor kod üretimi konusunda.  Örneğin:
 
 int foo(void);
 int bar(void);
@@ -127,7 +127,7 @@ int main(void)
 }
 
 Burada şöyle bir soru sorulsa ve denseki foo mu yoksa bar mı önce çağırılır ve buna da çarpma işlemi önceliğinden dolayı bar denilse cevap yanlış olur sorunun işlem önceliği ile bir alaksı yoktur; 
-burada unspecified behavior vardır ve foo da önce çağırabilir bar da  eğer biz kodumuzu semantik olarak önce bar çağıracak şekilde yazmamışsak burada herhangi bir sorun yoktur. Başka bir örnek daha verirsek eğer:
+burada unspecified behavior vardır ve foo da önce çağırabilir bar da;  eğer biz kodumuzu semantik olarak önce bar çağıracak şekilde yazmamışsak burada herhangi bir sorun yoktur. Başka bir örnek daha verirsek eğer:
 
 
 
@@ -155,8 +155,61 @@ Unspecified behavior'ın bir alt kategorisidir. Yani her implementation defined 
 2.C’de sağa bitsel kaydırma işleminde eğer sol operand negatif ise bu durumda soldan yapılacak meslemenin 1 ile mı 0’la mı yapılacağı 
 3.Veri türlerinin boyutları implementation behavior’dır
 
+Type  conversions
+Implicit type conversions
+Dilin kuralları dahilinde öyle yerler var ki derleyici durumdan vazife çıkarıp bir ifadenin türünü başka bir türdenmiş gibi alıyor.
+double dval = 4.5;
 
+int x = dval; //implicit type conversions
 
+char c1 = 10;
+
+char c2 = 20;
+c1 + c2 işlemi her ne kadar değişken türleri char da olsa implicit type conversion olup int’e dönüştürülüp sonra toplama işlemine girer ve sonuçta int türden olur.
+Explicit type conversions
+Derleyicinin bu dönüşümü yapmasını bir operatör ( type cast operatörü ) kullanarak derleyiciye talimat vermemiz sonucu oluşan tür dönüştürmedir.
+Bazı implicit tür dönüşümleri C’de legal olmasına rağmen C++'ta sentaks hatasıdır:
+
+1.void pointer türlerinden diğer pointer türlerine dönüşüm:
+
+C de legal C++'ta sentaks hatası:
+
+int main()
+{
+	int x = 10;
+	void *vptr = &x;
+	int *ip = vptr;
+}
+
+Hem C'de hem de C++'ta geçerli:
+
+int main()
+{
+	int x = 10;
+	void *vptr = &x;
+	int *ip = (int *)vptr;
+}
+
+2.Aritmetik türler ile pointer türleri arasında implicit tür dönüşümü C++'ta sentaks hatası C’de değil ama C’de de asla yapılmaması gereken bir şey.
+int main()
+{
+	int x = 10;
+	int *iptr;
+	iptr = x;
+	x = iptr;
+}
+
+3.Farklı pointer türleri arasında tür dönüşümü yine her 2 dilde de yapılmaması gereken bir şey fakat C++'ta direk sentaks hatası C’de legal.
+int main()
+{
+	int x = 10;
+	int *iptr = &x;
+
+	double *dptr;
+	//code
+	dptr = iptr; // C++'ta sentaks hatası C'de de asla yapılmaması gereken bir şey!!!
+}
+Görüldüğü gibi C++'ta tür dönüştürme kontrolü çok sıkı bir şekilde yapılıyor.
 
 
 
