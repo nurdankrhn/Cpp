@@ -1,0 +1,117 @@
+Ders 2: 11 Ocak 2023 -  Çarşamba
+Kısım 1:
+
+Tıpkı C’de olduğu gibi C++'ta da  bir istisna olarak bir tam sayı sabiti olarak 0'ı atayabiliriz ( null pointer )
+
+int main(void)
+
+{
+
+int *ptr = 0;
+
+}
+Farklı pointer türleri arasında da implicit type conversion yoktur.
+int x = 46;
+
+char *p = &x; //C'de önerilmese de sentaks hatası değil C++'ta direk sentaks hatası
+
+const anahtar sözcüğü ile ilgili farklılıklar
+Bir C kodunun veya C++ kodunun kalitesini belirleyen en önemli şeylerden biri const correctness’tır.
+
+Bu şu demektir değişkenlerin mutable veya inmutable olmasını göstermek kod kalitesini 1. dereceden etkiler. C ve C++'ta değişkinlerin default bildirimleri rust dilinin aksine mutable’dır yani değiştirilebilirdir.
+Biz bir değişkenin değerinin değişmeyeceğini okuyucuya bildirmek için “const” anahtar sözcüğünü kullanırız.
+
+int main(void)
+{
+  const int x = 5; //x hayatı boyunca hiçbir zaman asla değişmeyecek
+}
+
+Neden değişkenleri cons keywordu ile nitelendiriyoruz?
+
+1-Kodda lojik açıdan değerinin değişmemesi gereken varlıklar için.
+
+const T*'dan T*'a örtülü dönüşüm yoktur. ( C’de de yapılmaması gereken bir şey C++'ta sentaks hatası)
+
+int main(void)
+{
+  cont int x = 10;
+  int *p = &x;
+}
+
+Ayrıca kendisi const olan bir nesneyi değiştirme girişiminde bulunmak ub’dir.
+
+int main(void)
+{
+  cont int x = 10;
+  int *p = (int *)&x;
+  
+  *p = 678; //ub !!!!!
+}
+
+int main(void)
+{
+  cont int x = 10;
+  int *const p = &x; //const pointer to int
+  //C++'ta top level const ta deniliyor buna
+  //right const ta deniliyor (const anahtar sözcüğü asterik atomunun sağında)
+}
+
+int main(void)
+{
+  int x = 10;
+  int y = 230;
+  
+  const int *p = &x; // int const *p = &x; aynı şeydir
+  //pointer to const int
+  //low level const
+  //left const
+  p = &y; // geçerli
+  *p = 10; // sentaks hatası
+    
+}
+
+int main(void)
+{
+  int x = 10;
+  int y = 230;
+  const int *const p = &x;
+  //const pointer to const int
+  *p = 256; //sentaks hatası
+  p = &y; //sentaks hatası
+    
+}
+
+int main(void)
+{
+  int x = 10;
+  int y = 230;
+  
+  const int *p = &x; // int const *p = &x; aynı şeydir
+  x = 10; // sentaks hatası mı ? Hayırr tabii ki çünkü burada const olan *p değişkenidir.
+    
+}
+
+//mutator
+//setter
+//set function
+
+void func(T *p); //out-param
+void bar(T *p); //in out-param
+
+void foo(const T *p); //in-param
+
+int main(void)
+{
+  int x,y,z;
+  
+  int *const p[]= {&x, &y, &z};
+  p[0] = &z; //sentaks hatası
+  *p[0] = 20; // hatasızz!
+  
+  
+}
+
+2- Değiştirmemiz gereken bir değişkeni yanlışlıkla değiştirmemize neden olabilir.
+3- const T* türünden const T türüne implicit dönüşüm olmadığından const parametre alan bir fonksiyona aslında const olması gerekirken const olarak tanımlamadığımız bir değişkeni fonskiyona argüman 
+olarak gönderemeyizz! Bu da fonksiyon çağrısını kısıtlayan bir durum olarak karşımıza çıkar.
+
