@@ -1,0 +1,164 @@
+3. Ders Günü
+13 Ocak 2023- Cuma
+
+user defined types ne demek?
+C ve C++ dillerinde türler 2 temel kategoriye ayrılıyor:
+Basic types (primitive types ) ve user defined types
+
+Basic types (primitive types )
+Dilin tasarımında zaten olan tipik olarak tam sayı gerçek sayı değerlerini tutan türlerdir.
+
+user defined types
+Bir bildirimle bir tanımla oluşturuluyor. C'de bunun 3 şekilde yapabiliriz:
+1. structure ile
+2. enum ile
+3. union ile
+
+C dilinde struct, enum ve union'da söz konusu tag türü tek başına betimleyemiyor. Fakat C++ta tag tek başına türü betimlemek için yeterlidir. Örneğin:
+
+struct Nec{
+	int a, b, c;
+};
+
+int main()
+{
+	Nec myStruct; //C de sentaks hatası struct Nec myStruct şeklinde olmalı çünkü typedef struct değil, fakat C++'ta kabul edilir herhangi bir problem yok, ayrıca bunu C de olduğu gibi struct Nec myStruct şeklinde
+ 																																							de kullanabiliriz.
+}
+C'de bir struct belirttiğimiz zaman en az 1 elemanı olmak zorunda yani boş bir struct tanımı yapamayız, sentaks hatası fakat C++'ta böyle bir zorunluluk yoktur. Hatta C++'ta bu çok sık kullanılır ve buna 
+empty class denir. Bu function overloading ve generic programlamayla ilgilidir.
+
+enumarations açısından büyük farklılık vardır. C++ dilinin en önemli özelliği time safety için yapılan kontrollerin sık bir şekilde yapılması böylece C++ statik tür sistemine ilşkin kontrollerin 
+en çok olduğu ve ayrıca çok önemli olduğu dildir.
+
+Bilindiği gibi C'de de C++'ta da tag oluşturmadan user defined type oluşturabiliriz.
+
+enum Color { Blue, Brown, Black }; burada Blue, Brown, Black  enumaration constant veya enumarator olarak isimlendirilir. 
+Böyle bir enum türü oluşturduğumda aslında derleyici arka planda bir tam sayı türü kullanıyor. Bu türe "underlined type" deniliyor. C dilinde underlined type int olmak zorunda. Bu da sabiti int türünün 
+sınırları içine sınırlandırılıyor. C++'ta ise öncesinde derleyici tarafından seçiliyordu fakat bu da bir derleyicide int olarak seçilmiş enum sabitinin diğerinde long'a denk gelmesi gibi sıkıntılara 
+neden oluyordu. Modern C++ ile bu problem şu şekilde kaldırılmıştır, enum sabitinin türünü seçmek programcıya bırakılmıştır. Bu tür bir tamsayı olmak zorundadır.
+C++'ta:
+enum Color : unsigned int { Blue, Brown, Black };
+
+C'de şöyle bir assertion koyarsak:
+//assert(sizeof(enum Color) == sizeof(int)) bunun fail olma ihtimali yok fakat bu C++'ta olsaydı böyle bir kesinlik yok.
+
+C'de enum'dan diğer türlere implicit dönüşüm vardır ve tehlikelidir. Aritmetik türlerden enum'a hatta enum türleri arasında implicit tür dönüşümü vardır.
+
+C de:
+enum Color { Blue, Brown, Black };
+enum TrafficLight { Red, Yellow, Green };
+
+int main()
+{
+	int ival = 56;
+	enum Color myColor;
+ 	myColor = Red;
+  	myColor = ival;
+    ival = myColor;
+}
+
+
+C++'ta
+
+int ----> enum'a implicit dönüşüm yok yani:
+
+enum Color { Blue, Brown, Black };
+
+
+int main()
+{
+	int ival = 56;
+	Color myColor;
+ 
+  	myColor = ival; // sentak hatası C++'ta
+}
+
+Fakat her ne kadar yanlış olsa da tam tersi C++'ta geçerli yani:
+enum'dan ------> int'e implicit tür dönüşümü var:
+
+
+int main()
+{
+	int ival = 56;
+	Color myColor = Blue;
+ 
+  	ival = myColor; // C++'ta da sentak hatası değil;
+}
+
+Bu C++ gibi tür kontrolünün çok sık yapıldığı bir dilde böylesi bir şeye izin verilmesi oldukça tuhaftır. Bununla ilgili sorunu kaldırmak için enum'a ek olarak
+class keywordu'u eklenerek enum class olan enum türü çıkmıştır, eski Cpp'ta yoktur. Bu bir class değildir!! Yani anahtar sözcük overload edilmiştir. 
+Buna terminolojide scoped enum deniyor. Diğerine unscoped enum veya traditional enum deniyor. Ve böylece enum türünden int türüne implicit dönüşüm 
+kalkmış olur. Zaten farklı enum türleri arasında implicit tür dönüşümü yok.
+
+
+null pointer
+
+C'de null pointer
+NULL---> C'de bir makrodur. NULL makrosunun tanımı stddef.h, stdio.h, stdlib.h, time.h, string.h gibi başlık dosyalarında tanımlıdır. Fakat eğer sadece NULL makrosu
+için bir başlık dosyası eklenecekse en iyisi stddef.h'ı eklemek en iyisidir.
+
+genelde NULL şu şekilde define edilmiştir: ((void*)0) ya da sadece 0 şeklindedir.
+
+Bir pointer'ın NULL pointer olması ne anlama gelir?
+
+Bir pointer'ın valid (kullanılabilir) veya invalid(kullanılamaz) olması C'de şu şekilde değerlendirilerek anlaşılır:
+1. Hayatı devam etmekte olan bir nesneyi göstermesi
+2. Bir dizinin bittiği yeri göstermesi
+3. Pointer'ın NULL pointer olması
+Örneğin:
+
+int main()
+{
+	int x = 34;
+ 	int a[10] = {0};
+  	int *p1 = &x;
+   	//int *p = a + 10;
+	int *p = a[10];
+ 	*p = 20; //ub görüldüğü gibi dizinin bittiği yeri göstermesi ub değilken dereference etme tanımsız davranıştır.
+}
+Burada dikkat edilmesi gereken bir diğer konu şudur pointer'ın geçerli olması ayrı derefencerable olması ise çok ayrıdır. 
+
+wild pointer çöp değerde olan pointer'lar için söylenir. Bu haliyle kullanmak ub'dir. Ve bu pointer invaliddir!!!
+
+int main()
+{
+	int *p;
+ 	*p = 10; //ub
+}
+
+Bu da ub'dir func(p); //çöp değerde
+p = &x; //gayet normal veya sizof operatörünün operandı olması da gayet normal veya adresinin alınması vb normal
+
+Dinamik yer tahsisi yapmak için bir fonskiyon yazmak istersek, fonksiyon parametresinin pointer to pointer olması çok ama çok önemlidir:
+Bazen bu gözden kaçırılıp fonksiyon paremeteresi pointer yapılıyor ve bu da olayı tamamen yanlış olmasına sebebiyet verir!!!
+
+#include <stdio.h>
+
+
+void allocate_memory( int **pd, size_t n )
+{
+
+ 	*pd = ( int * )malloc( n* sizeof(int) );
+  	if( !*pd )
+   	{
+		fprintf(stderr, "cannot allocate memory!\n");
+  		exit(EXIT_FAILURE);
+	}
+  
+}
+
+
+int main ()
+{
+	int n = 10;
+ 	int *p = &n;
+  
+  	allocate_memory(&p,n);
+}
+
+
+
+
+
+ 
