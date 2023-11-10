@@ -1,0 +1,131 @@
+2. Part
+
+C'de NULL pointer'ın kullanıldığı tipik temalar:
+ 1. Adres döndüren fonksiyonlarda (malloc, calloc, fopen,  set_local fonskiyonu vb. ) --->başarısız olma durumunda NULL döndürür.
+ 2.Arama fonksiyonları (strstr, strchr, strrstr, vb ) bulursa bulduğu adresi, bulamazsa NULL dönderiyor.
+ 3.Bazı fonksiyon argümanlarının pointer olup ona opsiyonel olarak NULL gönderme seçeneğinin mevcut olması, time başlık dosyasındaki time_t fonksiyonu bir örnektir:
+
+ #include <time.h>
+
+ time_t time(time_t*); // time_t türünden bir nesnenin adresini fonksiyona gönderdiğimizde nesneyi calendar time ile set eder (epoch'tan geçen saniye sayısı). Eğer bu fonksiyona NULL adres geçersek hiçbir
+ nesneyi set etmez, ama geri dönüş değerinden calendar time'ı elde edebiliriz. İşte NULL pointer sayesinde böyle bir posiyon sunulmuştur.
+
+ fflush() (stdio.h başlık dosyasında tanımlı)--> buna file handler geçersem o dosyanın buffer'ını flash ederken NULL pointer göndermem halinde açık olan bütün dosyaların buffer'ını flash eder
+ ÖNEMLİ: patrameteresi pointer olan bir fonksiyon için argüman olarak NULL gönderince ne olur dokümente etmek çok çok önemlidir.
+ 
+ 4. int *p = 0; //null pointer conversion Bir pointer değişkene tam sayı sabiti olarak 0 atanırsa bu durumda derleyici NULL pointer'a çeviriyor. Yani C'de pointer'a NULL atamak için 2 farklı yöntem var 
+ a: int *p = 0;
+ b: int *p = NULL;
+
+ C++'ta
+ C++'ta null pointer tanımlamak için eskiden çok yaygın olarak kullanılan int *p = 0; şeklindeydi. Fakat bu bazı sorunlara sebebiyet veriyordu (özellikle function overload konusunda):
+
+void foo(int *p);
+
+int main()
+{
+    foo(0);
+}
+
+eğer ki aynı isimde farklı imzada bir fonksiyon gelirse (function overloading) bu sefer çağıralan fonksiyon ilk seferdeki fonksiyon olmayacaktır.
+
+void foo(int *p);
+void foo(int);
+
+int main()
+{
+    foo(0); //artık void foo(int); isimli fonksiyon çağırılır. fakat biz diğer fonksiyon çağrısı için bunu yazmıştık!!!
+}
+ Bir diğer sıkıntı yanlıkşlıkla bir tam sayıya 0 değeri atayackken pointer değişkene atama ihtimalinin olmasıydı. İşte böyle sorunları ortadan kaldırmak amacıyla modern C++'ta nullptr keyword'u getirildi.
+
+nullptr: keyword, pr value expression, bir sabit ve türü nullptr_t'dır. Bunun türünün olması function overloading konusunda çok işimize yarar.
+
+nullptr_t türünden tüm pointer türlerine örtülü dönüşüm vardır. Fakat pointer olmayan türlere örtülü dönüşüm yoktur. Yani yanlışlıkla pointer olmyana bir değişkene atanması ihtimali veya fonksiyona argüman olarak
+gönderilme ihtimali ortadan kalkmış olur.
+
+
+int main()
+{
+    int *p = nullptr; //nullptr örtülü olarak pointer'a dönüşüm vardı sorun yok 
+    bool b = p; 
+    b = nullptr; //sentaks hatası çünkü nullptr bir pointer türünden değil!!
+}
+
+
+C++'ta NULL pointer belirtme yöntemleri:
+ int *p = NULL;
+ int *p = 0;
+ int *p{ 0 };
+
+ hocanın önerdiği yöntemler: 
+ int *p = nullptr;
+ int *p{}; // buna value initilazition
+
+ statik ömürlü pointer değişkenler default initialize edildiğinde hayata NULL pointer olarak başlar:
+
+ int *p; //default NULL
+
+ int main()
+ {
+     
+ }
+
+Sadece global olan pointerlar için değil şu şekilde static keyword'u ile tanımlanan pointer içinde geçerli bir durumdur:
+
+void foo()
+{
+    static int *p; //default olarak NULL pointer
+    //int *p; şeklinde olsaydı indetermined value olarak çöğ değerde olurdu
+}
+
+Bir diziye ilk değer verdiğimde; dizinin boyutundan daha az initializer ile ilk değer verirsem diğer elemanlar  zero initialize edilir. 
+
+int x, y, z;
+
+int main()
+{
+    int *p[10] =  { &x, &y, &z }; //dizinin diğer elemanları yukarıda yazılan kuraldan ötürü NULL pointer olur.
+}
+
+initializaiton (ilk değer verme ) is not an assigment (atama)!!!
+
+İlk değer verme bir nesne hayata başladığında o nesnenin hayata başladığı değeri belirlemedir. 
+
+
+Bir değişkeni şu şekilde tanımlarsam:
+
+int x; //C de değişkene ilk değer vermedim deriz
+      // C++ ta ise değişkeni initialize etmeme gibi bir şey yoktur buna default initialization denir
+
+C++'ta
+
+T x; // default initialization denir
+
+zero initialization--> kendisi aslen bir initialization biçimi değildir. Ama bazı initialization biçimlerinde ilk aşama olarak gerçekleştiriliyor. Örneğin:
+Statik ömürlü değişkenler default initialization edildiğinde zero initialization edilir. 
+
+C++2ta:
+const int x; //sentaks hatası demiştik Çünkü const nesneler default initialize edilemezler!!
+int& r; // sentaks hatası çünkü L value veya R value referanslar da default initialize edilemezler!!
+
+Otomatik ömürlü nesneler default initialize edildiklerinde indetermined value'da olurlar.
+
+int main()
+{
+    int p; //indetermined value'da
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
