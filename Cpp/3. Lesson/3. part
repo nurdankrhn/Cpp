@@ -1,0 +1,158 @@
+int x(10); // bu şekilde ilk değer vermeye direct initialization deniyor. Bu C'de olan bir sentaks değil. Ve bunda boş şekilde initialization edilmez!!:
+
+int x(); // bu bir initialization olmaz function declaration olur!!!
+
+int x = 10; //bu şekilde ilk değer vermeye ise copy initialization deniyor.
+
+int a [] = {2, 5, 4}; //aggregiate initialization
+
+ilk değer verirken küme parantezi ile verildiğini göstermek için şöyle denir: brace initialization, uniform initialization(ilk değer vermenin konu olduğu
+her yerde küme parantezini kullanabilirsin anlamında olduğu için bu isim verilmiştir!), standart'lar buna value initialization diyor.
+
+Ve değişkenler value initialization ile ilk değer verildiğinde basic türler zero initialization ile ilk değer alır. O halde:
+
+int main()
+{
+
+  int x; //indetermined value
+  int y {}; // zero initialitize edilir 0 olur değeri
+  
+}
+
+int *p{};//null pointer olur
+bool b{};//false değerinde olur
+
+int x { 12 }; //bu şekilde ilk değer vermeye ise direct list initialization denir!!!
+
+Küme parantezi ile ilk değer verme il daha önceden bahsettiğimiz gibi küme parantezi kullanarak değer veremediğimiz yerlerede değer verebilir hale geldik.
+Bu yüzden uniform initialization diye isimlendirildiğinide söylemiştik. Fakat sadece bu değil bu şekilde ilk değer verme ile 2. bir nitelik daha kazandırıldı
+yani küme parantezi ile ilk değer verdiğimizde diğer ilk değer verme biçimlerinde olmayan yeni bir sentaks özelliği geldi:
+Bu şekilde ilk değer verdiğimizde narrowing conversion sentaks hatası haline gelir. Değer kaybına yol açan implicit dönüşümlere narrowing conversion denir.
+
+int main()
+{
+
+ 	double dval{34.956};
+
+  	int i1 = dval; //copy initialization
+   	int i2(dval); //direct initialization
+	int i3 {dval}; //sentaks hatası uniform initialization'da narrowing conversion sentaks hatası haline geldi!!!
+
+ 	//explicit conversion ile sentaks hatasını ortadan kaldırabiliriz:
+
+	int i3 {(int)dval}; //bile isteye dönüşüm yapılmış, sorun yok
+	
+}
+
+
+Uniform initialization dile eklenmesindeki bir diğer önemli yer:
+most-vexing parse
+Öyle yapılar var ki C++'ta 2 farklı anlama gelebiliyor:
+1)bir fonksiyon bildirimi
+2)bir değişken tanımlaması (object instantiation)
+Böyle bir durumda fonskiyon bildiriminin önceliği vardır. Eski C++'ta bu çok sıkıntı yaratıyordu, kişi değişken tanımlandığı zannederken o fonksiyon 
+bildirmi olarak algılanıyordu ve bu büyük bir sorun yaratıyordu. Örneğin:
+
+class A {
+
+};
+
+class B {
+
+ 	public:
+  		B(A); //B sınıfının A sınıfı türünden bir constarct'ırı var.
+};
+
+int main()
+{
+
+		B bx(A()); //B sınıfı türünden ismi bx olan ve direct initialize ettiğim ilk değer veren ifade olarak da A sınıfı türünden bir 
+  				   //geçici nesne kullandığım bir nesne tanımladığımı düşünürsem yanılırım çünkü most-vexing parse göre bu fonksiyon bildirimi olarak değerlendirilir
+		
+}
+
+void func(int[]); //parametresi int pointer olan fonksiyon, C'de de C++'ta  fonksiyon parametresi de geri dönüş değeri türleri de array olamazz!!
+
+
+Yine C'de ve C++ta fonskiyonların parametre değişkenleri de geri dönüş değerleri de fonksiyon türünden olamaz. 
+
+
+int foo(int);---> foo'nun türü int(int)'dir. Bu geri dönüş değeri int parametresi int olan bir fonksiyon türü demek.
+
+int foo(int, int); // türü int(int, int)'dir
+
+
+DİKKAT:
+Bir fonksiyon türü ile bir fonksiyon pointer türünü birbiri ile karıştırmayınız!!!!
+
+int foo(int, int); ise &foo'nun türü nedir peki?
+&foo'nun türü---> int (*)(int, int) şeklindedir (function pointer)
+YANİ; int (*) (int, int) ---> int (int, ,int) türünden bir varlığın adresi olan türdür!!!
+
+using FUNC = int(int);
+
+int foo(int);
+
+int main()
+{
+
+	FUNC * fp = &foo;	//veya şu şekilde:
+ 	//int (*fp) (int) = &foo;
+}
+
+Eğer ben bu şekilde fonksiyon bildirimi yaparsam:
+void func(int(int)); bunu derleyici şu şekilde değerlendirir:
+void func(int(*)(int));
+
+Dolayısıyla az önceki örnekte, programın değişken tanımı niyetiyle yazdığı kod şuydu:
+
+class A {
+
+};
+
+class B {
+
+ 	public:
+  		B(A); //B sınıfının A sınıfı türünden bir constarct'ırı var.
+};
+
+int main()
+{
+
+		B bx(A()); //B sınıfı türünden ismi bx olan ve direct initialize ettiğim ilk değer veren ifade olarak da A sınıfı türünden bir 
+  				   //geçici nesne kullandığım bir nesne tanımladığımı düşünürsem yanılırım çünkü most-vexing parse göre bu fonksiyon bildirimi olarak değerlendirilir
+		
+}
+bunu derleyici şu şekilde değerlendirir:
+B bx(A(*)()); Böyle olunca da bu satırdaki kod bir fonksiyon bildirmi olur ve programcının yazdığı kodun anlamının çok dışında bir kod olur.!!!
+
+Yani most-vexing parse ifade hem fonksiyon bildirimi hem de değişken bildirimi anlamına geliyorsa, fonksiyon bildiriminin önceliği vardır.
+
+ Modern C++ öncesinde bunu önlemek için şu yapılıyordu:
+ B bx ((A()));
+ Artık bu şekilde de bu ihtimali ortadan kaldırmış oluyoruz:
+
+ B bx1 (A{});
+ B bx2 {A()};
+ B bx1 {A{}};
+
+ Toparlamak gerekirse neden brace initialization dile eklendi:
+ 1. Uniform olması-->neyi initialize edersek kullanabilmemiz
+ 2. narrowing conversion'ın sentaks hatası olması
+ 3. most-vexing parse'a girmesinin engellemesi
+
+ 	void func (int **p)'ı farklı şekilde ifade etmek istersek:
+  	void func (int *p[]); şeklinde edebiliriz
+
+   	void func (int (*p) [10]); farklı şekilde ifade etmek istersek:
+	void func(int [][10]);
+ 
+ 	void func(int(int)); bu tanım derleyici tarafından şu şekilde değerlendirilir:
+  	void func(int(*)(int));
+
+
+
+
+
+
+
