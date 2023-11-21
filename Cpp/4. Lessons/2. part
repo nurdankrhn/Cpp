@@ -124,6 +124,125 @@ int main()
 
 Dizi pointer'larının ve dizi referanslarının tür eş ismi kullanılması ile daha kolay anlaşılması:
 
-typedef bildirimi için pratik  yol: hangi türe eş isim vericeksek o türden bir değişken tanımlayıp, başına typedef koyun ve değişkenin ismini tür ismi olarak değiştirim.
+typedef bildirimi için pratik  yol: hangi türe eş isim vericeksek o türden bir değişken tanımlayıp, başına typedef koyun ve değişkenin ismini tür ismi olarak değiştirin.
+Örneğin beş boyutlu dizi türü için bir typedef yapalım:
 
+typedef int inta[5];
+
+int main()
+{
+	int a[5]{1, 2, 3, 4, 5};
+
+	//inta5& r = a;
+	int(&r)[5] = a;
+	inta5* p = &a;
+	//int (*p)[5] = &a;
+}
+
+L value referasnlar ne işe yarıyor??
+call by reference semantiğini daha yüksek düzeyde implemente etmeye yarıyor, yani en çok kullanıldıkları yer fonksiyonların parametre değişkenleri:
+void foo(int& r);
+
+int main()
+{
+	int x = 10;
+	foo(x);
+}
+
+2 değişkenin değerinin birbiriyle yer değiştiren fonksiyonun:
+
+1 pointer ile yapılması:
+
+void iswap(int *p1, int *p2)
+{
+	int temp = *p1;
+	*p1 = *p2;
+	*p2 = temp;
+}
+
+int main()
+{
+
+	int a = 60, b = 30;
+	iswap(&a, &b); //call by reference
+}
+
+2 reference ile yapılması:
+
+void iswap(int& r1, int& r2)
+{
+	int temp = r1;
+	r1 = r2;
+	r2= temp;
+}
+
+int main()
+{
+
+	int a = 60, b = 30;
+	iswap(a, b);
+}
+
+Reference dil katamınında bir kavram yani her 2 kodun assembly karşılığı aynı olup dolayısıyla hızları da aynı olur.
+
+
+Dikkat edilirse fonksiyon bildirimi görülmeden fonskiyon çağrısında çağrılan parameterenin kendisi üzerinde mi yoksa kopyası ile mi çalışıldığı asla bilinemez
+Fonksiyon parametresi T türünden de olabilir, T ref türünden de olabilir!!!!
+Fakat C'de bu net bir şekilde bellidir, çünkü call by reference olanlar çağrıda & operatörünün operandı olarak yer almaktadır.
+
+Referansların en çok kullanıldığı yerler:
+a)Fonksiyon parametresi
+b)Fonskiyon geri dönüş değeri
+
+int g = 50;
+
+int& foo()
+{
+	return g;
+}
+
+
+int main()
+{
+	foo() = 999; //C'de hiçbir zaman fonksiyon çağrı operatörü ile oluşturulmuş bir ifade atama operatörünün sol operandı olamaz!!! C++ de bu sık kullanılan,
+														//normal bir durumdur
+	//Fonksiyonun geri dönüş değeri L value referans ise fonskiyon çağrı ifadesi de L value expression olur, yani bu fonksiyon hangi nesneyi dönderiyorsa
+	//atama o nesneye yapılır.
+
+	++foo(); //gayet normal
+	
+}
+
+
+Buradan şöyle bir sonuç çıkıyor: Fonskiyonun geri dönüş değeri referans türü değilse, bu fonksiyona yapılan çağrı ifadesi bir PR value expression'dır.
+Fakat fonskiyonun geri dönüş değeri bir L value referans ise bu fonksiyona yapılan çağrı ifadesi artık bir L value expression'dır yani ++, =, & vb operatörlerin 
+operandı olabilir çünkü bir nesneye karşılık geliyor.
+
+
+ DİKKATTT: Otomatik ömürlü nesnenin adresini döndürmek dangling pointer'dır ve ub'dir.
+
+int* foo()
+{
+	int x;
+	scanf("%d", &x);
+	return &x; //dangling pointer
+}
+Eğer bu değişken statik ömürlü bir nesne olsaydı tanımsız bir davranış olmazdı:
+
+int* foo()
+{
+	static int x;
+	scanf("%d", &x);
+	return &x; //statik ömürlü gayet normal
+}
+
+Veya mallocla dinamik olarak tahsis ettiğimiz değişken adresini de return etmemiz ub olmazdı.
+
+Yine string literalleri de statik ömürlü olduğundan fonksiyon geri dönüşünde kullanılabilir:
+
+const char* foo(void)
+{
+	//code
+	return "myString";
+}
 
