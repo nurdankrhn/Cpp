@@ -1,0 +1,129 @@
+Referans semantiği ve Pointer semantiği arasındaki farklar
+
+Bir araç eklenmesiyle, programcının işinş kolaylaştıralım cpp dilinin diğer araçları ile uyumu arttıralım. Programcı initialize ederken adres operatörünü kullansın ne de dereference etmek zorunda kalsın.
+Değişkenin ismini kullandığı zaman zaten arka planda nesnenin gösterdiği yere ulaşşın, işte bu "referans" demek.
+
+
+Referansları şöyle düşünebiliriz:
+
+int main()
+{
+    int x = 10;
+    int* const ptr = &x; // int& r = x;
+}
+
+
+DİKKATTTT: L value referansların R value expression ile initialize edilmeleri sentaks hatası!!!
+Yani bir L value reference değişkeni init eden ifade L value expression değer kategorisinde olmalı.
+int& r = 10; //sentaks hatası
+
+int main()
+{
+	int x = 10;
+ 	int *p{&x};
+
+   	int& r = *p; //geçerli
+
+ 	r = 99; //x'e 99 değeri atandı
+
+}
+
+int main()
+{
+
+
+ 	int x = 7;
+  	int& r1 = x;
+   	int& r2 = r1;
+	int& r3 = r2;
+
+ 	++r1;
+  	++r2;
+   	++r3;
+
+ 	std::cout << "x  = " << x << "\n"; //x=10 yazar
+}
+
+int* türünden bir nesnenin türünden referans tanımı:
+
+int main()
+{
+
+ 	int x = 9;
+  	int *p{&x};
+
+   	int*& r = p; //int* türden p r referansına bağlandı yani r p'ye referans r demek p demek
+
+ 	++*r; //x'in değeri 10 oldu
+}
+
+int main()
+{
+
+	int *p = nullptr;
+
+ 	//ismi r olan referansı p'ye bağlayınız:
+  	int*& r = p; // p'nin türü int* referans dekleratörü de & olduğundan bu şekilde yapılır
+}
+
+
+
+int main()
+{
+	int x = 5;
+
+ 	int *p = &x;
+  	int **ptr = &p;
+   	int**& r = ptr;
+	**r = 99; //x inn değeri 99 oldu
+}
+
+NOT: Operatör bir ifadede olur, ama bir bildirimdeki *, (, [, & gibi tokenlara deklaratör denir.
+int main()
+{
+
+	int x = 10;
+ 	int *p = &x; //buradaki * deklaratör, & ise operatördür.
+  	*p = 15; //buradaki * ise artık bir oparatör statüsündedir.
+}
+
+int main()
+{
+
+	int x = 10;
+ 	double dval{};
+
+  	int& r = dval; //sentaks hatası arka planda yine pointer olduğundan int *'a double türünden bir nesnenin adresini atayamayız!!!
+}
+
+
+5 boyutlu bir int dizimizi (dizinin hepsini gösteren) bir pointer tanımını şu şekilde yapıyorduk:
+
+int main()
+{
+	int a[5] {1, 2, 3, 4, 5};
+ 	int (*p)[5] = &a;
+
+   //soru bu şekilde bir bildirim sentaks hatası mıdır?
+   //int *ptr = *p; hayır çünkü ---> int *ptr = &(*p)[0] demek oluyor!!!
+   //int *ptr = a; deseydim array dikey ile sorunsuz bir kod olacaktı o sebeple sorun yoktur!!
+}
+
+Nasıl diziyi gösteren pointer varsa diziyi bir değişkene referans edecek bir referans değişkeni de vardır:
+int main()
+{
+	int a[5] {1, 2, 3, 4, 5};
+ 	int (&)[5] = a; // r demek a demek, yani r 5 elemanlı int bir diziye referans
+
+  	for(int i = 0; i < 5; i++) {
+   		printf("%d %d", r[i], a[i]);
+	}
+
+}
+
+
+Dizi pointer'larının ve dizi referanslarının tür eş ismi kullanılması ile daha kolay anlaşılması:
+
+typedef bildirimi için pratik  yol: hangi türe eş isim vericeksek o türden bir değişken tanımlayıp, başına typedef koyun ve değişkenin ismini tür ismi olarak değiştirim.
+
+
