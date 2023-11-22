@@ -1,0 +1,179 @@
+18 Ocak 2023- Çarşamba
+
+TÜR ÇIKARIMI
+(Type deduction)
+Dilin öyle bir aracı ki tür yazmamız gereken yerde veri tipini yazmıyoruz, fakat dilin kurallarına bakarak derleyici verinin tipini anlaması olayıdır.
+Oldukça önemlidir, çok karşımıza çıkarak. Koda bakarak anladığından run time ile ilgisi yoktur.
+
+Tür çıkarımı ile ilgili farklı anahtar sözcükler vardır. Örneğin C'de çok kullanılmayam auto key wordu. Bir diğeri ise decal type'dır.
+
+Öyle türler var ki bu türler çok karmaşık, çok fazla token içerirler bu tarz durumlarda yine tür çıkarımı çok işe yarar.
+
+auto type deduction
+
+auto anahtar sözcüğü ile değişkenlerin tanımlanması
+
+auto anahtar sözcüğünü kullandığımız yerlerde bir tür kullanmış oluyoruz. Dolayısıyla  auto bir type holder olarak görülmelidir:
+örneğin: auto x = 10; //x değişkenin türü int
+Tür çıkarımı değişken için yapılmaz; auto keyword'u için yapılır. 
+auto keywordunu kullanıp değişkeni default initialize edemem!!!
+auto keywordu kullanırken şu şekilde de ilk değer verebiliriz:
+
+//auto x(expr);
+//auto x{expr};
+
+auto için tür çıkarımı yapılırken bunu belirleyen kurallar 3 ana kategoride incelenir:
+1. auto tek başına yani yanında ne pointer ne de referans dekleratörü yok
+auto x = expr;
+2. auto'nun yanında sadece bir tane sol taraf referans dekleratörü var
+auto &y = expr;
+3.auto && z = expr; //forwarding reference şeklindedir.
+
+1. auto x  = expr;
+Burada kural şu: eşittirin sağ tarafındaki ifadenin türü ne ise auto yerine gelecek tür o olur.
+auto x = 'A'; //char
+auto x = 'A' + 'A'; //int
+char c = 12;
+auto x = +c; //int (integral promotion kuralı uygulanır sonuç int türden olur)
+auto x = 4.5; // double
+auto x = 4.5F;// float
+auto x = 4.5L;//long double
+
+
+Dikkat etmemiz gereken bir soru:  ternary operatörün 2. ve 3. operandı arasında tür dönüşümü kuralları uygulanır. Dolayısıyla 
+int ve double işleme girdiğinden sonuc double türden olur!!!
+int main()
+{
+
+  int a = 5;
+  int b = 6;
+
+  double dval = 3.4;
+
+  auto x = a > 2 ?  b : dval; // auto double olur ve sonuç double türden 6 olur
+}
+
+Bu şekilde örnek ele alınırsa sonuç C'de int olmasının aksine C++'ta bool türden olur:
+
+int main()
+{
+
+  int a = 5;
+  int b = 6;
+
+  double dval = 3.4;
+
+  auto x = a > b; // auto bool olur
+}
+
+
+Bir dizi ismi söz konusu olduğunda array dikey uygulanır:
+
+int main()
+{
+
+    int ar[]{3, 6, 9};
+
+    auto x = ar; //auto int* türünden olur
+}
+
+int main()
+{
+
+    const int ar[]{3, 6, 9};
+
+    auto x = ar; //auto const int* türünden olur
+}
+
+
+int main()
+{
+    auto x = "atakan";//auto const char[7];
+}
+
+ÖNEMLİİİ:
+Referans deklaratörü vb olmadığında nesnenin kendi constluğu her zaman düşüyor:
+int main()
+{
+
+  const int x = 20;
+  auto b = x; // auto int olur
+  
+}
+
+Top level const olan bir değişkenin değerini auto keywordu ile başka bir değişkene atarsam top level const'luktan dolayı const düşer:
+
+int main()
+{
+
+    int x = 10;
+    int* const p = &x; //top level const
+
+    auto y = p; //auto int* olur
+}
+
+Low level const düşmez o zaten türün bir bileşenidir:
+
+int man()
+{
+
+  int x = 20;
+  const int *p = &x;
+
+  auto y = p; //auto const int* olur
+}
+
+int& r = x; // r ifadesi'nin türü int'dir. Yani bir değişkenin türü referans türü olabilir ama bir ifadenin türü referans türü olmaz. 
+r değişkenin türü ise int&'tir. O halde:
+
+int main()
+{
+    int x = 10;
+    int& r = x;
+
+    auto y = r; //auto int olur çünkü r ifadesinin türü int'dir, int& değildir.
+    
+}
+
+int main()
+{
+    int x = 10;
+    const int& r = x;
+
+    auto y = r; //auto int olur çünkü r ifadesinin türü int'dir, int& değildir ve const'da düşer.
+    
+}
+
+Dikkat!!!
+Bir değişken isminin oluşturduğu ifadelerin değer kategorisi L value değer kategorisidir. Söz konusu değişken bir sağ taraf referansı olsa dahi:
+
+int main()
+{
+    int&& r = 10;
+    r ifadesinin değer kategorisi yukarıda belirtildiği gibi L value değer kategorisi olur.
+    //r değişkeninin türü int&&'dir.
+    //r ifadenin türü ise int'dir
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
