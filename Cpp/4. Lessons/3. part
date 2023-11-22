@@ -1,0 +1,249 @@
+Pointer ile yazılmış bu örneği referans semantiği ile yapınız:
+
+int* foo(int *ptr)
+{
+    *ptr *= 2;
+    return ptr;
+}
+
+int main()
+{
+
+    int x = 10;
+
+    int *p = foo(&x);
+
+    ++*p;
+
+    std::cout << "x = " << x  << "\n";
+
+}
+
+Referasn semantiği eş değeri şu şekilde olur:
+
+int& foo(int& ptr)
+{
+    ptr *= 2;
+    return ptr;
+}
+
+int main()
+{
+
+    int x = 10;
+
+    int& p = foo(x);
+
+    ++p;
+
+    std::cout << "x = " << x  << "\n";
+
+}
+
+
+Soru: yukardaki kodu şu şekilde yazsakta geçerli olur mu?
+int& foo(int& ptr)
+{
+    return ptr *= 2;
+}
+
+C++'de atama operatörleri ile oluşturulan ifadeler L value exp. olduğu için atama sonucu kendisine atama yapılan değişken döndürülüyor ve tamamen geçerli
+hale geliyor.
+
+Soru main içinde bulunan ifade şöyle olsaydı sentaks hatası olur muydu?
+
+int& foo(int& ptr)
+{
+    ptr *= 2;
+    return ptr;
+}
+
+int main()
+{
+
+    int x = 10;
+
+    //int& p = foo(x);
+    int p = foo(x); //tamamen geçerli kodun anlamı değişti sadece burada artık p ayrı bir nesne
+
+    ++p; //p arttırıldı x değil!!  
+
+    std::cout << "x = " << x  << "\n";
+
+
+}
+
+
+Tıpkı pointer semantiğinde olduğu gibi referans semantiğinde de const correctness vardır. 
+Bir referansın bağlandığı nesnenin dışında bir başka nesneye bağlanma ihtimali yoktur. Yani onlar doğuştan top level const referanstır.
+Dolayısıyla şu şekilde bir const tanımının hiçbir anlamı yoktur:
+
+int main()
+{
+
+    int x = 10;
+    int& const r = x; //geçerli ama bir anlamı yok
+}
+
+Fakat şu şekilde bir tanımlama elbette anlamlıdır:
+
+int main()
+{
+
+    int x = 10;
+    const int&  r = x; //low level const reference (zaten top level const reference diye bir şey olamadığından direk bu const reference diye geçer)
+} 
+
+C++'de C'de bulunan typedef'e muadil bir tür eş bildirimi vardır ve sentaksı oldukça kolaydır:
+
+using T = int;
+
+void f1(T*);
+void f1_(T&); //referans karşılığı
+
+void f2(const T*);
+void f2_(const T&); //referans karşılığı
+
+T* f3(void);
+T& f3_(void); //referans karşılığı
+
+const T* f3(void);
+const T& f3_(void); //referans karşılığı
+
+Referansı arka planında pointer olduğundan, const bir nesneyi const olmayan bir değişkene bağlayamatyız. Anımsanacağı üzere, pointerlarda
+const T*'dan T*'a dönüşüm yoktu.
+
+int main()
+{
+    const int x = 10;
+    int *p = &x; //sentaks hatası
+}
+
+Referansta ise şu şekilde bir atama sentaks hatası olur:
+
+
+int main()
+{
+    const int x = 10;
+    int& r = x; //sentaks hatası
+}
+
+Sentaks hatasını kaldırmak için referans değişkeni de const olarak tanımlanmalı:
+int main()
+{
+    const int x = 10;
+    const int& r = x;
+    //int const& r = x; şeklinde de olabilir
+}
+
+
+T*'dan const T*'a dönüşüm vardır dolayısıyla şu şekilde bir kod parçası gayet doğaldır:
+int main()
+{
+    int x = 10;
+    const int* p = &x;
+}
+Bu örnekteki const'luğa contractual constness deniliyor çünkü derleyici bakış açısıyla *p const olduğundan ona atama yapılmaz, fakat
+*p fiziksel olarak const değildir çünkü *p x demek fakat x const değil. İşte benim gösterdiğim yer const değil fakat yaptığım sözleşme gereği
+const'um diyen pointer const'luğa için contractual constness deniyor.
+Burada önemli bir diğer nokta ise şudur; fiziksel olarak const olan bir nesneyi external olarak const olmayan bir pointer'a atayıp değerini değiştirmek
+TANIMSIZ DAVRANIŞ'a neden olurken tam aksine contractual constness için böyle bir durum oldukça normal ve geçerli olur:
+
+int main()
+{
+
+    int x = 10;
+    const int *ptr = &x;
+
+    int *p = (int *)ptr;
+    *p = 55; //gayet geçerli bir kod satırı
+}
+
+
+int main()
+{
+
+    const int x = 10;
+    const int *ptr = &x;
+
+    int *p = (int *)ptr;
+    *p = 55; //TANIMSIZ DAVRANIŞ
+}
+
+"alican" string literalini bir referans değişkenine nasıl atayabiliriz?
+
+int main()
+{
+
+    const char (&r)[7] = "alican";
+    
+}
+
+Pointer semantiği ve Referans sementiği arasındaki farklar:
+
+Pointerlar default initialize edilebirken, referanslar edilemez:
+int main()
+{
+    int *p; //geçerli
+    int& r;//sentak hatası
+}
+
+Bir pointer değişken kendisi const değilse yani top level const değilse hayatı devam ederken başka başka nesneleri gösterebilir, fakat referanslar
+doğustan const yani rebindlable değillerdir dolayısıyla ömrü boyunca hep aynı nesneyi gösterir.
+
+Pointer array oluşturabilirken(int *p[] = {&x, &y}; (x ve ye int türden birere değişken olmak üzere.)), elemanları referans olan bir dizi kavramı yoktur.
+
+Null pointer olur fakat null referans olamaz, zaten C++'ta pointer semantiğinin hala kullanılma nedenlerinden biri de budur!!!
+
+Pointer to pointer var, ama reference to reference yok yani referansı gösteren referans yok.
+
+Eğer biz referans kullanıp hem de geri dönüş değeri olarak bir şey döndürmeme ihtimali olan bir durum ile karşı karşıyaysak optional sınıfını kullanabiliriz:
+
+#include <iostream>
+#include <optional>
+
+std::optional<int> foo();
+
+
+ÖNEMLİ BİR KURAL
+Bir L value reference bir R value expression'a bağlanamaz sentaks hatasıdır ama bir const L value expression bir R value expression'a bağlanabilir.
+
+  const int& r = 10;
+  Burada referans bir sabite bağlanmıyor. Derleyici bu durumda geçici bir nesne üretiyor. Yani buradaki sözde kod şöyledir:
+
+  int main()
+  {
+    const int& r = 10;
+    /*
+    int t_obj = 10;
+    const int& r = t_obj;
+       
+  }
+
+  Bunun faydası şudur; sadece const ref değişken olarak fonksiyona argüman olarak geçilecek bir değişken tanıma yapmak yerine fonksiyon çağrısınsa direk
+  sabit ifade kullanmak:
+
+  void foo(const int& r);
+
+  int main()
+  {
+
+      foo(5);
+  }
+
+  Yine aşağıkaki kod parçasında da geçici nesne yoluyla int değişken değeri double ref değişken'e atanmıştır. Ve geçici nesne de double türdendir.
+  O nedenle sentaks hatası oluşmamıştır.
+
+  int main()
+  {
+      int x = 10;
+      const double& r = x;
+
+      /*
+      double temp = x;
+      const double& r = temp;
+      */
+  }
+Buradalarda ki geçici nesnenin ömrü referansın skobu devam ettikçe devam eder(life extension).
+
+
