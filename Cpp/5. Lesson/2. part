@@ -1,0 +1,278 @@
+auto x[] .... şeklinde bir tanımlama yapamıyoruz.
+
+auto *x, auto &, auto && vb olabilir.
+
+Fonksiyon türü ile fonksiyon pointer türü birbiri ile karıştırılmamalıdır.
+int foo(int); --->foo değişkeninin türü bir fonksiyon türüdür. Ve şöyle gösterilir: int(int)
+foo'nun adresinin türü ise int(*)(int) olur, yani fonskiyon türü başka fonskiyonun adresinin türü başkadır.
+
+int foo(int);
+
+int main()
+{
+
+    int(*p)(int) = foo; //burada dikey olur buna function to pointer conversion
+    //int(*p)(int) = &foo; //derleyici yukarıdakini bu şekilde yorumluyor.
+}
+
+auto içinde dikey uygulanıyor ve şöyle oluyor:
+int foo(int);
+
+int main()
+{
+
+    auto fp = foo;
+    //auto fp = &foo; şeklinde yorumlanır
+    //int(*fp)(int) = foo; şeklinde yorumlanır. Yani auto function pointer olur 
+  }
+
+
+Bir diğer örnek:
+
+int main()
+{
+    int x = 10;
+    const auto y = x; //auto int y const int olur
+}
+
+int main()
+{
+
+    int x = 10;
+    int *prt = &x;
+    
+    const auto p = ptr; // auto int* const olur yani top level const olur---> int *const p = ptr;
+}
+
+2. auto &y = expr;
+
+İlk olarak anlamamız gereken şudur: Biz bir sol taraf referansı tanımlamış olduk. 
+Burada ilk kategori ile arasında 3 önemli fark var: artık const'luk düşmeyecek, array dikey olmayacak ve fonskiyon türünden fonskiyon adres türüne dikey 
+olmayacak.
+
+int main()
+{
+
+    int x = 10;
+    auto &y = x; //auto int olur
+    auto &z = x + 5; //sentaks hatası auto int olur l value reference R value exp ile atama yapılamaz!!
+}
+
+
+int main()
+{
+    const int x = 5;
+    auto &y = x; //auto const int olur.
+}
+
+int main()
+{
+    const int x = 5;
+    int *const p = &x;
+    auto &ptr = p; // auto int *const olur
+}
+
+int main()
+{
+    int a[5]{};
+
+    auto &b = a; // auto int[5] türden olur
+    //int (&b)[5] = a; 
+} 
+
+
+
+using ar = int[5];
+
+int main()
+{
+    int a[5]{};
+
+    ar& r1 = a;
+    int(&r2)[5] = a;
+    auto& r3 = a;
+
+    int *p = r1;
+    p = r2;
+    p= r3;
+  
+}
+
+
+int main()
+{
+    auto &r1 = "fatih"; //auto const char[6] türünden olur
+}
+
+
+int foo(int);
+
+using FPTR = int(*)(int);
+using FUNCTION = int(int);
+int main()
+{
+
+    auto fp = foo; //int(*)(int);
+    //int(*fptr)(int) = foo;
+    FPTR fp2 = foo;
+    FUNCTION *fp3 = foo;
+}
+Fakat auto keyword'un yanında & dekleratörü olduğu zaman fonksiyonlarda da dikey uygulanmaz:
+
+int foo(int);
+
+int main()
+{
+    auto &f = foo; //auto int(int) //dikey uygulanmadı tür fonksiyon türü oldu.
+}
+
+
+int foo(int);int(int);
+
+using FUNC = 
+
+int main()
+{
+    auto &f1 = foo; //auto int(int) //dikey uygulanmadı tür fonksiyon türü oldu
+
+    FUNC &f2 = foo;
+    int (&f3)(int) = foo;
+    
+}
+
+
+
+3. auto &&z = expr; //forwarding reference
+
+Referans'a referans yok fakat öyle bağlamlar var ki C++ dilinde bazı bağlamlarda, referansa referans ortaya çıkıyor. Böyle durumlarda uygulanan bir kural 
+seti var buna:
+reference collapsing
+T&     &      T&
+T&     &&     T&
+T&&    &      T&
+
+T&&    &&     T&&
+
+
+using REF = int&;
+
+REF &x //sol taraf referansına sol taraf referansı oluştu ve reference collapsing'e göre x T& yani int& olur.
+
+int main()
+{
+    int y = 10;
+
+    REF &r = y; // r nin türü int&
+
+    REF &&x = y; //r nin türü int&
+    //int& x = y; demek yani
+}
+
+
+
+using REF = int&&;
+
+int main()
+{
+
+    REF & r //L value ref olur yine,
+    REF &&x = 10; // x in türü int&&
+}
+
+
+auto &&r = expr;
+Burada yapılan tür çıkarımı ilk değer veren ifadenin sadece türünden değil value category'sinden de hareketle yapılıyor. Eğer eşittirin sağında 
+ilk değer veren ifadenin değer kategorisi L value ise auto karşılığı elde edilen tür sol taraf referansı yani T&'tir. Ama eğer ifade L value
+expression değil ise auto karşılığı elde edilen tür T olur.
+
+
+int main()
+{
+
+    int x = 10;
+    auto &&y = x; //x L value expression olduğundan auto int& türünden olur sağ taraf referansa sol taraf referansı oluştu ve y reference collepsing'e
+    //göre int & türünden olur. Yani eş değeri şudur:
+
+    //int &y = x;
+}
+
+
+int main()
+{
+
+    auto && y = 10; 
+    //int &&y = 10;
+}
+
+const'lukta korunuyor:
+
+int main()
+{
+    const int x = 10;
+    auto && y = x; //auto const int& türünden olur
+    
+}
+
+autonun birkaç farklı şekilde kullanımı:
+trailing return type sentaksı:(generic programlama kısmında daha çok kullanılıyor)
+Bir fonksiyonun tanımında veya bildiriminde geri dönüş türü yerine auto yazıp, fonksiyonun parametre parantezinin kapanmasından sonra -> tokenını 
+koyup, fonksiyonun geri dönüş değerinin türü yazılır
+auto func()->int
+{
+
+    //
+}
+
+Öyle bir fonksiyon bildirin ki geri dönüş değeri türü int(*)(int) olsun
+
+int (*foo())(int) şeklinde olur.
+
+int bar(int);
+
+int (*foo())(int)
+{
+
+    return &bar;
+}
+
+Görüldüğü gibi geri dönüş değeri fonksiyon adresi olması biraz karışık bir yazıma sahip bunu auto keywordu ile daha anlaşılır şekilde tanımlayabiliriz:
+
+auto foo()->int(*)(int)
+{
+    //return &bar;
+}
+
+int a[10]{};
+
+auto foo()->int(*)[10]
+{
+  //fonksiyonun geri dönüş değeri 10 elemanlı bir dizi adresi
+  return &a;
+}
+
+  Bir başka auto kullanımı:auto return type
+
+auto foo()
+{
+    int x = ;
+    return x;
+}
+Burada return için tek tür olması gerekir, birden fazla türde değer döndürümü sentaks hatasıdır:
+auto foo(int x)
+{
+    if(x % == 0 )
+      return 1;
+    return 2.3; //sentaks hatası int türden değil aynı türden bir değer olması lazım;
+}
+
+
+Bir başka auto kullanımı:
+template <auto n>
+
+Bir başka auto kullanımı:
+void func(auto x);
+
+
+
+
+
