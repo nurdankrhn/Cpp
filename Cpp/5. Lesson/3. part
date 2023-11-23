@@ -1,0 +1,225 @@
+decltype 
+Modern C++ ile (C++11) eklenen bir keyword'dür. Bu anahtar sözcük declaration type'den kısaltılmış bir anahtar sözcüktür. 
+decltype specifier'ı ile bir tür elde ediyoruz ve bu türü tür gereken yer yerde kullanabiliriz:
+Dolayısıyla auto'ya göre daha geniş fakat daha az bir kullanıma sahiptir.   
+
+decltype kullanırken tür çıkarımı için 1 önemli husus var:
+1. decltype(x) parantezi içinde eğer identifier yani isim yazarsak uygulanan kurallar farklı7
+decltype(x)
+decltype(a.b)
+decltype(ptr->val)
+2. decltype(expr) parantezi içine bir ifade yani isim formunda olmayan ifade olursa farklı uygulanan kurallar olur.
+decltype((x))
+decltype(+x)
+
+1. husus--->decltype(x)
+isim nasıl deklere edilmişse hangi türden tanımlanmışsa decltype() ile belirtilen türde o türden olur.
+
+int x = 10;
+
+double y = 3.4;
+
+decltype(x) y = 5;
+
+decltype(x) foo();
+
+sturct Data{
+
+  decltype(x) y;
+  //int y;
+}
+int main()
+{
+    
+}
+
+auto'nun aksine artık const'luk &opeandı vb düşmez!!!
+
+int main()
+{
+    const int x = 10;
+    decltype(x); //sentaks hatası çünkü const nesneler default initialize edilemezler.  
+  
+}
+
+
+int main()
+{
+    int x = 0;
+    int y = 10;
+    const int* const ptr = &x;
+    decltype(x) p = &x; //tür const int* const olur
+    p = &y; //sentaks hatası const
+    *p = 5; //sentaks hatası const
+}
+
+array dikey de uygulanmaz:
+
+int main()
+{
+    int a[5]{};
+
+    decltype(a) b;//b int[5] türünden olur
+}
+
+
+int main()
+{
+
+    int x = 1;
+    int y = 2;
+
+    int& r = x;
+    decltype(r) t = x; //tür int& olur
+    //int& t = x;
+    
+}
+
+int main()
+{
+    int&& r = 10;
+    decltype(r) y = 5; //int&& y = 5;
+    
+}
+
+decltype ile oluşturulan ifadeleri const, volatile, static gibi belirteçler ile niteleyemiyoruz. Sentaks hatası:
+
+int main()
+{
+    int x = 5;
+    const decltype(x)//sentkas hatası
+    
+}
+
+
+struct Nec{
+
+  int a[7];
+  double dval;
+}
+
+int main()
+{
+
+    Nec myNec{};
+    Nec *p{&myNec};
+
+    decltype(p->a);
+    decltype(myNec.dval);
+}
+
+
+2. husus-->decltype(expr) olması
+Eğer decltype operandı bir ifade ise yani bir isim değilse o zaman bu  durumda elde edilen tür operand olan türün value category'sine bağlıdır.
+PR value ise elde edilen tür T
+L value ise elde edilen tür T&
+X value ise elde edilen tür T&& olur.
+
+int main()
+{
+    int x = 5;
+    decltype(x + 4) // x + 4 PR val. cat. o halde elde edilen tür T yani int olur
+}
+
+int main()
+{
+    int x = 10;
+
+    int *ptr = &x;
+
+    decltype(*ptr)//*ptr L val. catgry. o halde elde edilen tür T& yani int& olur
+}
+
+
+int main()
+{
+    int x = 10;
+    int a[3]{};
+
+    decltype(a[2])//a[2] türü L val. cat. o halde elde edilen tür int& olur
+    decltype(+x)//+x PR val. cat. o halde elde edilen tür int olur
+
+    decltype(x) y; // x 1. husus'a girer ve int olur tür
+    decltype((x)) z; // (x) 2. hususa girer ve   öncelik parantezxi içerisine yazılan ifade  L val. ise ifadenin kendisi de L val olur o halde tür int& olur
+}
+
+Bir fonksiyonun geri dönüş değeri referans türü değilse bu fonksiyona yapılan çağrı ifadesinin oluşturduğu değer kategorisi PR valuedir.
+Bir fonksiyonun geri dönüş değeri sol taraf referans türünden ise bu fonksiyona yapılan çağrı ifadesinin oluşturduğu değer kategorisi L valuedir.
+Bir fonksiyonun geri dönüş değeri sağ taraf referans türünden bu fonksiyona yapılan çağrı ifadesinin oluşturduğu değer kategorisi X valuedir.
+
+int foo();
+int& bar();
+int&& baz();
+
+
+int main()
+{
+    //foo()--->value category PR
+    //bar()--->value category L
+    //baz()--->value category X
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
