@@ -160,10 +160,123 @@ int main()
     
 }
 
+O halde fonksiyon çağrı ifadesini decltype() içerisinde kullanırsam elde edilen türler şu şekilde olur:
+
+int main()
+{
+
+    decltype(foo()) x;//decltype içerisindeki ifadenin sonucu PR val. cat olduğundan elde edilen tür T yani int olur
+    decltype(bar()) y;//decltype içerisindeki ifadenin sonucu L val. cat olduğundan elde edilen tür T& yani int& olur
+    decltype(baz()) z;//decltype içerisindeki ifadenin sonucu X val. cat olduğundan elde edilen tür T&& yani int&& olur
+}
+
+önek ve sonek operatörlerinin değer kategoeileri C++'ta farklı olduğundan decltype() içinde bu ifadelerin kullanımı sonucu oluşacak değer çıkarımı da farklı olur:
+
+int main()
+{
+    int x = 10;
+    decltype(x++)// x++ ifadesi PR val. cat. olduğundan elde edilen tür int olur
+    decltype(++x)//++x ifadesi L val. cat. olduğundan eld edilen tür int& olur
+}
 
 
+C dilinde sizeof operatörünün operandı olan ifade için bir işlem kodu üretilmez. Derleyici bu ifadeye sadece bir tür bilgisi olarak bakar. Bu C++'ta da böyledir.
 
+int main()
+{
+      int x = 10;
+      size_t size = sizeof(x++);
+      int y = x;
+      printf("y:%d", y); // x'in değeri 10 olduğundan y'de 10 olur. Görüldüğü gibi x sizeof operatörü içerisinde yan etkiye uğramamış
+}
 
+C++'ta 
+
+int main()
+{
+    auto x = 10;
+    auto y = sizeof(x++);
+
+    std::cout << "x = " << x << "\n"; //x'in değeri 10
+    
+}
+
+C++'ta herhangi bir işlem uygulanmayan kod parçaları için "unevaluated context" terimi kullanılmaktadır.
+(işlem kodu üretilmeyen bağlam) Öyle yerler varki C++'ta sadece sizeof ile kısıtlı değil (C'de sadece burası var), bir ifade kullanmamıza rağmen o ifade için bir işlem üretilmiyor. Burada 2 önemli husus var:
+
+1. husus:
+Eğer orada side effect var ise yan etki kendini göstermeyecek. Örneğin:
+sizeof(x++) x'in değeri artmaz. 
+sizeof(foo()) foo fonksiyonu çağırılmaz, 
+2. husus:
+Tanımsız davranış oluşturulan ifadeler evaluated edilirse, tanımsız davranış oluşur. Bu hem C'de hem C++'ta çok önemlidir. Tanımsız davranışa örnek:
+int main()
+{
+    int *p = nullptr;
+    int a[5]{};
+    int x = 356;
+
+    auto t = a[67]; //ub dizi taşırma
+    *p = 4; //ub null pointer dereferancing
+    x << 45; //ub sola kaydırma sayısı tür uzunluğundan büyük
+}
+Şimdi ub'ye neden olan ifadelerin ub'ye neden olmaycak şekilde gösterelim, bunlar ub olmaz çünkü unevaluated context olarak değerlendirilir:
+
+int main()
+{
+    
+    int *p = nullptr;
+    int a[5]{};
+    int x = 356;
+
+    sizeof(*p) + sizeof(a[67]) + sizeof(x << 568);
+}
+
+C'de bunu kullandığımız  ideomik bir yapı var:
+
+typedef struct {
+  int x, y;
+  double dval;
+}Nec; 
+Nec bu yapı türünün eş ismi  peki şu şekilde bir tanım yaparsam:
+typedef struct {
+  int x, y;
+  double dval;
+}*NecPtr; 
+NecPtr yukarıda bildirilen yapı türünden pointer türünün eş ismi. Fakat yapı türünün ismi yok, o halde NecPtr türünden bir değişken tanımlarsak pointer türünden bir değişken tanımlamış oluruz:
+Pointer değişken bir nesneyi göstercek ise göstereceği nesne bu yapı türünden olmalı fakat bu yapı türünün bir ismi yok, nasıl p'nin bu yapı türünden bir nesneyi göstermesini sağlayacağım??
+Bunu yapmamızın nedeni, bu yapı türünü sadece dinamik ömürlü nesneler için kullanmak çünkü statik veya otomatik ömürlü bir nesne kullananam. Çünkü türün ismi yok!!! Malloc ile dinamik ömürlü bir nesne 
+oluşturabilirim. O halde malloc ile bu yapı türünden bir nesne için   allocation yapmam bu yapı türünün sizeof değerine ihtiyacım var. Yapı türünün adı yok bu durum şu şekilde yapılır:
+
+int main()
+{
+    NecPtr pd = (NecPtr)malloc(sizeof(*pd)); //sizeof operatörünün operandı olan ifade hangi türden türün sizeof değeri elde edildiğinden pd NecPtr türünden olduğundan yapı türünün sizeof değeri elde edildi
+                                            //Bunu böyle yapabilmemizin nedeni aynı zamanda sizeof operatörünün operandı için bir işlem kodu üretilmemesi öyle olsaydı pd ilk başta garbage değerde olduğu için
+                                            //ub olurdu. İşte bu ideomik yapı sizeof operatörünün operandının unevaluated context'te olmasından kaynaklıdır.    
+    
+
+}
+
+C++ta ise unevaluated context ise sadece sizeof operatörün'de değilde nirkaç yerlerde bulunur:
+sizeof
+decltype
+typeid
+noexpect
+
+O halde decltype'ın operandı bir ifade olursa o ifade yine unevaluated context olucak yani o ifade ne yan etkiye uğrar ne de ifade tanımsız davranış yaratırsa ub'ye neden olur. Çünkü unevaluated context'tir.
+
+#include <iostream>
+
+int main()
+{
+    int x = 10;
+    int a[10]{};
+  decltpe(a[560]) z = x;//perfectly legal decltype içerisindeki ifade unevaluated context. int& z = x; demek
+
+  decltype(x++) y = 6;
+
+  std::cout<< "x = " << x << "\n"; // x = 10'dur 
+}
 
 
 
