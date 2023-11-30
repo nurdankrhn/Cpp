@@ -33,7 +33,43 @@ hangi değerlerin parametreye gönderileceği baştan belli ise böylece hata ya
   yani fonksiyon ayrıca bildirlmemiştir, sadece  tanımı vardır. O halde sadece fonksiyon tanımını gören derleyici şüphesiz varsayılan argümanlar fonksiyon tanımında
   belirtilir.
 
+int g{};
+
+void func (int a, int b, int c = g + 10);
+Bir fonksiyonun 1 veya 1'den fazla parametresi için varsayılan argüman belirlenebilir. Eğer bir parametre varsayılan 
+argüman alıyorsa onun sağında kalan tüm parametreler varsayılan argüman almak zorundadır.
+
+O halde bu şekilde bir bildirim sentaks hatası olur:
+void func (int a, int b = 10, int c ); //sentaks hatası
+Yani varsayılan argüman alan parametreler sonda olmalıdır. Yani fonksiyon çağrısı yapan kişi sadece son parametrelerine
+argüman göndermeme şansına sahip olur.
+func(10, , 2); //sentaks hatası
+
+Dolayısıyla C++'ta sadece fonskiyon çağrısına bakılarak, fonskiyon parametresi değişkeni sayısını kestiremeyiz.
+Varsayılan argüman olan ifadelerde daha önceki parametre değişkenlerini kullanamayız.
+
+void func (int x, int y = x + 10);//sentaks hatası
+
+Varsayılan argüman bildirildi halde fonskiyona istediğim argümanı geçebilirim:
+
+void func(int  = 10, int = 20, int = 30);
+
+int main()
+{
+   func(1, 2, 3);
+   func(2, 2);
+   func(1);
+   func();
+}
   
+Varsayılan argümanlar eğer bildirimde belirtilmiş ise tanımlamada kesinlikle belirtilmezler!!!
+Eğer derleyici hem bildirimi hem de tanımlamayı görüyor ise ve her ikisinde de varsayılan argüman belirtiliyor ise
+durumu kesinlikle sentaks hatası olarak değerlendirir.
+
+Yani varsayılan argüman özdeş olsa dahi tekrar edemez!!!
+void foo(int, int = 20);
+void foo(int, int = 20);//sentaks hatası
+
 
 
 
