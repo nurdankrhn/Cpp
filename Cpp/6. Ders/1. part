@@ -1,0 +1,65 @@
+20 Ocak 2023 - CUMA
+
+Fonksiyonların default arguman alması:
+
+Default arguments
+ Fonksiyon bildiriminde veya tanımında kaç tane parametresi varsa fonksiyon çağrısında da o kadar sayıda argüman göndermek zorundayım. 
+ Bunun istisnası C'deki variadic fonksiyonlardır. Örneğin: printf, scanf, fprintf, fscanf gibi C'nin standart kütüphanesinde bulunan fonksiyonlar verilebilir.
+ Bir fonksiyonun variadic olduğunu C ve C++ dillerinde (...) fonksiyon parametresine elipsis atomu ekleyerek belirtiriz, buna variadic parametre diyebiliriz:
+ void func(int, int, ...); 
+ Variadic parametre son parametre olmak zorundadır. Birden fazla variadic parametre olamaz. Böyle bir fonksiyona yapılan çağrıda variadic parametreden önceki 
+ parametreler için argüman geçmek zorundayız, ve variadic parametre karşılığı 0 veya n tane argüman geçebiliriz. Örneğin printf'in bildirimi:
+ 
+ int printf(const char*, ...); şeklindedir.
+
+ printf fonskiyonu ismi print formatted'dan gelmektedir.
+
+C++'tada variadic fonskiyonları kullanabilirm fakat legacy kod base söz konusu değilse genelde bunun yerine farklı daha iyi alternatifler kullanılır.
+
+Modern programlama dillerinde C hariç çoğunlukla fonksiyonların parametre değişkenleri sayısından daha az sayıda argüman ile çağırılmasını sağlayan
+araçlar vardır. İşte bu araçlar'ın oluşturduğu kümeye "default arguments" denir.
+
+default arguments nedir: Derleyici, çevirici program fonksiyona ilişkin bildirimden ya da tanımdan bir fonskiyonun çağrısında belirli parameter ya da 
+parametre değişkenlerine argüman gönderilmediği zaman, hangi değerlerin argüman olarak gönderildiğini bildirimden anlıyor. Böylece çok sayıda parametreye sahip
+bir fonskiyonu daha az sayıda argüman ile çağırabiliriz. Bu mekanizmanın run time ile doğrudan ilgisi yoktur. Derleme zamanına yönelik bir araçtır. 
+Üretimde öyle fonskiyonlar vardır ki, bu fonksiyonların 1 veya birden fazla parametresine yapılan çağrıda çoğunlukla aynı argüman gönderimi yapılır. Sadece bazı
+özel durumlarda o paremetre/parametrelere farklı argümanlar geçeriz. İşte bu tarz bir durumda default arguments aracı çok faydalı hale gelir.
+
+
+Ayrıca fonksiyonun çok parametreli olması durumunda, fonksiyona çağrı yapılırken yanlış parametreye argüman gönderimi çok olasıdır. Eğer argüman geçmediğim zaman
+hangi değerlerin parametreye gönderileceği baştan belli ise böylece hata yapma olasılığı oldukça azalmış olur. İşte default argument buna yarar.
+
+  Bir fonskiyonun varsayılan argümanları tipik olarak fonksiyon bildiriminde belirtiliyor. Çünkü bazı durumlarda fonskiyon bildirimi ile fonksiyon tanımı ayrı değildir
+  yani fonksiyon ayrıca bildirlmemiştir, sadece  tanımı vardır. O halde sadece fonksiyon tanımını gören derleyici şüphesiz varsayılan argümanlar fonksiyon tanımında
+  belirtilir.
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
