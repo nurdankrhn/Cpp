@@ -1,0 +1,103 @@
+Varsayılan argüman sentaksında = token'ı kullanılmak zorundadır. 
+void func(int x{}); böyle bir sentaks yoktur!!
+
+Kaynak kodumuza dahil ettiğimiz başlık dosyasında bulunan bir fonksiyon için varsayılan argüman eklemek istersek
+eğer bunu asla başlık dosyasındaki fonskiyon bildirimine müdahalede bulunarak yapmamalıyız. Bunu yapmanın en iyi 
+yolu: "function redecleration"dır.
+Yani bu başlık dosyasını dahil ettiğimiz noktada, o fonksiyon içinde bir bildirim daha yaparız, çünkü derleyici
+fonksiyon bildirimleri için kümülatif işlem yapar.
+
+Örneğin başlık dosyası cpp.h isminde int foo(int, int, int) isimli bir fonksiyon içersin. Bizde bu fonksiyonun
+son parametresine 0 varsayılan argümanı geçmek istiyorsak; bu başlık dosyasını kaynak kodumuza eklediğimiz yerde
+bu fonksiyon için yeniden bildirim yapmalıyız.
+
+#include "cpp.h"
+
+int foo(int, int, int = 0); 
+
+Başka bir başlık dosyasında şöyle bir bildirim olduğunu varsayalım:
+int bar(int x, int y, int z = 30); Biz fonksiyon çağrısında genel olarak y parametresine de 10 değerini
+argüman olarak geçecek isek bunun için de yeniden bildirim yapmalıyız:
+
+int bar(int x, int y = 10, int z); böyelikle hem z için hem de y parametresi için varsayılan argüman 
+belirlemiş olduk. Derleyici gözünden olaya bakarsak:
+int bar(int x, int y, int z = 30);
+int bar(int x, int y = 10, int z); sonuç söyleymiş gibi olur o halde
+int bar(int x, int y = 10, int z = 30);
+
+Varsayılan argüman olan ifadenin değeri hesaplanıp her fonksiyon çağrısında o değer kullanılmaz; varsayılan argüman olan
+ifadenin kendisi doğrudan fonksiyon çağrısında argüman olarak yazılır.
+
+int x = 10;
+
+int func(int a  = ++x  )
+{
+    std::cout << "a = " << a << '\n ';
+}
+
+int main()
+{
+      func(); //11
+      func(); //12
+      func(); //13
+}
+
+Eğer ki ortada bulunan parametre için varsayılan argüman kullanmak istersem, sentaks gereği varsayılan argümanlar
+sonda olmak zorunda olduğu için bir wrapper fonksiyon kullanabilirim. Örneğin void func(int x, int y, int z);
+isimli bir fonskiyon için ben y parametresi için varsayılan argüman belirtmek istersem şu şekilde yapabilirim:
+
+void func(int x, int y, int z);
+
+void func_(int x, int z, iny y = 0)
+{
+    func(x, y, z);
+}
+
+
+C'deki başlık dosyalarını C++'ta include ederken sonunda ki .h kalkıp başına c eklenir. Örneğin time.h başlık
+dosyasını eklemek istersek:
+#include <ctime> şeklinde olur.
+
+Bazen varsayılan argüman olarak bütün değerlerin -1 olduğunu gördüğümüz fonksiyon bildirimleri olur.
+Bunun sebebi çoğunlukla varsayılan argüman kullanıp kullanılmadığını kontrol etmektir.
+
+#include <iostream>
+#include <ctime>
+
+void process_data(int mday = -1, int month =-1, int year = -1)
+{
+    if(year == -1)
+    {
+        std::time_t timer{};
+        std::time(&timer);
+        auto tp = localtime(timer); //struct tm *tp = localtime(timer)
+        year = tp->tm_year + 1990;
+        if(month == -1) {
+            month = tp->tm_month + 1;
+            if(mday == -1) {
+                mday = tp->tm_day;
+            }
+        }
+    }
+
+    std::cout << mday << '-' << month << '-' << year << '\n';
+}
+
+int main()
+{
+    using namespace std;
+
+    process_date(12, 5, 1993);
+    process_date(12, 5);
+    process_date(12);
+    process_date();
+}
+
+Tek karakter yazdırma için hocamız genelde ' tırnak içerisine yazımı öneriyor!!! Örneğin new line yani yeni 
+satıra geçmek için '\n' şeklinde yazmalyız "\n" şeklinde değil!!!!
+
+
+
+
+
+
