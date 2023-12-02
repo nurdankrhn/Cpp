@@ -71,6 +71,60 @@ void foo(int, int = 20);
 void foo(int, int = 20);//sentaks hatası
 
 
+Varsayılan argüman tamsayı türünden veya gerçek sayı türünden olmak zorunda değildir. Örneğin pointer parametre
+varsayılan argüman alabilir:
+
+void func(int *p = nullptr);
+void func(const char *p_err = "error");
+
+
+Referans parametre'de varsayılan argüman alabilir:
+
+void print(int x, std::ostream& os = std::cout);
+
+maximal munc kuralı
+Derleyicinin nasıl tokenizing yapması gerektiğini anlatan bir kural. Eğer space karakterleri ile token'lar
+ayrılmadıysa derleyici token'ları elde etmek için maximal munch kuralını uygular. Derleyici dosyadan karakteri alır,
+ve hangi kategoride olduğunu anlıyor, ardından boşluk görene kadar, token olma özelliği devam edene kadar karakter eklemesi yapar
+o şekilde tokenizing yapar.
+
+int main()
+{
+    int x = 20;
+    int y = 30;
+
+   int z = x+++y; // bu deyim şu şekilde ele alınır: x++ + y; sonuç 50 olur
+   // x + ++y olsaydı sonuc 51 olurduu
+}
+
+Bir örnek de şu olabilir: sum>>=++ x derleyici şu şekilde ele alır:
+sum
+>>=
+++ 
+x
+
+Bir başka örnek de şudur:
+
+int main()
+{
+   int n = 5;
+   while(n --> 0 ) { // eşdeğeri şudur: while(n-- > 0) maximal munch!!!
+       //code  
+   }
+}
+
+
+maximal munch kuralının varsayılan argümanlarda gösterimi:
+maximal munch kuralı çok önceki aşamalarda olan bir şey olduğu için eğer ki varsayılan argümanlarda token'ları 
+birleştirirsek sentaks hatası oluşur:
+void func(int, const char *= "necati"); // sentaks hatası ,aslında bildirilen fonksiyon şuydu:
+void func(int, const char * = "necati"); //maximal munch'a girdi *= bir operatör: compound assignment operators
+
+
+
+
+
+
 
 
 
