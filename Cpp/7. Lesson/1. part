@@ -28,5 +28,162 @@ Pointer'lar için derleyiciler kaç byte yer ayıracaklarını bildikleri için 
 int main()
 {
     struct MyClass *ptr = nullptr;
+    ptr = tar;
 }
+Tür eş bildirimi yapabiliriz:
+typedef Myclass *MyclassPtr; incomplete types pointer türünden olan bir tür için bir tür eş ismi belirttik.
+using  MyclassPtr = Myclass *; //cpp de tür eş bildirimi daha çok using anahtar sözcüğü ile yapılır
+
+
+extern keyword'u ile nitelemekte legaldir; zaten extern keyword'u ile nitelenen kelimelerde derleyici değişken için herhangi bir yer ayırmıyordu; bu keyword ile belirtilen değişkenler için bu türün 
+başka modülde tanımlı olduğu bilgisi verilmekteydi.
+extern Myclass x;
+
+Ne C'de ne de C++'ta bir yapının ya da bir sınıfın elemanı kendi türünden olamaz. Fakat pointer olabilir.
+struct Data {
+    struct Data x; //sentaks hatası
+}
+
+struct Data {
+    struct Data *x; //legal
+}
+
+incomplete types olan bir tür için nesne tanımlayamam:
+
+struct Myclass;
+
+int main()
+{
+    Myclass x;//sentaks hatası
+}
+
+sizeof operatörünün operandı'da yapamam.
+
+sizeof(Myclass);
+
+incomplete type türünden olan bir pointer için dereference (member selection operatörleri ile beraber kullanmak) edip herhangi bir değer içerecek ifade içinde kullanmak sentaks hatasına yol açar:
+
+struct Myclass;
+
+Myclass *foo();
+
+int main()
+{
+
+    Myclass *p = foo();
+    auto x = *p; //sentaks hatası
+
+}
+
+Bir sınıfın veya yapının elemanıda incomplete type olamaz!!! Fakat doğal olarak referans veya pointer olabilir:
+
+class Nec;
+
+class Myclass {
+    Nec m_nec; //sentaks hatası
+    Nec &r;    //legal
+    Nec *ptr; //legal
+}
+
+incomplete type kullanmanın en büyük faydası projemize dahil edeceğimiz başlık dosyalarınında başka dosyaları içermesinden dolayı ortaya çıkan bağımlılığı incomplete type kullanımı ile en aza indirip
+ileride ortaya çıkacak şu sorunlarında önüne geçmektir:
+başlık dosyalarda başka başlık dosyaları include ettiği için projeye eklenen başlık dosya sayısının dolaylı yoldan çok olması,
+ilk nedenden dolayı "complation time" uzar, çünkü derleyicinin üzerinden geçmesi gereken bildirim sayısı artar,
+en baştada söylendiği gibi "dependency" 'i çok arttırır.
+
+
+Underline type'ın derleyiciden derleyiciye göre değişmesi taşınabilirlik problemi içerdiği gibi numaralandırma türlerinin incomplete type olarak kullanım şansını da ortadan kaldırır (çünkü C'nin aksına 
+numaralandırma türlerinin türleri int değil programcının kendi isteğine bırakılmıştır):
+//necati.h
+
+enum Color;
+
+struct Data {
+    //,,
+    Color x; //Color'ın türü ne?? bilinmiyor C olsa idi enum türleri int olduğundan int diyebilirdik fakat C++'ta türü belirlemek programcıya bırakılmıştı ve incomplete type olarak tanımlandığından
+            //bir yapıya eleman olarak verilemez!!
+}
+
+Peki modern C++'ta neler değişti, neler bu problemleri çözmek için değiştirildi/geliştirildi?
+1. değişiklik
+Hem eski enum hem de yeni enum türleri için underline type'ı belirleme olanağı geldi, : atomundan sonra yazılan tür underline tür'dür.
+enum Color: unsigned int {Blue, Black, Purple, Brown};
+underline type'ı belirtmeyi sadece enum tür tanımında değil forward declaration'da da kullanabiliriz böylece az önce bahsini ettiğimiz problem ortadan kalkar:
+
+enum Color: unsigned char;
+
+class Myclass {
+    Color mcolor; //underline type belli incomplete type olan enum artık bir sınıfın veya yapının elemanı olabilir, artık derleyicinin storage hesaplamada bir problemi kalmaz
+}
+
+2. değişiklik
+Yeni bir enum kategorisinin dile eklenmesi (scoped enum)
+Popüler terminolojide enum class'da denir. Bu bir class değildir ----> enum class is not a class!!
+Scoped enum'da da underline type'ı belirtebiliriz. Eğer ki underline type'ı belirtmez isek default olarak underline type signed int türünden olur.
+Artık numaralandırma türlerinin numaralandırma sabitleri numaralandırma türlerinin skobunda değillerdir, ayrı skopları vardır. 
+enum class Color {Blue, Black, Purple, Brown}; //artık Color ismi global isim alanında olsada fakat Blue, Black, Purple, Brown isimleri Color enum'nın skobuna eklenmez
+                                              //bunlar kendi skobunda yer alır.
+
+Bu global alanda bulunan ve aynı isme sahip farklı enum türlerindeki enum sabitlerinin ismi için artık sentaks hatasının ortadan kalkması anlamına gelir, çünkü her enum türünde bulunan enumaratörler
+için kendine ait bir skobu vardır:
+
+//#include "screen.h"
+enum class ScreenColor {Blue, Black, ;Purple, Brown, Red};
+//#include "traffic.h"
+enum class trafficLight {Red, Yellow, Green};
+
+Her iki enum türünü içeren kod parçası Red isimli enum sabitine sahip olmasına rağmen artık sentaks hatası meydana gelmez! Çünkü her ikisi de farklı skoplarda yer alıyor. Fakat bunun da bir bedeli bulunmakta: name lookup
+enum eğer ki scope enum ise enum sabitinin aranıp bulunması için artık nitelenmesi gerekir:
+
+
+//#include "screen.h"
+enum class ScreenColor {Blue, Black, ;Purple, Brown, Red};
+//#include "traffic.h"
+enum class trafficLight {Red, Yellow, Green};
+
+int main()
+{
+    auto myColor = ScreenColor::Red;
+    auto myLight = trafficLight::Red;
+}
+
+qualified name
+Bir ismi . operatörünün sağında -> operatörünün sağında :: (scope resolution operator) operatörünün sağında kullanırsak ismi nitelemiş oluruz:
+x.y
+p->y
+nec::y
+::g (unary scope resolution operator)
+unqualified name
+Bir ismi yalın olarak kullanırsak yani doğrudan kendisini kullanırsak, böyle kullanılan isimlere ise unqualified name olarak değerlendirilir.
+
+C++20 standartları ile dile eklenen şu özellik ile numaralandırma sabitlerinin kapsamlandırılmış numaralandırma türlerinde faydası var çünkü isim çakışmasını engelliyor fakat şöyle bir dezavantaja sahip:
+bir fonskiyon/kapsam içerisinde bu numaralandırma sabitlerinin sık kullanıldığı bir senaryoda bunu sürekli nitelemek gereksizdir (verbose kod)
+using enum anahtar sözcüğünü enum türünün başına ekleyerek enum türünü  nitelemeye gerek kalmadan kullanabiliriz:
+Buna using enum declaration denir:
+
+//#include "screen.h"
+
+enum class ScreenColor {Blue, Black, Purple, Brown, Red};
+
+void foo()
+{
+    using enum ScreenClor;
+    auto x = Blue;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
