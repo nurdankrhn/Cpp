@@ -1,0 +1,32 @@
+23 Ocak 2023 Pazartesi
+
+Kısa bir C tekrarı:
+complete types
+incomplete types
+Derleyicinin bakış açısıyla user defined types'larda bir tür ya complete type ya da incomplete type'tır. Ve bir türün complete veya incomplete olması o türün ne şekilde hangi yapılarda/biçimlerde kullanılmaya müsade edildiğini/edilmediğini
+belirtir. Eğer derleyici bir türün varlığından haberdar ise fakat o türün tanımını görmemiş ise henüz böyle türlere incomplete types denir.
+Bildirimden sonra eğer ki derleyici tanımını'da görürse incomplete type artık incomplete type olmaktan çıkar ve complete type haline gelir.
+//forward declaration
+
+class Myclass;
+
+class Myclass {
+
+  //code
+};
+
+incomplete types ile neler yapabiliriz?
+incomplete types fonskiyonun geri dönüş değeri, parametresi olabilir:
+
+struct myClass;
+
+struct myClass foo(struct myClass);
+struct myClass* bar (struct myClass *);
+struct myClass& tar(struct myClass&);//cpp'de
+
+Pointer'lar için derleyiciler kaç byte yer ayıracaklarını bildikleri için incomplete types türünden bir pointer'a null değerini atamakta problem değildir yani incomplete türden pointerlar tanımlanabilir:
+int main()
+{
+    struct MyClass *ptr = nullptr;
+}
+
