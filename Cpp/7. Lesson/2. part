@@ -1,0 +1,159 @@
+//#include "screen.h"
+namespace neco {
+    namespace details {
+        enum class ScreenColor {Blue, Black, Purple, Brown, Red};
+    }
+}
+
+
+void foo()
+{
+    using enum neco::details::ScreenClor;
+    auto x = Blue;
+}
+
+using enum bildirimini ölçülü, dikkatli kullanmakta fayda vardır global düzeyde yapılıursa  isim çakışmasının önünü açabiliriz:
+//#include "screen.h"
+namespace neco {
+    namespace details {
+        enum class ScreenColor {Blue, Black, Purple, Brown, Red};
+    }
+}
+
+using enum neco::details::ScreenClor;
+
+void foo()
+{
+    
+    auto x = Blue;
+}
+
+Bildirimin 2. bir çeşidi daha var:
+Bazen numaralandırma sabitlerinden sadece birini veya birkaçını sık kullandığımız için sadece onlar için using bildirimini yapamak isteriz:
+//#include "screen.h"
+enum class ScreenColor {Blue, Black, Purple, Brown, Red};
+
+
+void foo()
+{
+   using  ScreenColor::Black; //Black ismini nitelemeden kullanabilirim
+   auto x = Black;
+     auto z = Blue; //sentaks hatası
+}
+
+Bu anlamdaki using bildirimleri comma seperated list kuallanılabiliyor bu dile modern C++ ile eklendi; aslında bu ilk etapta namespace'ler ile başladı:
+
+//#include "screen.h"
+enum class ScreenColor {Blue, Black, Purple, Brown, Red};
+
+
+void foo()
+{
+   using  ScreenColor::Black, ScreenColor::Red;
+   auto x = Black;
+     auto z = Blue; //sentaks hatası
+}
+
+namespace'lerde comma seperated list:
+#include <iostream>
+using std::cout, std::enl;
+
+Yeni, scoped enum türlerinden olması gerektiği gibi eski enum türlerinde olduğu gibi numaralandırma türlerinden değişken/sabitlerden tamsayı türlerine örtülü dönüşüm yoktur:
+eski enum (unscoped enum, traditional enum, conventional enum, plain enum ) türünde:
+
+enum  ScreenColor {Blue, Black, Purple, Brown, Red};
+
+int main()
+{
+	ScreenColor myColor{Black};
+ 	int ival{};
+  	//code 
+   	ival = myColor;//eski enum türünde numaralandırma türlerinden tam sayı türlerine örtülü dönüşüm vardı
+}
+
+yeni enum (scoped/class) türünde:
+enum class ScreenColor {Blue, Black, Purple, Brown, Red};
+
+int main()
+{
+	ScreenColor myColor{ScreenColor::Black};
+ 	int ival{};
+  	//code 
+   	ival = myColor;//yeni enum türünde numaralandırma türlerinden tam sayı türlerine örtülü dönüşüm yok sentaks hatası bilerek isteyerek yapıyorsam static_cast tür dönüştürme operatörünü kullanmalıyım:
+	//ival = static_cast<int> (myColor); şeklinde explicit olarak tür dönüşümü yapabilirim
+}
+
+Eski C++'ta numaralandırma türlerinin kapsamı olmamasına rağmen :: operatörünü kullanarak yazabiliyoruz:
+
+
+enum  Color {Blue, Black, Purple, Brown, Red};
+
+int main()
+{
+	Color myColor{Color::Black};
+
+}
+Bu bazı durumlarda eş görüntü sağlar ve template'larda vs ile ilgili avantaj sağlar.
+
+floating types terimi ile float türü farklı terimlerdir:
+floating types: gerçek sayı türlerinin kümesi, yani bit kategoridir.
+float türü: bu kategorinin içinde olsn bir çeşittir/türdür.
+
+compiler extension(s) (derleyici eklentisi)
+Dilin standart, özel bir aracı değildir; fakat derleyiciler programcıların işini kolaylaştırmak amacı ile standart olarak dilde yer almasa bile kendileri ilave öğeler sağlıyor. Bunlar sentaks özellikleri veya yerine 
+göre kütüphane ile ilgili eklentiler olabilir. Özellikle gcc derleyicisinin bu konu ile ilgili çok sayıda extensıon'ı vardır.  Tabii kullanımında ölçülü olmak lazım çünkü taşınabilirliği bozan bir unsurdur.
+
+Örneğin C'de de  C++'ta da sentaks olarak desteklenmeyen dizinin ardışık 3 elemanına aynı değeri tek seferede atamayı birçok compiler'ın extension ile halledebiliriz:
+int main()
+{
+	int a[100] = { [12...16] = 6, }; //compiler extension sayesinde dizinin 12 ile 16. elemanlarına 6 değerini atadık
+}
+
+veya sayıları binary olarak değer atamayı yine compiler extension ile yapabiliriz:
+int main()
+{
+	int x = 41;//decimal
+ 	int y = 0x41;//hex
+  	int z = 041;//octal
+   int a = 0b100101;//binary
+}
+
+Modern C++ ile dile eklenen bazı özellikler ile artık standart olmayan fakat compiler extension(s) ile yapılan bazı özellikler dile eklendi:
+Sayıyı binary olarak ifade edebilme
+int main()
+{
+   int a = 0b100101;//binary
+}
+
+Bir diğer eklenen özellik bir tam sayı sabitini yazarken basamak ayıracı olan ' karakteri ile sabitin daha iyi okunması için kullanabiliriz:
+int main()
+{
+	auto x = 674'327'634;
+ 
+	auto y = 12.674'327'634;
+ 
+	auto z = 1ac4'de2f;
+
+    auto w = 0b1011'0100;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
