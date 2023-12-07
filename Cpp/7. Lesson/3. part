@@ -1,0 +1,149 @@
+constexpr bir anahtar sözcüktür, bir tür değildir.
+
+constexpr'nin ne olduğunu ve varlık nedenini anlamak için const anahtar sözcüğü ile ilgili bazı hususları gözden geçirmemiz gerekir:
+Bir ifadenin bileşenlerinin her biri sabit ise ifade sabit ifadesi olur. Sabit ise kendisinin sabit olması demek:
+
+const int x = 30; //30 (y) bir sabit
+const int y = 20; // 20 (x) bir sabit
+const int z = x * y + 5; //x*y + 5 bir sabit ifadesi
+
+const değişkenler söz konusu oluğu zaman const değişkenlerin oluşturduğu ifadeler veya  const değişkenlerin içinde bulunduğu ifadelerin sabit ifadesi olup olmadığı:
+onlara verilen ilk değerden, onlara verilen ilk değerdeki öğelerin kendisininde bir sabit ifadesi olup olmadığından anlaşılır.
+
+int main()
+{
+    constexpr int x = 30; // constexpr anahtar sözcüğü ile artık x'in oluşturduğu ifadenin sabit ifade olduğu garanti altına alınıyor.
+}
+
+O halde constexpr anahtar sözcüğü ile nitelenen değişkene sabit ifadesi ile ilk değer verilmelidir, yoksa sentaks hatası meydana gelir. Yani bir değişken eğer ki constexpr anahtar sözcüğü ile 
+tanımlanan değişken sabit ifadesi ile initialize edilmesi zorunludur. Böylece bu anahtar sözcük ile tanımlana değişkeni  bir ifade olarak kullanırsam x ifadesi bir constant expression olur veya bir constant 
+expression'ın alt ifadesi olarak kullanılabilir.
+
+Yani constexpr ile tanımlanan değişkenin geçerli olabilmesi için değişkene atanan ifadenin constant expression olması gerekir:
+int main()
+{
+    cont int x = 5;
+    int y = 10;
+    constexpr int z = x*y + 5; //sentaks hatası çünkü y bir const expression değildir!
+}
+
+int main()
+{
+    constexpr int x = 5; // x'in türü const int
+    decltype(x) y = 10; //y'nin türü x const int olduğundan const int olur
+    x = 20;//sentaks hatası
+    
+}
+
+constexpr değişkenimiz adeta isimlendirilmiş bir sabit gibi bu sebeple derleyici kode bakarak eğer gerekmiyorsa bunun için bir allocation yapmak zorunda değildir. 
+
+constexpr değişkeni garçek sayı türünden, user defined type'ta (bazı kuralları vardır) olabilir:
+int main()
+{
+    constexpr double x = 5.3;
+}
+
+constexpr değişkeni bir dizi de olabilir:
+inat main()
+{
+    constexpr a[] = {3, 5, 7, 1};
+    constexpr x = a[2] + a[3] - 5;
+}
+
+constexpr nesnenin kendisinin const'luğunu ifade eder, dolayısıyla eğer constexpr değişken pointer ise değiken top level const olur:
+int g = 10;
+
+int main()
+{
+  constexpr int *ptr = &g;
+  *p = 10; //gayet doğal const olan ptr *ptr değil
+}
+
+
+Belirli koşullarda bir fonskiyonu constexpr anahtar sözcüğü ile niteleyebiliyoruz. Böyle fonksiyonlara constexpr function deniliyor. Modern C++ ile dile eklenmiştir. Bu fonskiyonlar öyle fonksiyonlardır ki
+eğer tüm parametrelerine sabit ifadesi ile çağrı yapılırsa o zaman geri dönüş değerini compile time'de üretir. O halde bu şartları sağlayarak fonskiyon çağrısı yaparsam; fonskiyon çağrı ifadesinin kendiside bir sabit ifadesi olur. 
+Şu ana kadar böyle bir durum yoktu:
+func(x, y); ile varsayalım ki çağrı sonucunda elde edilecek sabit ifadesi 1123 olsu o halde func(x, y) yazmak ile 1123 yazmak arasında hiçbir fark yoktur.
+
+Bir fonskiyonun constexpr fonksiyon olabilmesi için constexpr anahtar sözcüğü ile tanımlanması gerekiyor. Ardından geri dönüş değeri türü yazılıp, ismi yazılır varsa ardından parametre değişkenleri tanımlayıp 
+fonksiyon bloğu açılır:
+
+constexpr int func(x, y) {
+    //code
+};
+
+geri dönüş değeri olmayan fonksiyon için constexpr ile tanımlamak sentaks hatası değil fakat semantik olarak anlamsızdır. Çünkü tipik olarak constexpr fonksiyonlar bir değer döndürmek için kullanılıyor:
+
+constexpr void foo(int x)
+{
+  //code
+};
+
+constexpr fonksiyonların compile time'da değer elde etmesine çok büyük avantajdır:
+
+constexpr int factorial(int x)
+{
+    return x < 2 ? 1 : x *factorial(x-1); 
+}
+
+int main()
+{
+    int a[factorial(5)]{}; //constexpr bir fonksiyon olan factorail fonksiyonun çağrı ifadesi bir sabit ifadesi olup 120 demektir, o sebeple dizi boyutu belirlemede kullanabildik
+}
+
+Eskiden constexpr fonksiyonlar olmadan önce compile time'da yapılabilecek hesaplamalar gereksiz yere run time'da yapılıyordu. Bu programın verimi üzeriinde çok büyük değere sahiptir.
+
+Aşağıda constexpr olan bir fonksiyon ile fonksiyona argüman olarak gönderilen değişkenin asal sayı olup olmadığı compile time'da tespit edilmiştir:
+
+constexpr bool isprime(int x)
+{
+    if(x < 2)
+    {
+        return false;
+    }
+    if(x % 2 == 0)
+      return x == 2;
+    if(x % 3 == 0)
+      return x == 2;
+    if(x % 5 == 0)
+      return x == 2;
+    for(int i = 7; i*i <= x ; i += 2)
+      if(x % i == 0)
+        false;
+    return true;
+    
+}
+
+int main()
+{
+    constexpr int x = 76234;
+    const int x = 456;
+    const int z = 34875;
+
+    constexpr auto b = isprime(x*y - z); //b false olur 
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
