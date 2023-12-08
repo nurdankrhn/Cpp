@@ -1,0 +1,81 @@
+25 Ocak 2023 - ÇARŞAMBA
+
+constexpr fonksiyona sabit ifadesi ile çağrı yapmak zorunlu değildir. Sabit ifadesi argüman/argümanlar ile fonksiyon çağrısı yapılırsa geri dönüş değeri
+compile time'da fakat argüman/argümanlar noncontsant expression olursa yani değişken ifadesi olursa  geri dönüş değeri programın çalışma zamanında elde eder.
+
+
+inline anahtar sözcüğü, inline fonskiyonlar ve ODR
+C ve C++ derleyicileri optimazing compiler derleyicilerdir. Bu çok önemlidir. Bu sayede kodun daha hızlı çalışması için daha az işlem ile yazılan kodda istenileni( gözlenen 
+davranış (observal behavior) değişmeyecek şekilde)  yapması  için birçok yöntem kullanılır.
+Optimizaysonun da birkaç farklı çeşidi vardır:
+Compiler optimization
+Link Time optimization (LTO)
+Preprocessor optimization
+İşlemci tarafından yapılan optimizasyonlarda vardır: branch optimization vb.
+
+
+Eğer ki derleyicinin yaptığı optimizasyonu baz alacaksak temelde 2 ayrı kategoriye ayırmak gerekir:
+Birincisi gözlemlenen davranış değişmeden yapılan optimizasyonlar,
+İkincisi C++ derleyicisinin bizim için compile-time'da kod yazması; derleyici birtakım parametrelere bakarak bu kodu nasıl yazacağını anlar. Yani bu aslında
+derleyicinin koda bakarak koddan elde ettiği bazı çıkarımlardan hareketle hangi kodu yazacağına karar vermesi.
+
+inline expansion
+
+Sadece bildirimi gören kaynak kodda derleyici fonksiyona giriş kodunun üretilmesi(stack pointer'ının alınması, argümanların parammetrelere kopyalanması) - çıkış kodunun üretilmesi
+(geri dönüş değerinin yazılacağıyerden geri dönüş değerinin alınması, stack'in eski haline getirilmesi vb.) ardından işi linker'a bırakır. Yani aslında bir fonksiyon çağrısı
+derleyicinin fonksiyona giriş-çıkış kodunu üretip arayada bilgiler yazıp, obje koda yazılan sembolden hareketle derlenen fonksiyonun kodu ile çağırılan fonksiyon kodunun
+linker tarafından bağlanmasıdır.
+Burada eğer derleyici fonskiyon bildirimini değil de tanımını görürse; inline expansion denilen optimizasyon tekniğini kullanma şansına sahip olur.
+O halde fonskiyon çağrısı yerine fonksiyon tanımında bulunan sonucu yazabilir. Böylece derleme, linker tarafından yapılan işlemlere gerek kalmaz:
+
+//inline expansion
+
+int foo(int x, int y)
+{
+    return x*x + y*y + 1;
+}
+
+int main()
+{
+    int a = 46, b = 345;
+
+    auto x = foo(a, b); // auto x = a*a + b*b + 1; gibi olur eğer ki derleyici inline expansion denilen optimizasyonu yaparsa tabii
+}
+
+Bu durumda maaliyet düşe çünkü artık fonskiyona giriş - çıkış kodları üratilmez,
+Bunu yapmasının her zaman avantaj olup olmadığı derleyicinin  yaptığı analiz sonucu belli olur; özellikle kodu küçük fazla deyim barındırmayan üstaelik sık 
+çağırılan fonksiyonlarda bu optimizasyon(fonksiyon çağrısı yokmuş gibi oraya inline olarak fonksiyonun adeta derlenmiş kodunun koyulması) çok büyük fayda sağlar.
+Böylece çalışacak kodda daha az işlem yapılır(assembly'deki cycle sayısı azalır.).
+
+Bu optimizasyonun bir diğer önemli faydası şudur:
+optimizasyon yapılabilecek kod alanı genişledikçe derleyicinin duruma göre daha etkin optimizasyon gerçekleştirme imkanı vardr. Yani derleyicinin optimizasyon yaptığı
+kod aralığı ne kadar geniş ise derleyici o kadar etkin optimizasyon yapabilir. Fonksiyon çağrı ifadesi için inline optimizasyon yapabilirse derleyici
+bu olasılık oldukça artar:
+
+statement 1;
+statement 2;
+statement 3;
+foo();
+statement 4;
+statement 5;
+
+Eğer ki foo için inline optimizasyon yapılamaz ise 1. 2. 3. statement'lar için ayrı 4. ve 5. statement'lar için ayrı optimizasyon yapar. Eğer ki foo için derleyici
+inline expansion optimizasyonu yapabilirse o zaman stament 1, 2, 3, foo, 4, 5 için toplu optimizasyon yapabilir.
+
+
+Peki derleyici hangi durumlarda inline optimizasyonu yapabilir?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
