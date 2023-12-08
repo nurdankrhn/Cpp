@@ -64,8 +64,50 @@ inline expansion optimizasyonu yapabilirse o zaman stament 1, 2, 3, foo, 4, 5 i�
 
 
 Peki derleyici hangi durumlarda inline optimizasyonu yapabilir?
+Fonksiyon tanımı kesinlikle görülmelidir. Bu sağlamak 2 yöntemle olur: tanım direk kaynak kodun içerisindedir veya tanım koda dahil edilen başlık dosyasındadır.
+Derleyicinin yaptığı analiz; analiz sonucu derleyici bunu uygun görmeli.
+Derleyiciyi buna uygun olmalı, yani derleyicinin switch'leri bu konuda bağlayıcı olmalı
 
 
+zero-cost absraction
+sınıf türü kullanılmasına rağmen compile time'da birçok kontrol yapılmasına rağmen assembly düzeyinde tam sayı türü için üretilen koddan farklı kod üretilmemesi
+gibi düşünebiliriz. chrono başlık dosyasında böyle türler vardır. Bir senaryo düşünelim milisaniye ve nanosaniye bilgilerini tutmak isteyeceğimiz fakat tam sayı türlerinde
+taşma olma ihtimalinden dolayı kendimizin duruma özgü türler oluşturduğu senaryo olsun. Ve bu senaryoda bu iki farklı tür rahatlıkla birbiriyle işleme girebilsin, assembly düzeinde
+ise üretilen kod int gibi long int gibi tam sayı türü için üretilen kodla birebir aynıdır:
+
+#include <chrono>
+
+int main()
+{
+        using namespace std;
+        using namespace::chorno;
+
+        miliseconds ms{34567};
+        nanoseconds ns{873453326};
+        ms + ns; 
+}
+
+Yani tam sayı gerçek sayı türlerinin kullanılmasıyla ilgili böyle soyutlamalar çok ince bir soyutlama katmanı (thin layer) oluşturur.
+
+smart pointer
+C++'ta pointer olmamasına rağmen pointer gibi davranan sınıf nesneleri vardır. İşte bu sınıf nesnelerinin ilişkin olduğu türlere "pointer like classes" denir.
+Yani bir sınıf türünden bir nesne tanımlıyoruz fakat bu nesne sanki C'deki pointer'mış gibi görev yapıyor. Bunların farklı farklı kullanım amaçları vardır:
+Örneğin pointer like class'ların kullanım amaçlarından biri dinamik ömürlü nesnelerin/kaynakların hayatını kontrol etmek. İşte eğer bir sınıf pointer like class
+ise ve sınıfın varlık nedeni dinamik ömürlü nesnelerin ömrünü kontrol etmek ise böyle sınıflara "smart pointer" denir. Standart kütüphanede ismi:
+unique_ptr
+shared_ptr isminde 2 tane smart pointer sınıfı vardır. 
+Smart pointer kullanmanın ne bir maaliyeti vardır ne de assembly düzeyinde pointer nesneden farklıdır. Bunu sağlayan arka plandaki fonksiyonların inline expand edilmesidir.
+
+#include <memory.h>
+
+int main()
+{
+        std::unique_ptr<int> uptr;
+        uptr.get(); //*ptr gibi yani bir pointer'ı doğrudan kullanmak gibi düşünebiliriz
+}
+
+Fonksiyonu inline anahtar sözcüğü ile tanımladık diye derleyici inline expansion yapmak zorunda değildir. Ayrıca inline anahtar sözcüğü olmadan derleyici inline expansion yapabilir.
+Bunu yaptığımızda derleyiciden bu optimizasyon için ricada bile bulunamıyoruz, bunu rica etmek için derleyicmizin swticlerini kullanmalıyız.
 
 
 
