@@ -1,0 +1,35 @@
+ODR C++'ta bir diğer akronimlerden biridir. 
+ODR: One Definition Rule 
+Yazılımsal bazı birimlerin birden fazla bildirimi olabilir ama birden fazla tanımı olamaz demektir. 
+
+void func(int x) {
+    int x;
+}
+
+void func(int x) {
+   
+}
+ODR ihlal edilmiştir, aynı fonksiyon ismine ait 2 tanım var. Farklı kaynak dosyalarda aynı isimli fonskiyon tanımları olsun bu durumda da ODR ihlal edilmiş olunurdu.
+kerem.cpp
+void func(int x) {
+    int x;
+}
+ayhan.cpp
+zeynep.cpp
+void func(int x) {
+    int x;
+}
+necati.cpp
+Böyle bir durumu derleyicinin tespit etme şansı yoktur. Çünkü derleyicinin çalışma birimi kaynak dosyadır. Kaynak dosyalar arasındaki ilişkiyle derleyicinin bir işi yoktur. 
+Dolayısıyla ODR'ın farklı kaynak dosyalardan ihlali sentaks hatasına neden olmaz; işte bu tarz durumlar için kullanılan bir terim var "no diagnostic required" yani her sentaks hatası
+compile time'da derleyici tarafından saptanamayağı için bazı compile time'da aslında olmaması gereken ama compiler'ın saptayamadığı durumları C++ standartları  "no diagnostic required" diye isimlendiriyor.
+
+
+Aynı durum global değişkenler içinde geçerlidir. Bir global değişkenin tanımını başlık dosyasına koyduğumuz zaman böylece ODR için tüm kapıları açmış oluruz. Çünkü başlık dosyaları her yerden dahil edilir bu da ODR'a neden olur.
+Fakat şu şekilde olsa ODR'a neden olmaz:
+extern int x;
+
+Bir fonksiyonun inline extension'a tabi tutulabilmesi için derleyicinin fonksiyonun kodunu görmesi gerekiyor, fakat tanımı spesifik bir kaynal dosyaya eklersek diğer modüller buna erişemez. Öte yandan
+başlık dosyasına eklersek de ODR ihlal edilmiş olur. Bunun için standartlar şöyle diyor: öyle istisna durumlar var ki  birden fazla tanım olmasına rağmen ODR ihlal edilmemiş oluyor. Fakat belirli şartlar altında:
+1. inline fonskiyon olması
+2. 
