@@ -31,5 +31,28 @@ extern int x;
 
 Bir fonksiyonun inline extension'a tabi tutulabilmesi için derleyicinin fonksiyonun kodunu görmesi gerekiyor, fakat tanımı spesifik bir kaynal dosyaya eklersek diğer modüller buna erişemez. Öte yandan
 başlık dosyasına eklersek de ODR ihlal edilmiş olur. Bunun için standartlar şöyle diyor: öyle istisna durumlar var ki  birden fazla tanım olmasına rağmen ODR ihlal edilmemiş oluyor. Fakat belirli şartlar altında:
-1. inline fonskiyon olması
-2. 
+1. inline fonskiyon olması fakat tanım birebir aynı olmak lazım(token by token aynı olmak zorunda).Ayrıca başlık dosyasına inline bir fonskiyon eklerken onun inline olarak expand edilip edilmeyeceğine emin olmalı mıyım? Böyle bir zorunluluğum yok!
+header-only library: Başta boost olmak üzere C++'ın standart  kütüphanesinin modülleri yine başta olmak üzere birçok kütüphane header only library'dir. Klasik düzende .h ve .cpp dosyları olurken header only library olduğunda her şey bir dosyada 
+toplanır. Bunu almakla işimizi bitiriyoruz.
+
+Eğer fonksiyon internal linkage olsaydı bunda herhangi bir problem olmaz, fonksiyon sadece o modüle özgü olur.
+static int foo(int x) 
+{
+    return x*x - 6;
+}
+
+static yaparsak obje koda yazılan referans biçimi şu şekilde olur:linker açısından baktığımızda farklı farklı kopyalar var, ama her kopya kendi modülünde biliniyor. İnline fonskiyon olunca ise 10 farklı kaynak dosyada olsada derlenmiş kodda 
+sadece 1 tane vardır.
+
+Öyle  fonksiyonlar var ki inline anahtar sözcüğünü kullanmasak bile impicit olarak inline olur: constexpr fonskiyonları, sınıfların non-static member funcitonlar ve friend functionlar, function templates'lar vb.
+class Myclass {
+public:
+    //non-static member function
+    void func(int x)
+    {
+        //
+    }
+};
+
+
+
