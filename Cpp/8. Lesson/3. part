@@ -48,11 +48,71 @@ a)Dereyici bir koda bakarak statik olarak derleme zamanında hangi fonksiyonun �
 fonskiyona bu şekilde bağlanmasına -->static binding  veya early binding denir. (unction overloading bu anlamda static binding'dir)
 b)C++ dahil birçok programlama dilinde olan başka araçlar vardır. Hangi fonksiyonun çağırıldığı programın çalışma zamanında belli olur. Yani programın çalışma zamanında bir kod
 çalışır bu kod hangi fonksiyonun çağırılması gerektiğini anlar. Yani derleyici conpile time bakarak aslında hangi fonksiyonun çağırıldığını bilmez. Hangi fonksiyonun
-çağırıldığını belirleyen derleyicinin ürettiği compile time'da çalışan bir koddur. Buna --->dynamic binding veya late binding (function overriding ) denir.
+çağırıldığını belirleyen derleyicinin ürettiği compile time'da çalışan bir koddur. Buna --->dynamic binding veya late binding (function overriding ise late binding oluşturuyor) denir.
 
+1)Function overloading olup olmadığının tespiti?
+function overloading olması için belli başlı şartlar vardır:
+a)fonksiyonların isimleri aynı olmalıdır.
+b)kapsamları(scope) aynı olmalıdır. Fonksiyonlar isimlendirilmiş varlıklardır, her ismin bir kapsamı vardır.
+C'de skop kategorileri:
+   file scope --->global isimler
+   block scope
+   {
+      int x;
+   }
+   function prototype scope
+   void func(int a, int b);
+   function scope--->go to label
 
+C++'ta bulunan skop kategorileri:
+   namespace scope
+   class scope
+   block scope 
+   function prototype scope
+   function scope
 
+Örneğin global skoba sahip ve blok skoba sahip aynı isimli fonksiyonlar function overloading oluşturamazlar çünkü aynı skopta değillerdir.
 
+void foo(int)
+
+int main()
+{
+   void foo(double);
+}
+
+c) fonskiyonların imzaları farklı olmalıdır. Bir fonksiyonun imzası demek fonksiyon geri dönüş değeri dışındaki parametrik yapısıdır. Örneğin:
+int foo(int , int); ve double fun(int, int); foo ve func'ın imzaları aynı geri dönüş değerleri farklıdır. Yani fonksiyon imzası derken parametrik yapı kastediliyor. Yani kaç parametreye sahip olduğu o parametre sabitlerinin türü vb
+ama geri dönüş değeri türü dahil edilmiyor.
+
+İmzaları aynı, geri dönüş değeri farklı aynı isimde olan fonksiyonlar funstion overloading değildir ve sentaks hatasıdır. Çünkü dilin sentaksını çiğner:
+int func(int);
+double func(int);
+İmza aynı, kapsam aynı, geri dönüş değeri türü de aynı bu function overloading değildir bu function redeclaration'dır. 
+int func(int);
+int func(int);
+
+function overlaoding:
+int funt(int);
+int funt(long);
+int funt(int, int);
+int funt(double, int); //+ tane function overlaoding 
+
+Eğer ki parametre referans veya pointer değilse parametrenin const anahtar sözcüğü ile function overloading oluşturmaz function redeclaration oluşturur:
+int func(int);
+int func(const int);
+
+Eğer ki bunun function overloading değilde redeclaration olduğunu kanıtlamak istersek:
+Her iki fonskiyon tanımını dosyada yaparız aynı fonksiyon 2 kere tanımlanamadığı için derleyici sentaks hatsından dolayı hata verir:
+int func(int)
+{
+   return 1;
+}
+
+int func(const int)
+{
+   return 1;
+}
+SENTAKS HATASI OLUŞUR!!
 
 
 
