@@ -1,0 +1,115 @@
+9. Ders 27 Ocak 2023 - CUMA
+
+standart kütüphanede bulunan cout'da da funstion overlaoding bulunur:
+
+#include <iostream>
+int main()
+{
+  using namespace std;
+  int ival {123};
+  double dval{1.23};
+  long lval{12};
+
+  cout << ival << dval << lval;
+}
+
+Operatörün operandı olan sınıf nesnesi ifadesini derleyicinin bir fonksiyona yapılan çağrıya dönüştürmesine: operatör overloading denir.
+
+top level olarak parameterenin değiştirilmeside overlaod oluşturmaz:
+void func(int *p);
+void func(int * const p);
+
+low level pointer olduğunda ise  overload oluşur buna popüler olarak const overloading denir:
+void func(int *p);
+void func(const int *p);
+
+referanslarda:
+void foo(int&);
+void foo(const int&); //overload var
+
+
+Burada 3 ayrı oveload vardır:
+void func(char);
+void func(unsigned char);
+void func(signed char);
+
+Böyle bir bildirim redeclaration oluşturur(bir türe türeş vermemiz farklı bir tür yaratmaz):
+
+typedef unsigned char BYTE;
+
+void foo(unsigned char);
+void foo(BYTE);
+
+Burada int32_t türü bir type alias olduğu için (32 bitlik her derleyicide olmak zorunda değil optional sentaks özelliğidir.) Dolayısıyla int32_t türünden bir paremetre içeren fonksiyon bildirimi 
+geçersiz olabilir, çünkü bu opsiyonel bir seçenek. Eğer ki int32_t varsa function redeclaration mı yoksa overlad mu implementation defined'dır:
+void func(int);
+void func(int32_t);
+
+Fakat bazı type alias'lar opsiyonel değildir her derleyicide bulunmak zorundadır (int_least... ile başlyanlar ve içinde fast geçen türler):
+uint_least8_t
+int_least8_t
+int_fast8_t
+
+yani şu 3 tür birbirinden farklı anlamlara gelir:
+int32_t
+int_least32_t
+int_fast32_t
+
+Bu örnekte 1 tane overload vardır çünkü her 3 fonksiyon bildirimide aynı parametre bildirimine sahiptir:
+void func(int *);
+void func(int p[]);
+void func(int p[10]);
+
+C ve C++ dillerinde fonskiyonların parametre değişkenleri dizi(array) olamaz. Array yaparsanız derleyici parametreyi decay eder ve onu pointer türü olarak ele alır.
+C ve C++ dillerinde fonskiyonların parametre değişkenleri fonksiyon olamaz. Fonksiyon yaparsanız derleyici parametreyi decay eder ve onu (function) pointer türü olarak ele alır.
+
+//int(int) bu function type
+//int(*)(int) bu function pointer type (yukarı satırdaki bir varlığın adresinin türüdür)
+
+void foo(int(int)); fonskiyon paremetresini function type yaptım  ama paremetre function type olamaz derleyici bunu şu şekilde ele alır void foo(int(*)(int));
+void foo(int(*)(int));
+void foo(int(int)); //redeclaration
+
+Dolayısıyla aşağıdaki bildirimlerin hepsini göz önüne aldığımızda 1 tane overload bulunmaktadır:
+
+using Function = int(int);
+using FPTR = int(*)(int);
+
+void foo(Function *);
+void foo(FPTR);
+void foo(int(int));
+void foo(int(*)int);
+
+Paremeteresi 10 elemanlı int dizi adresi olan fonskiyon bildirimi yani türü int[10] olan bir nesne adresi:
+void foo(int(*)[10]);
+
+int main()
+{
+    int a[10]{};
+    foo(&a);
+}
+referans semantiği karşılığı ise:
+void foo(int(&)[10]);
+
+int main()
+{
+    int a[10]{};
+    foo(a);
+}
+
+O halde aşağıdaki kodda 3 tane overload olır:
+void foo(int(*)[10]);
+void foo(int(*)[5]);
+void foo(int(*)[15]);
+
+referans semantiğinde:
+void foo(int(r&)[10]);
+void foo(int(r&)[5]);
+void foo(int(r&)[15]);
+
+
+
+
+
+
+
