@@ -1,0 +1,43 @@
+Peki variadic conversion ve user-defined conversion yoksa ve hala birden fazla overload varsa bu durumda ne olur?
+Bu durumda argümandan paremetre aktarımında 3 tane yine kalite durumu var (en kaliteliden en düşük kaliteye doğru):
+exact match:
+argümanın türü ile parametre türü tamamen uyuyor. Birde bazı istisnalar var bunlarda exacth match'e giriyor:
+  array to pointer conversion (array decay)
+  void func(int *);
+  int main()
+  {
+      int a[5]{};
+      func(a); //array decay uygulanır exact macth 
+  }
+  
+  const conversion
+  void func(const int *);
+
+  int main()
+  {
+      int x = 10;
+      func(&x); //int* ---> const int* e dönüşüm 
+  }
+  
+  function to pointer conversion
+  
+  void func(int(*)(int));
+  int foo(int);
+
+  int main()
+  {
+      func(foo); //func(&foo);
+  }
+    
+promotion:
+int altı türlerden int'e yükseltme (integral promotion) 
+float'tan --> double dönüşüm
+
+conversion 
+sadece conversion olan başka bir viable fonksiyon arasında hiçbir seçim kriteri yok. Yani 2 tane conversion varsa bunlar promotion veya exact match değilse nerden nereye
+conversion olursa olsun birbirine eşit kabul edilecek ve ambiguity oluşur.
+
+
+
+
+
