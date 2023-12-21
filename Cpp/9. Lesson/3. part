@@ -37,6 +37,147 @@ conversion
 sadece conversion olan başka bir viable fonksiyon arasında hiçbir seçim kriteri yok. Yani 2 tane conversion varsa bunlar promotion veya exact match değilse nerden nereye
 conversion olursa olsun birbirine eşit kabul edilecek ve ambiguity oluşur.
 
+void func(int);
+void func(double);
+void func(long);
+
+int main()
+{
+    func(12u);//sentaks hatası exact match değil, promotion değil o zaman conversion ve unsigned'dan inte conversion; unsigned intten double converison ve unsigned inttten longa conversion ambiguity oluşur!!
+}
+
+exact macth örneği:
+
+void func(double);
+void func(long double);
+
+int main()
+{
+    func(3.4);//void func(double); bildirimie sahip fonksiyon exact match olup çağırılır.
+    func(3.4f);//void func(double); bildirimie sahip fonksiyon promotion(integer promotion) olup çağırılır.
+}
+
+Function Overloading Resolution'da Önemli Seneryolar:
+
+1. const overloading
+void func(int *);
+void func(const int *);
+
+int main()
+{
+    const int x = 10;
+    func(&x); //void func(int *); viable değil void func(const int *); exact match
+    int y = 56;
+    func(&y);//her iki fonkdiyonda viable ama kazanan int * parametreli fonk. olur.
+}
+Yani biz böylece const nesneler için ayrı bir oveload const olmayan nesneler için ayrı bir overload oluşturmuş oluruz. Bu const overloading dediğimiz overloading biçimi pointer semantiği ile karşımıza çıktığı gibi
+referans semantiği ile de karşımıza çıkabilir:
+
+void func(int &);
+void func(const int&);
+
+int main()
+{
+    const int x = 10;
+    func(x); //void func(int&); viable değil void func(const int&); exact match
+    int y = 56;
+    func(y);//her iki fonkdiyonda viable ama kazanan int& parametreli fonk. olur.
+}
+
+2.varsayılan argüman olan bir overload ile almayan bir overlaod için yapılan çağrı her ikisine de uygunsa ambiguity oluşur:
+void func(int x, int y = 0);
+void func(int x);
+
+int main()
+{
+    func(25;//sentaks hatası ambiguity oluşur
+}
+
+3. vall by value ile call by reference arasında seçilebilirlik açısından bir fark yok:
+void foo(int);
+void foo(int&);
+
+int main()
+{
+    int x {};
+    foo(x);//sentaks hatası ambiguity
+    foo(10);//gecerli int parametreli fonk. çağırılır eğer ki ikinci fonk. parametresi const int& olsaydı yine ambiguity oluşurdu
+}
+
+
+4. 0'dan int *' null pointer conversion; null pointer conversion conversion kategorisine girer:
+void func(int *);
+void func(int);
+
+int main()
+{
+    func(0);//int parametreli fonk. ile exatch match dolayısıla o fonksiyon çağırılır. int * ile de conversion kategorisi'ne girer
+}
+
+nullptr türünden int'e dönüşüm yoktu:
+
+void func(int *);
+void func(int);
+
+int main()
+{
+    func(nullptr);//direk int * parametreli fonk. çağırılır exatch match
+}
+
+5. Aşağıdaki örnekte int'ten double conversion; int'den pointer'a conversion dolayısıyla ambiguity oluşur:
+void func(int *);
+void func(double);
+
+int main()
+{
+    func(0);//ambiguity
+    func(nullptr);//int * paremetreli fonk. çağırılır çünkü nullptr türünden int türüne örtülü dönüşüm yokken int * türüne örtülü dönüşüm vardır
+}
+
+void func(int *);
+void func(double*);
+
+int main()
+{
+    func(0);//ambiguity
+    func(nullptr);//ambiguity
+}
+
+
+void func(std::nullptr_t);
+void func(int *);
+void func(double*);
+
+int main()
+{
+    f
+    func(nullptr);//void func(std::nullptr_t); fonskiyon çağırılır exatch match
+}
+
+Bu bazı durumlarda function overloadingde fonskiyonu nullptr  ile çağırdığımızda özel bir implementasyonun devreye girmesi anlamına gelir. Yani nullptr çağrısı için ayrı bir kod nullptr olmayan adres çağrıları için ayrı bir kod oluşturma 
+imkanı sunar.
+
+6. Eğer ki void * ve bool overload'ı varsa ve bu fonksiyon bir object pointer ile çağırışırsa aslında her ikside vaible'dır ve üstelik he ikiside conversion'dır fakat yine de void * parametreli fonskiyon çağırılır:
+
+void func(void *);
+void func(bool);
+
+int main()
+{
+    int x = 564;
+    func(&x);//void * parametreli fonk. çağırılır.
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
