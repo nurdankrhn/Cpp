@@ -77,3 +77,103 @@ int main()
     func(static_cast<unsigned int>(flag));//type cast ile 1. fonk. çağırılır.
 }
 
+C ve C++'ta referans isimlerin obje koda yazılma biçimleri farklıdır. Derleyicinin obje koda external referansı yazma biçimi farklıdır. Derleyici linker ile iş birliği halinde linker ile ortaklaşa kararlaştırılan bir notasyonla
+obje koda harici referanslara yönelik bir isim yazıyor, bu ismi de bir şekilde fonksiyonun isminden hareketle oluşturuyor. Burada kullanılan terim "decoration" veya "manlink"'dir. Yani derleyici program obje koda yazacağı isim için
+bir name decoration ya da name manlink yapıyor. C derleyicilerinin obje kod için oluşturduğu manlink veya decoration yapısı ile C++ derleyicilerinin yapsıı farklıdır.
+C'de function overloading olmadığı için C derleyicileri obje koda referans isim yazarken sadece fonksiyon isminden haraketle bir referans yazarken C++'ta function overloading olduğu için sadece fonksiyon isminden dekore ederse o zaman aynı
+isimli overloadlar nasıl ayrılacak? Dolayısıyla C++ derleyicisi bu durumda   parametrelerden de yola çıkarak bir dekorasyon yapıyor. Örneğin necati.h isimli dosyada int fnec(int a, int b); isimli nir fonksiyon bildirimi olsun.
+necati.c de ise bu fonskiyonun tanımı olsun:
+
+"include necati.h  
+
+int fnec(int a, int b)
+{
+    return  a*a + b*b -3;
+}
+şeklinde olsun. Kaynak dosyamız ise main.cpp olsun:
+
+#include <iostream>
+#include "necati.h"
+
+int main()
+{
+    int x{};
+    x = fnec(12, 34);
+    std::cout << "x" << x <<"\n";
+}
+ Linker referans isimlendirmesini derleyicinin kendi dekorasyonu ile verdiği fnec için arayıp bulamadığına dair bir hata verir kod linker tarafından bağlanamaz!! Bunun nedeni az önce bahsi geçen C ve C++ derleyicilerinin 
+dekorasyon farkından kaynaklanır. Yani C ve C++ derleyicisinin aynı parametrik yapıdaki fonksiyonun obje kod için dekore etme biçimleri farklıdır.
+Bunu önlemek için şu yapılabilir: fnec fonksiyonunun C'de derleyicisi ile derlendiği bilgisini vermeliyiz. O zaman bu fonksiyon çağrısı karşısı obje koda artık dekorasyon yaparken C tarzı dekore eder ve linker artık bunu bulabilecek.
+Bu bildirime "extern C bildirimi" denir. Bunu yapmak için :
+necati.h
+extern "C" int fnec(int a, int b);
+
+necati.c
+int fnec(int a, int b)
+{
+    return  a*a + b*b -3;
+} 
+
+main.cpp 
+#include <iostream>
+#include "necati.h"
+
+int main()
+{
+    int x{};
+    x = fnec(12, 34);
+    std::cout << "x" << x <<"\n";
+}
+şeklinde olmalıdır. 
+
+Dikkat edilirse necati.c dosyasından #include "necati.h" kod satırı silindi çünkü necati.h dosyasına bulunan extern "C" C'de bulunmuyor ve sentaks hatasına neden olur. Bunun çözümü için 2 farklı yaklaşım vardır:
+1. Modülün C ve C++ için 2  farklı başlık dosyasına sahip olması. Yani öyle bir modül oluşturulmalı ki C'de derlenmesine rağmen başlık dosyası C++'tan kullanıldığında extern C bildirimlerini içerirken fakat C derleyicisi kullanıldığında 
+o başlık dosyasını o bildirimler olmayacak. 
+2. Bu durumda çok basit bir çözüm var: conditional compiling komutları ile isteneni sağlamak.
+
+
+Örneğin ferhan.h isimli başlık dosyasında birden fazla fonksiyon için extern "C" bildirimi yapacaksak bunu 2 farklı yolla yapabiliriz:
+Birinci yol: hepsinin başına extern "C" eklemek:
+extern "C" void f1();
+extern "C" void f2();
+extern "C" void f3();
+extern "C" void f4();
+extern "C" void f5();
+İkinci yol küme parantezi içinde istediğimiz kadar tanımlamak:
+extern "C" {
+  void f1();
+  void f2();
+  void f3();
+  void f4();
+  void f5();
+}
+
+eğer aynı başlık dosyasını hem C hem de C++'tan kullanılmasını istiyorsanız öyle bir koşullu derleme yapmalıyım ki C++ derleyicisi extern "C" bildirimlerini görsün fakat C derleyicisi görmesin:
+Bunun için yine ön işlemci komutuna yönelik "predefined symbolic constans" veya "predefined macro" denir. Bunlar öyle sembolik sabitler ki bunların defined komutları yok. Fakat dilin kuralları gereği bunlar tanımlı kabul edilir.
+
+Örneğin C'de:
+__FILE__
+__DATE__
+__TIME__
+__LINE__
+__SDTC__
+
+C++'ta ise sayıları oldukça fazladır:
+__cplusplus C++ derleyicilerinde defined kabul edildiği gibi long türden bir sabite define edilmek zorundadır. Yani bu predefined symbolic constant'ı kullandığımız zaman long türden bir sabiti kullanmış oluruz.
+Bu değerin hangi değere define edilmiş olamasının önemi vardır çünkü bu değer hangi C++ standartını desteklediğini yani yani hangi C++ standartına göre yapıldığını belirliyor. Eğer ki standart kontrolüde yapmak
+istersek hangi standartın hangi değere eşit olup olmadığını kontrol etmeliyiz(__cplusplus === deger gibi) .Dolayısıyla derleyicinin C++ derleyicisi olup olmadığını test etmek istersek:
+#ifdef __cplusplus (if defined __cplusplus demek aynı şey)
+//bildirimler
+#endif
+şeklinde bir makro ile sağlamış oluruz:
+#ifdef __cplusplus (if defined __cplusplus demek aynı şey)
+extern "C" {
+#endif
+  void f1();
+  void f2();
+  void f3();
+  void f4();
+  void f5();
+#ifdef __cplusplus (if defined __cplusplus demek aynı şey)
+}
+#endif
