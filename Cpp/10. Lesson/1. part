@@ -1,1 +1,79 @@
 
+30 Ocak 2023 - Pazartesi
+L value reference ve R value reference parametreler ayrı imzalar oluşturduğu için function overloada neden olurlar. 
+sol taraf referansını sağ taraf ifadesine bağlayamam; sağ taraf referansınıda sol taraf değer ifadesine bağlayamam.
+
+class Myclass {
+  //...
+};
+
+void func(Myclass&);//1
+void func(Myclass&&);//2
+
+int main()
+{
+    Myclass m;
+    func(m);//m l val exp. dolayısıyla sol taraf referasnına  bağlanabilir. O halde 1. fonksiyon çağırılır.
+    func(Myclass{});//Myclass temprorary object. ve bu objecler PR val. exp.'dır dolayısıyla 2. fonksiyon çağırılır.
+}
+
+Örneği şu şekilde ele alırsak:
+class Myclass {
+  //...
+};
+
+void func(const Myclass&);//1
+void func(Myclass&&);//2
+
+int main()
+{
+    Myclass m;
+    func(m);//m l val exp. dolayısıyla sol taraf referasnına  bağlanabilir. O halde 1. fonksiyon çağırılır.
+    func(Myclass{});//Myclass temprorary object. bu durumda her iki fonksiyonda viable çünkü const L val ref const olmayan L val ref.'ten farklı olarak R val. exp.'na bağlanabilir buna move overloading diyor hocamız. 
+                    //Her iki fonksiyon varlığında 2 seçilir.
+}
+
+Örnek şu şekilde olursa:
+class Myclass {
+  //...
+};
+
+void func( Myclass&);//1
+void func(const Myclass&);//2
+void func(Myclass&&);//3
+
+int main()
+{
+    Myclass m;
+    const Myclass cm;
+    func(m);//1
+    func(cm);//2
+    func(Myclass{});//3
+}
+
+Bu zamana kadar function overloading için verdiğimiz örneklerde parametreleri hep tek olan örnekleri ele aldık fakat fonksiyonlar birden fazla parametre alabilir. Peki böyle bir durumda nasıl bir yol izlenerek fonksiyon çağrısı yapılır?
+Dilin standartları bu konu ile alakalı şunu söyler:Birden fazla parametre olması durumunda bir overload'un şeçilebilir olması için "en az bir parametrede diğer overload'lara üstünlük sağlamalı ancak diğer parametrelerde diğerlerinden 
+kötü olmamalıdır (eşit olabilir)" 
+
+void foo(float, double, int);//1
+void foo(int, long, unsigned);//2
+void foo(double, unsigned, float);//3
+
+int main()
+{
+  foo(3.4f, 12, 3.4);//1. fonksiyon seçilir. 1. parametre 1. fonk için exatch match diğer fonksiyonlar için conversion 2. ve 3. parametre hepsi için conversion
+  foo(true, 12, 4.5);//2. fonksiyon seçilir. 1. parametre 2. fonk için promotion diğer fonksiyonlar için conversion 2. ve 3. parametre hepsi için conversion
+  foo(12u, 6u, 1.2);//3. fonksiyon seçilir. 1. parametre hepsi için converison 2. parametre 3. fonk için exatch match diğer fonksiyonlar için conversion 3. parametre hepsi için conversion
+}
+
+Ambiguity'den kaçınmak için şöyle bir yöntem izlenebilir:tür dönüştürme operatörü ile parametrenin türüne exatch match oluşturucak şekilde fonksiyon çağrısı oluşturabiliriz:
+void func(unsigned int);//1
+void func(long);//2
+
+int main()
+{
+    bool flag{};
+    func(static_cast<long>(flag));//type cast ile 2. fonk. çağırılır.
+    func(static_cast<unsigned int>(flag));//type cast ile 1. fonk. çağırılır.
+}
+
