@@ -1,0 +1,116 @@
+C++'ta derlenmiş C kodlarını kullanmak çok sık rastlanan bir durumdur. Teknik analiz kütüphanelerinden(TA-Lib) en iyisi en kolay kullanılanı ve en hızlı kullanılanı bir C kütüphanesidir. İşte bunu C++'ta kullanırken
+extern "C" bildirimi ile kullanıyoruz. Yani C++'tan  C kodunu çağırma/kullanma çok sık kullanılan bir yöntemdir. 
+
+SINIFLAR
+C++'ta sınıflar data abstraction'nun genel aracıdır. Yani problem domaininde veya çözüm domaininde bir varlığı temsil edicek yazılımsal bir araçtır sınıflar. C terminolojisi ile bakarsak sınıflar bir user-defined type 
+gibi düşünülebilir. Genellikle C'de bulunan structurler C++'ta artık sınıf şeklinde kullanılmakta. Yani C2de olan structure'lar C++'ta artık tam donanımlı sınıflar. Yani C++'ta sınıf dendiği zaman class anahtar sözcüğü
+veya struct anahtar sözcüğü ile tanımı yapılan varlıklar kastedilir. Problem domainindeki varlıkları yazılımsal değişkenler şeklinde temsil edip onları kullanabiliyoruz.
+
+Bir sınıf bildirilebilen, tanımlanabilen bir varlıktır. Yani user defined type olarak bir sınıfın bildirimini ve tanımını yapabiliriz. Forward/class declaration şu şekildedir:class anahtar sözcüğü + identifier
+class Myclass; şeklinde böylece derleyiciye ismi Myclass olab bir sınıfın var olduğu bilgisini vermiş oluruz. Belirli işlemler için bu yeterliyken  belirli işlemler için bu yetersizdir; bunun complete type haline 
+gelmesi gerekir işte bu kod yapısınada class definition denir. Sınıf tanımı şu şekilde yapılır:
+class Myclass {
+
+};
+
+veya
+struct Myclass {
+
+};
+şeklinde tanımlanabilir. C'nin aksine yapının/sınıfın bir elemanı olma zorunluluğu yoktur. Böyle sınıflara "empty class" denir. Sınıfın tanımı içinde bildirilen varlıklara o sınıfın üyeleri anlamında "class member" denir.
+Member'lar farklı farklı kategorilere ayrılır. En önemli 3 kategori şunlardır:
+data member
+  static data member
+  non-static member 
+member function
+  static member function
+  non-static member function
+member type(type member - nested type)
+
+Sınıfın tanımını içinde bildirilen fonksiyonlara java, C# vb dillerde  method denirken C++'ta member function denir!!
+
+class Data {
+    void foo(int);//non-static member function
+    static void func(int, int);//static member function
+    int x, y;//non-static data member
+    static double msval;//static data member
+
+    class Nested {
+    
+    };//member type
+    using integer = int; //member type
+};
+
+C++'ta skoplar şunlardı:
+namespace scope
+class scope
+block scope
+function prototype scope
+function scope
+
+scope(kapsam)
+isimlerle ilgili bir kavramdır. Değişken/fonksiyon/türeş vb ismi olan her şeyin bir skobu vardır. Bir ismin skobu o ismin o varlığa ilişkin olarak kullanabileceği kaynak kod aralığını belirler. 
+
+name lookup
+(isim arama)Derleme işlemimin identifier'larla ilgili en önemli sürecine karşılık gelir. Biz bir ifade içinde bir isim kullandığımız zaman derleyicinin bu kodu çözümleyebilmesi için bu kod karşılığı kod üretebilmesi için 
+şu sorunun cevabını alması gerekir: ifadede geçen isim neyin ismi? a = 10 böyle bir ifadede derleyici a ismini arar(name lookup) eğer bulamazsa sentaks hatası meydana gelir. Eğer ki
+name lookup sonucu bulursa contex kuralını uygular. Yani a isminin a = 10 ifadesi içinde kullanımı dilin herhangi bir kuralını çiğneyip çiğnemediğine bakacak.
+Yani name look up derleyicinin bir ismin neyin ismi olduğunu dilin kurallarına göre anlaması sürecidir. C++'ta name lookup 2 şekilde sonuçlanabilir:
+1-name look up başarısız olur, derleyici sentaks hatası verir. C++'ta C'de olmayan ayrı bir sentaks hatası daha var:ambiguity denir öyle durumlar var ki  derleyici isim araması sonucunda
+alternatif aynı isme ilişkin 2 bildirim ile karşılaştığı için dilin kuralları da orada bu bildirimlerden hangisini ben esas olarak almalıyım sorusuna cevap bulamadığı için  her
+2 bildirimde aynı önceliğe sahip olduğu için ambiguity oluşur.
+2-name look up başarılı olur, derleyici o ismin neyin ismi olduğunu anlar o faz biter; diğer kontrollere geçer.
+
+Örneğin bu kod parçasında name lookup ve scope'dan dolayı sentaks hatası meydana gelir:
+int x = 10;
+
+int main()
+{
+    int x = x;
+}
+
+
+name lookup'ın 2 tane altın kuralı vardır:
+1. isim arama bir kez yapılır, arana isim bulununca isim arama sona erer ve bir daha başlamaz.
+2. isim arama bir sıra dahilinde yapılır 
+
+İsim aramanın tamamlanması bitmesi kodun legal olduğu anlamına gelmez sadece derleyicinin o ismi bir varlıkla ilişkilendirdiği anlamına gelir. Sonrasında context kontrolü yapılır.
+Aşağıda context kontrolü sonuçta sentaks hatası oluşan bir kod örneği:
+void func(int);
+
+int main()
+{
+    int func = 5;
+    func(19);//name lookup sonucu dilin kuralına göre int olan func bulunur ve func(19) sentaks hatası olur
+    ::func(19);//şeklinde tanımlarsam qualifed name olurdu ve unary scope resoluation operatör operandı olmasından dolayı derleyici func ismini global skopta arar ve fonksiyon olan func artık
+                //çağırıldığı için sentaks hatası olmayacaktı(çünkü name lookup isim bulununca sona erer ve bir daha başlamaz)
+                
+}
+
+aynı isim birden fazla skopta farklı varlıklara ilişkin olabilir ama bir kullanım alanında o isim başka ismi gizleyebilir buna "name hiding/masking/shadowşng" denir.
+
+3 tane farklı kontrol vardır:
+name lookup
+context control(dil kurallarının kontrolü)
+access control(C'de yoktur, isimlerin skopları içinde o ismi kullanmamız her zaman legal değildir. Belirli kodların belirli isimleri kullanması sentaks hatasıdır.)
+    public, private, protected bunlar access kontrolüne ilişkin specifierlardır.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
