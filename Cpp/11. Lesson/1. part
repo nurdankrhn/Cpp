@@ -1,0 +1,88 @@
+01 Şubat 2023 - ÇARŞAMBA
+
+class Myclass {
+  int mx;
+public:
+  void func(int);
+  };
+
+int main()
+{
+    Myclass m;
+    Myclass *p{&m};
+
+    m.func(11);
+    p->func(23);
+}
+
+Function member class objesinin size'ını değiştirmiyordu aynı şekilde type member'larda size'ını değiştirmezler. Fakat o type türünden değişken tanımlarsak o zaman tabii kide
+size artar:
+class Myclass {
+  int x, y;
+  class A {
+    int a, b;
+  };
+};
+sınıfın size'ı int türünün 4 byte yer kapladığı varsayımıyla 8'dir.
+class Myclass {
+  int x, y;
+  class A {
+    int a, b;
+  };
+  A a1;
+};
+sınıfın size'ı int türünün 4 byte yer kapladığı varsayımıyla 16'dır.
+
+
+class anahtar sözcüğü ile tanımlanan sınıf tanımı içinde eğer ki değiken için herhangi bir erişim belirteci kullanmazsam default erişim bölgesi olarak sınıfın private bölümü olur.
+class Myclass {
+  int mx;
+};
+
+struct anahtar sözcüğü ile tanımlanan sınıf tanımı içinde eğer ki değiken için herhangi bir erişim belirteci kullanmazsam default erişim bölgesi olarak sınıfın public bölümü olur.
+struct Myclass {
+  int mx;
+};
+
+struct Myclass {
+  int foo();//sınıfın private non-static member function
+};
+
+public, private ve protected anahtar sözcükleri sınıf tanımında birden fazla kez kullanılabilir.
+
+Sınıfın üye fonksiyonları:
+class Myclass {
+  public:
+    void foo();
+  private:
+    int mx;
+}
+
+Acaba foo fonksiyonunun global fonksiyondan hangi farklılıkları vardır:
+foo global bir fonksiyon olarak şuna karşılık gelir:
+void gfoo(Myclass *p)
+{
+  //p->mx; sentkas hatası
+}
+
+global fonksiyonlar için bir erişim kontrolü yoktur. Global isimlerde isim arama kurallarına göre aranır. Global fonksiyonlar parametreleri sınıf türünden pointer olabilir
+veya referans olabilir fakat o sınıfın private bölümüne erişemezler. Private bölüm sadece sınıfın kendi kodlarına açıktır sınıfın dışındaki kodlara kapalıdır. public bölüm herkese
+açıktır, private bölüm sadece sınıfın kodlarına açık protected bölüm ise sınfın kodlarına ve kalıtım yoluyla o sınıftan elde edilecek sınıflara açıktır.
+
+int main()
+{
+    Myclass mx;
+    gfoo(&mx);
+}
+
+structure'lar genellikle bütün elamanları public olması istenen sınıf tanımlarında kullanılır. Bu sınıflara aggrate types denir ve ilave bazı haklar kazanır. Ayrıca
+teknik olarak struct anahtar sözcüğünü kullanıp  sınıf oluşturup private bölüm oluşturulabilir fakat pratikte çok tercih edilmez.
+
+
+private bölümde dataların gizlenmesine data hiding veya information hiding denir. Yani sınıfın data memberlarını tipik olarak private bölümünde koyup, kendi işlerimi
+sınıfın içişlerine yönelik yardımcı fonksiyonları client'ların doğrudan çağırmasını istemediğim fonksiyonları (helper function) private bölüme koyuyorum böylece aslında 
+client kodlara diyorum ki burası seni ilgilendirmez. Böylece bozulma ihtimali olan yapıların önüne geçilir.
+
+
+Neden private bölüm/elamanlar var?
+1. öğrenme yükünü ortadan kaldırır. Her şey açık olacaksa programcı her şeyi bilmek zorunda ayrıca tam bilinmediğinde yapıyı bozadabilir: buna örnek C'deki struct tm.
