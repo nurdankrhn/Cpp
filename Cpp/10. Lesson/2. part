@@ -95,6 +95,23 @@ context control(dil kurallarının kontrolü)
 access control(C'de yoktur, isimlerin skopları içinde o ismi kullanmamız her zaman legal değildir. Belirli kodların belirli isimleri kullanması sentaks hatasıdır.)
     public, private, protected bunlar access kontrolüne ilişkin specifierlardır.
 
+Örneğin bu örnekte void func(double); private olduğu için isim aramaya tabi tutulmaz; bu durumda derleyici açısından bir tek void func(int); olduğundan float türden argüman
+int'e dönüştürülüp o çağırılır derse en temel noktada hata yapar:çünkü  name lookup sonra context control  sonra da access control. O halde doğru cevap şudur:bu iki fonksiyon
+function overloading'dir, function overload kurallarına göre void func(double); seçilir ve en son access controlde erişim olmadığı için sentkas hatası meydana gelir:
+
+class Myclass {
+private:
+    void func(double);
+public:
+    void func(int);
+
+};
+
+int main()
+{
+    Myclass m;
+    m.func(3.4f);//sentaks hatası meydana gelir...
+}
 
 
 
