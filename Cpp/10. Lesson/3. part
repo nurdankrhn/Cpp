@@ -1,1 +1,101 @@
-3
+int x = 10;
+
+int main()
+{
+    int x = x;//ub
+}
+Burada yerel değişken olan x'e global olan x atanamaz; diliin kuralları bu şelilde işlemez:int x bir bildirimken = x bir ifade dolayısıyla derleyici x ismini arar, önce kullanıldığı
+blokta arar ve bu aramaya bildirimin yapıldığı yer de dahildir dolayısıyla bu kod tanımsız davranış kendi çöp değeri yerel x değşkenine atanır. Fakat unary çözünürlük operatörünü
+kullansaydım bu halde isim arama global skopta yapılacağı için ub oluşmaz ve yerel x değişkenine global olan x'in değeri atanırdı:
+int x = 10;
+
+int main()
+{
+    int x = ::x;//x'e 10 değeri atanır
+}
+yine bu kod parçasında da bir problem oluşmaz:
+
+void func(int func)
+{
+  ::func(func);
+}
+
+Bir ismin bir class definition içinde aranamsı için ismin nitelenmiş olarak kullanılması gerekir. 2 farklı isim kullanım biçimi vardır:
+qualified name:eğer bir isim member selection operatörlerinden: . -> scope resolation operatörü operandı olursa o halde qualifed name olur:
+x.y
+ptr->a
+::x
+Myclass::x
+
+unqualified name:eğer bir isim operatörlerden birinin operandı değilse doğrudan yalın olarak kullanılıyor ise bu şekilde kullanılan isimlere denir.
+
+Bir ismin bir ifade içinde kullanılması durumunda class definition içindeki bildirimlerde aranması ancak şu durumlarda söz konusu olabilir:
+nokta operatörünün sağ operandı ise ve nokta operatörünün sol operandı bir sınıf türünden nesne ise nokta operatörünün sağ operandı olan isim nokta operaatörünün
+ilişkin olduğu class definition içerisinde aranır.
+
+Ok operatörü sağ operandı olan isim sol operand bir pointerdır. O adres hangi sınıf türünden ise o sınıfın memberları için aranıyor.
+
+Çözünürlük operatörü binary ise(Myclass::x) gibi sol operand bir identifier sağ operand bir identifier eğer sol operand bir namespace ismi ise sağ operand olan isim
+o namespace'te aranır. Fakat sol operand bir class ismi ise sağ operand o class definition içerisinde aranıyor.
+
+unary çözünürlük operatörü global alanda ismin aranmasını sağlar.
+
+non-static data member:Sınıf türünden nesnelerin fiilen içinde olan yani her sınıf nesnesinde bulunan elemanlardır.
+class Myclass {
+int a,b;
+}
+Artık her sınıf nesnesinin bir a'sı ve bir b'si olur.
+
+Bir sınıf türünden değişkenin paradigmanın ne olduğuna bağlı olarak o değişken için kullanılan bazı terimler var. İşte bu terimlerin başında object gelir.
+Fakat C++'ın kendi terminolojisinde ki object terimi ile nesne yönelimli programlamadaki object terimi birbiri ile aynı terimler değildir. C++'ta object C'deki gibi
+çok genel anlamda kullanılırken C#, java gibi oop dillerinde farklı anlamlarda kullanır. Yani C++'ta object  bir memory lokasyonu olan herhangi bir değişken demektir illa 
+bir sınıf türü olması gerekmez. Fakat sınıf türünden objectler söz konusu olduğunda sınıfın non-static veri elemanları fiilen o değişkenlerin içinde yani o değişken için
+ayrılan bellek alınında yer alırlar. Yani ne kadar çok memberı varsa storage ihtiyacı o kadar artar.
+
+Bir sınıfın elamanı olmayabilir fakat elemanı olmayan bir sınıfın sizeof değeri 0 değildir!!! 1'dir!!! Çünkü bu sınıf türünden bir değişken oluşturulduğunda bir adrese 
+ihtiyaç duyulur böyle bir adres bulundurabilmesi için en az 1 byte'lık bir alana ihtiyaç duyar.
+
+static veri elemanları ise C'deki global değişkenler gibidir yani onlar sınıf nesnesi içinde değildir:
+class Myclass {
+ static int x;
+}
+O halde şu an int türünün 4 byte yer kapladığı bir sistemde Myclass nesnesinin 1 byte yer kapladığını söyleyebiliriz çünkü statik veri elamanları sınıf içerisinde 
+tutulmazlar. Eğer ki x elamanı non-static olsaydı sizeof değeri 4 byte olurdu çünkü non-static veri elemanları sınıf içerisindedir.
+
+Bazı programlama dillerinde ki terimlerin C++'ta karşılığı:
+instance variable--->non-static data members
+class variable--->static data members
+
+Biz genelde data member derken non-static data member'ı kastetmiş oluruz.
+
+
+Sınıf tanımı içinde fonksiyon bildirebiliriz bu C'de olmayan bir özalliktir. C++'ta bir fonksiyonun sınıfın dışında namespace içinde bildirilmesi durumunda statüsü ayrı
+sınıfın içerisinde bildirilmesi durumunda statüsü ve ona karşılık gelen terim ayrıdır. C++'ta 2 farklı fonksiyon kategorisi vardır:
+
+//free function
+//global function
+//stand-alone function
+void func(int, int);
+
+class Myclass {
+    void foo(int);//member function
+};
+
+Member veya global function ayrımı assembly katmanında olan kavramlar değildir. Dil katmanında paradigmasal semantik bir varlıktır.
+
+Sınıfın member functionları sınıf türünün sizeof'unu etkilemez yani C'deki global fonskiyonlardan assembly düzeyinde hiçbir farkı yoktur. 
+Aslında sınıfların non-static üye fonksiyonlarının bir tane fazladan parametreleri vardır. Yani aslında sınıfların non-static üye fonksiyonlarının bildiirimde kaç tane 
+parametresi varsa assembly kodunda 1 tane fazla paramteresi vardır. O parametre türüde sınıf  türünden pointerdır. Yani non-static üye fonksiyonları paradigmaya uyum sağlamak
+için tasarlanmış fonksiyonlardır.
+
+1.non-static üye fonksiyonlar global fonksiyonlara bir class skop içine alınmış alternatiftir.
+2.Aslında gizli bir parametre değişkeni vardır; onu yazmıyoruz sınıf türünden pointerdır.
+3.Bu fonksiyonu çağırırken o fonksiyonu bir sınıf nesnesi için çağırmamız gerekiyor çünkü aslında assembly düzeyinde bir paramtere var adres operatörünü fiilen göndermek yerine sınıf
+nesnesini . operatörünün sol operandı yapıp fonskiyon çağrısını yapıyoruz veya sınıf nesnesinin adresi elimizde ise o adresi ok operatörünün operandı yapıp fonksiyon çağrıısını
+yapıyoruz fakat assembly düzeyinde fonksiyonun 1. parametresi olan sınıf türünden pointer'a sınıf nesnesinin adresini göndermiş oluruz diğer parametresi için ise çağrıda kullanılan
+argümanı göndermiş oluruz. Böylece kod member function soyutlaması ile dilin bazı başka araçları ile daha yüksek uyum sağlar, dil katmanında bazı kontroller yapılabiliyor isim arama
+erişim kontrolü gibi. Dolayısıyla global fonksiyon yerine üye fonksiyon kavramının gelmesi ile :
+1.fonksiyon isimlerinin ayrı bir skop kategorisine sokulmasını
+2.bir erişim kontrolünün sağlanmasına 
+3.kodun sadeleşmesine olanak sağlar
+
