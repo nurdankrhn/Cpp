@@ -1,0 +1,191 @@
+sınıfın üye fonksiyonları nasıl tanımlanır?
+Sınıflarun tanımı tipik olarak başlık dosyasındadır. Çünkü sınıfları oluşturmamızın temel nedenlerinden biri diğer modüllere hizmet vermenin bir aracı olarak kullanmak. a
+Böyle bir durumda ODR ihlal edilmez normalde yazılımsal varlıkların 1 tane tanımı olmak zorundadır fakat class definition bir istisnadır. Token by token aynı olmak üzere
+aynı projeyi oluşturan kaynak dosyalarda aynı sınıfın tanımı tekrar etmesi ODR ihlali değildir. Bunun olması için baştada söylediğimiz gibi aynı projeyi oluşturan kaynak dosyalarda
+token by token aynı olması gerekir.
+
+ODR'ı ihlal etmeyen birkaç tane örnek:
+class definition
+inline functions
+inline variables
+constexpr functions
+template
+
+üye fonksiyon tanımı için 2 yöntem var:
+1. Klasik yöntem
+
+//alperen.h başlık dosyası
+class Alpo{
+public:
+  void func(int x);
+};
+
+//alperen.cpp implementasyon dosyası
+void Alpo::func(int x)
+{
+  
+};
+
+2. Yöntem fonksiyon tanımını başlık dosyasında inline olarak yapmak:a)fonksiyon tanımını class tanımının içinde yapmak. Bu fonksiyon zaten implicit inline ve genelde inline keywordunu
+yazmama eğilimi daha yüksek. b)tanımı class tanımı dışında inline keywordunu kullanarak yapmak.
+a)
+//alperen.h başlık dosyası
+class Alpo{
+public:
+  void func(int x)
+  {
+    //implicitly inline 
+  }
+};
+b.1)
+
+//alperen.h başlık dosyası
+class Alpo{
+public:
+  inline void func(int x);
+};
+
+void Alpo::func(int x)
+{
+  
+};
+ b.2)
+ //alperen.h başlık dosyası
+class Alpo{
+public:
+   void func(int x);
+};
+
+inline void Alpo::func(int x)
+{
+  
+};
+
+
+Fonskiyonları inline yapıp yapmamak bizim implementasyonumuza yani kodun amacına bağlı bir durumdur.
+Öte yandan header-only library olacaksa zaten ayrı .cpp dosyası olmayacağı için bütün fonksiyonlar inline olmak zorunda.
+
+Yöntem bir için:
+//alperen.h başlık dosyası
+class Alpo{
+public:
+  void func(int x);
+};
+
+//alperen.cpp implementasyon dosyası
+void Alpo::foo(int x)
+{
+  
+}; sınıf tanımında foo isminde bir fonksiyon class yapısında bildirilmediği için sentaks hatası. Yani class tanımı içinde bildirilmeyem bir fonksiyonun tanımlanması doğrudan
+sentaks hatasıdır.
+
+void foo(int x)
+{
+  
+}; bu bir global fonksiyon tanımı olur sentaks hatası meydana gelmez!!
+
+void func(double x)
+{
+  
+};//bir overload değil çünkü class tanımı içinde olan fonksiyon ile skopları farklıdır.
+
+üye fonksiyonlar için name lookup farklıdır: sınıfın üye fonksiyonları için nitelenmemiş bir isim kullanılması durumunda kural farklı ve şudur: isim yine önce blok 
+içinde aranır yine blokta bulunamazsa onu kapsayan blokta aranır orada da bulunamazsa class definition içinde aranır.
+//alperen.h başlık dosyası
+class Alpo{
+public:
+  void func(int x);
+};
+
+//alperen.cpp implementasyon dosyası
+void Alpo::func(int x)
+{
+  mx = x;
+  //Alpo:mx = x; ile aynı anlamda tek fark name lookup farkı şimdi doğrudan çözünürlük operatörünün sol operandı olan sınıfta name lookup yapılır.
+};
+
+O halde şöyle bir senaryoda :
+//alperen.h başlık dosyası
+class Alpo{
+public:
+  void func(int x);
+};
+
+double mx;
+//alperen.cpp implementasyon dosyası
+void Alpo::func(int x)
+{
+  int mx;
+  mx = 6; // yerel değişken mx'e değer atandı
+  //yerel değişken mx olmasaydı class içindeki non-static veri elemanına atama yapılacktı
+  //sınıfın böyle bir veri elemanı olmasaydı global olan mx'e 6 değeri atanacaktı.
+  //
+  
+};
+Bu örnekte global olan mx'e class'ın veri elamanı mx ve yerel değişken olan mx'in toplam değerleri atanmıştır:
+
+//alperen.h başlık dosyası
+class Alpo{
+public:
+  void func(int x);
+private:
+  int mx;
+};
+
+double mx;
+//alperen.cpp implementasyon dosyası
+void Alpo::func(int x)
+{
+  int mx{345};
+  ::mx = Alpo::mx + mx;
+  
+};
+Buradan da gördüğümüz gibi sınıfın üye fonksiyonları sınıfın private bölümüne erişebilir.
+
+
+Sınıfın üye fonksiyonu sınıfın private bölümünün tamamına erişebilir; şöyle bir anlam yanlıştır: bu fonksiyon hangi nesne için çağırılmışsa  o nesnenin private
+bölümüne erişebilir hayır olan şey şudur artık sınıfın private bölümü buna tamamen açık ister parametre değişkeni olsun ister global değişken olsun, ister yerel değişken olsun
+ 
+//alperen.h başlık dosyası
+class Alpo{
+public:
+  void func(int x);
+private:
+  int mx;
+};
+
+//alperen.cpp implementasyon dosyası
+Alpo g_a;
+void Alpo::func(int x)
+{
+    g_a.mx = 10; //legal
+  
+};
+
+//alperen.h başlık dosyası
+class Alpo{
+public:
+  void func(Alpo a, int x);
+private:
+  int mx;
+};
+
+//alperen.cpp implementasyon dosyası
+Alpo g_a;
+void Alpo::func(Alpo a, int x)
+{
+    int val = a.mx;
+    g_a.mx =  4235;
+    Alpo apx;
+    apx.mx = 46;
+    mx = x;
+};
+
+YANİ kural ne değil: üye fonksiyon hangi nesne için çağırıldıysa o nesnenin private bölümüne erişim yasağı yok değil; sınıfın private bölümüne erişim yasağı yok.
+Yani bu üye fonksiyonun içinde sınıfın private üye fonksiyonlarını, nested typelarını private nested typelarını her şeyi kullanabilirim!!!Sınıfın üye fonksiyonuna
+comple açık ister global değişken olsun ister yerel değişken olsun ister parametre değişkeni olsun hepsinin private bölümüne açık!!
+
+
+
+
+
