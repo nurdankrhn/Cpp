@@ -185,7 +185,93 @@ YANİ kural ne değil: üye fonksiyon hangi nesne için çağırıldıysa o nesn
 Yani bu üye fonksiyonun içinde sınıfın private üye fonksiyonlarını, nested typelarını private nested typelarını her şeyi kullanabilirim!!!Sınıfın üye fonksiyonuna
 comple açık ister global değişken olsun ister yerel değişken olsun ister parametre değişkeni olsun hepsinin private bölümüne açık!!
 
+Bir sınıfın non-static üye fonksiyonu bir sınıfın başka bir non-static üye fonksiyonunu çağırdığında bu durumda aslında ilk non-static üye fonksiyon hangi nesne için çağırılmışsa
+bu fonksiyonda aynı nesne için  çağırılmış olur.
 
+class Alpo {
+public:
+  void foo(int x);
+  void bar(int x);
+private:
+  int mx;
+};
+
+void Alpo::foo(int x)
+{
+    bar(x);
+};
+
+bu üye fonksiyonlar global fonksiyon olsaydı şu şekilde olurdu:
+
+void bar(Alpo *p, int x)
+{
+  
+};
+
+void foo(Alpo *p, int x)
+{
+    bar(p, x);
+};  
+
+Aşağıda ki örnekte foo(3); fonksiyon çağrısı name lookup sonucunda class definition içinde olan fonksiyonu bulur ve bu fonksiyon parametre almadığı için sentaks hatası meydana gelir:
+
+class Alpo {
+public:
+  void foo();
+private:
+  int mx;
+};
+
+int foo(int mx);
+
+void Alpo::foo()
+{
+  //foo(3); sentaks hatası
+};
+
+Access specifierlar birer skop değildir!!! O halde aynı skop içinde aynı ismi birden fazla varlığa veremediğimiz için sentkas hatasının meydana gelmesinden dolayı
+böyle bir sınıf tanımında da sentaks hatası meydana gelir:
+
+//alperen.h
+
+class Alpo {
+public:
+  void foo();
+private:
+  int foo;//aynı ismi birden fazla varlığa veremediğimiz için sentkas hatası oluşur.
+};
+
+Burada da function overloading oluşur:Dolayısıyla bir sınıfın aynı isimli farklı imzaya sahip fonksiyonları onların erişim kategorisinin ne olduğundan bağımsız overloading oluştururlar.
+class Alpo {
+public:
+  void foo();
+private:
+  void foo(double);
+};
+
+Global fonksiyonların aksine sınıfın üye fonksiyonları yeniden bildirilemezler; doğrudan sentaks hatası:
+
+class Alpo {
+public:
+  int foo(int);
+  int foo(int);//sentaks hatası
+};
+
+Her zaman söylediğimiz gibi en başta  name lookup, ardından context control ve son olarakta access control yapılır. Aşağıdaki örnekte önce name lookup'ın yapılmasıyla
+double parametreli fonksiyon seçilir ve en son access kontrolünde bu fonksiyon private bölümde olmasından dolayı sentaks hatası meydana gelir:
+
+class Alpo {
+public:
+  int foo(int);
+private:
+  int foo(double);
+};
+
+int main()
+{
+    Alpo ax;
+    ax.foo(2.3);//sentaks hatası
+}
 
 
 
