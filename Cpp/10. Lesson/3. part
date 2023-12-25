@@ -88,6 +88,21 @@ Aslında sınıfların non-static üye fonksiyonlarının bir tane fazladan para
 parametresi varsa assembly kodunda 1 tane fazla paramteresi vardır. O parametre türüde sınıf  türünden pointerdır. Yani non-static üye fonksiyonları paradigmaya uyum sağlamak
 için tasarlanmış fonksiyonlardır.
 
+class Myclass {
+
+public:
+    void func(int);
+
+};
+
+//void func(Myclass *p, int); assembly düzeyinde bu şekilde aslında
+int main()
+{
+    Myclass m;
+    m.func(12);//member function sayesinde cpp ile bu şekilde calle edebiliriz
+    func(&m, 12);//C'de dolayısıyla assembly düzeyinde kodun karşılığı bu şekilde düşünebiliriz.
+}
+
 1.non-static üye fonksiyonlar global fonksiyonlara bir class skop içine alınmış alternatiftir.
 2.Aslında gizli bir parametre değişkeni vardır; onu yazmıyoruz sınıf türünden pointerdır.
 3.Bu fonksiyonu çağırırken o fonksiyonu bir sınıf nesnesi için çağırmamız gerekiyor çünkü aslında assembly düzeyinde bir paramtere var adres operatörünü fiilen göndermek yerine sınıf
