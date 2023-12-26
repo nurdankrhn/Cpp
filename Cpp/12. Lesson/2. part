@@ -112,6 +112,8 @@ constructor için kurallar:
 2.constructor cont üye fonksiyon olamaz yani non-static member function olmak zorundadır.
 3.constructor diğer üye fonksiyonlardan farklı olarak  .  veya -> operatörü ile çağırılamaz!!
 4.constructor diğer üye fonksiyonlarda olduğu gibi sınıfın public, private, protected öğesi olabilir.
+5.constructor overload edilebilir. Yani bir sınıfın farklı imzaya sahip birden fazla constructor'ı olabilir. Tıpkı diğer fonksiyonlarda olduğu gibi hangi 
+fonksiyonun çağırılacağı "function overload resolutaion" ile belirlenir.
 
 Eğer ki constructor fonskiyon sınıfın private bölümünde ise o zaman client kodlar bu bölüme erişemeyeceği için o sınıf türünden nesneler üretilemeyecektir.
 
