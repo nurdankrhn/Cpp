@@ -1,1 +1,54 @@
+constructor popüler olarak ctor diye kısaltılıyor.
 
+destructor için bazı önemli temel kuralları:
+destructor ise popüler olarak dtor olarak kısaltılıyor.
+1. ismi başında ~ operatörü ile başlayan ve devamında sınıf ismi ile aynı olacak şekilde olmalı.
+2. geri dönüş değeri kavramı yok 
+3. non-static member function olmak zorunda (global ya da statik üye fonksiyon olamaz.)
+4. const üye fonksiyon olamaz.
+5.destructor sınıfın diğer üyelerinde olduğu gibi public, private veya protected öğesi olabilir.
+6.overload edilemez!Ve bildirimde parametresi olmamalı, olursa sentaks hatası.
+7. destructor her ne kadar . ve -> operatörlerinin operandı olabilse de genelde bu çok nadir görülen bir durum için serbest bırakılmıştır. Bu nadir durumda placement new
+operatörü/ifadesi kullanımında.
+
+constructor birçok dilde varken destructor her dilde mevcut değildir.  constructor temel olarak   nesnenin veri elemanlarını initialize eder. Yani çok önemli varlık nedenlerinden biri
+sınıf nesnesinin non-static veri elemanlarını initialize eder. Böylece sınıf nesnesi anlamlı bir değere kavuşup, kullanılabilir hale gelir.
+
+C++'ta en yaygın olan akronimlerden biri RAII akronimidir.
+
+RAII: Resource Acquisition Is Initialization
+
+
+Sınıf nesnelerinin bir kısmı veya sınıfların doğal olarak bir kısmı şöyle bir örüntüyle oluşturulur:sınıf nesnesini hayata getiren constructor sınıf nesnesinin hayatta oludğu sürece 
+kullanacağı kaynak ya da kaynakları edinir.(resource) Sınıf nesnesi hayatta olduğu sürece bunu kullanıyor fakat sınıf nesnesinin hayatı bittiğinde bu kaynakların geri verilmesi gerekir.
+Sınıf nesnesinin hayatı bittiğinde ise destructor çağırılır. O zaman constructor kaynakları edinse destructor ise geri verse sorun oluşmaz yani kaynak sızıntısı oluşmaz.
+constructor bir kaynak tahsis eder destructor onu geri verir
+constructor bir dosya açar destructor onu kapatır
+constructor bir veri tabanı bağlantısı oluşturur destructor onu sonlandırır
+constructor bir mutexi kitlerken destructor mutexi açabilir vb.
+
+Yani RAII idomu sınıf nesnesinin edindiği kaynağı; sınıf nesnesinin hayatını bitiren destructor tarafından geri verilmesidir.
+constructor ne yapar?
+constructor bir nesneyi hayata getirir(kullanılabilir kılar; o sınıf nesnesi birtakım kaynakları kullanıcaksa hayatı boyunca o kaynakları edinip o sınıf nesnesine bağlar).
+
+
+destructor ne yapar?
+sınıf nesnesi bir takım kaynakları kullanıyor ise o kaynakları geri verir. Bu işlemeler popüler olarak release resources veya cleanup operasyonları da denir. Fakat her sınıf nesnesi bunu yapmak
+zorunda değildir. Çünkü kullandıkları bir kaynak yoktur.
+
+constructor overload edilebiliyordu; fakat constructor'ın bir tane overloadu var ki özel bir öneme sahiptir. constructor'ın bu overload'una default constructor deniyor.
+
+default constructor:
+Bir sınıfın default constructor'ı şu özelliklere sahiptir:
+ya parametresi olmayacak ya da parametrelerin tamamı varsayılan argüman alıcak
+class Myclass {
+public:
+  Myclass();
+};
+veya
+class Myclass {
+public:
+  Myclass(int x = 5);
+};
+
+special member functions(sınıfların özel üye fonksiyonları) 2.13.07'de
