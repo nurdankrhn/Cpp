@@ -1,0 +1,114 @@
+Bir sınıf yazarken sınıfın üye fonksiyonunu const yapılıp yapılmayacağı neye göre belirlenir?
+Tanımlanan sınıf problem domaininde neyi temsil etiğine dair bilgiye bakılır. Asla implementasyondan hareketle interface oluşturulmaz. Önemli olan sınıfın public interface'indeki fonksiyonların ne yaptığı; dolayısıyla programcıyı
+asıl ilgilendiren sınıf nesnesinin problem domainindeki karşıladığı anlam ve onun gözlemlenebilir davranışının değişip değişmemesi.
+
+Sınıfın veri elemanını değiştiren bir fonksiyon halen const üye fonksiyon olabilir mi? Evet tabii ki var:Öyle durumlar var ki bir sınıfta bulunan elemanın değerinin değişmesi problem domainindeki anlamın değişmesi demek değildir.
+Dolayısıyla const üye fonksiyon olup o fonksiyon içinde o elamanlar için değer değişikliği yapılmasını sentaks hatası olarak değerlendirmeyecek bir bildirime ihtiyaç duyarız çünkü bu durum her ne kadar sentaks engeline takılsa da
+semnatik açıdan oldukça mantıklı ve geçerlidir. Bunu sağlayan "mutable" anahtar sözcüğüdür.
+
+mutable anahtar sözcüğü:
+Bu anahtar sözcük ile nitelenmiş veri elemanı öyle bir veri elemanı ki bunun değerinin değişmesi sınıf nesnesinin değeri ile alakalı değildir. Yani ben bu veri elemanının değerini değiştiren bir kod yazarsam sınıf nesnesinin
+problem domainindeki değeri ile doğrudan bir ilgisi yoktur. Bunun  sentaks karşılığı ise derleyiciye bunun mutable olduğunu söylemeseydim  const üye fonksiyonlar içinde bu veriyi değiştirmeye yönelik kodları doğal olarak sentaks hatası olarak
+kabul edecekti; o zaman semnatik yapıya sentaksı uydurmak için const cast vs kullanmak zorunda kalacaktım bu da başka sorunlara neden oluyordu
+
+class RandomEngine {
+public:
+  int generate();
+  void discar(int n);
+};
+class Algo {
+public:
+  void foo()const
+  {
+      auto val = eng.generate();
+      eng.discard(2);
+  }
+private:
+  mutable RandomEngine eng;
+}
+
+
+Sınıf nesnesinin değerinin değişmesi ile elemanın değerinin değişmesi veya değişmemesi her zaman bire bir örtüşmeyebilir.
+
+En tipik mutable örneği multithread uygulamalarda sınıfın veri elemanı olarak kilitleme işlemleri için bir tane mutex koyarız. Bu mutexin tek varlık nedeni üye fonksiyonlar çağırıldığında üye fonksiyonların paylaşımlı değişkenler üzerinde
+bir kilit sistemi uygulaması.
+
+#include <iosteram>
+#include <mutex>
+
+class Myclass {
+public:
+  void bar()const
+  {
+      mtx.lock();
+      //code
+      mtx.unloc();
+
+  }
+  
+  void foo()
+  {
+      mtx.lock();
+      //code
+      mtx.unloc();
+
+  }
+private:
+  mutable: std:mutex: mtx;
+};
+
+Öyle nesneler var ki sınıfın veri elemanı olacak  o veri elemanlarının const üye fonksiyonlar tarafından değiştirilmesi aslında semantik bir hata değil fakat sentaks engeline takılıyor. Bu engeli aşmak için sınıfın veri elemanını hem okuyana 
+bilgi vermek için hem de derleyiciyi bu konuda bilgilendirmek için derleyicinin sentaks hatası vermemesi için o veri elemanlarını mutable yapıyoruz. Artık bir sınıfa bakarken sınıfın bir mutable veri elemanını görürsek:
+a)bunun sınıf nesnesinin değeri ile ilgisi olmadığını
+b)bu veri mutable yapılmış çünkü const üye fonksiyonlar içinde bu veri değiştirilecek diye anlamamız gerekir.
+
+üye fonksiyonlarda geri dönüş değeri pointer veya referans değilse başa const yazmanın fonksiyona kattığı bir anlam yok:
+
+class MYclass {
+public:
+  const int foo()cons;
+};
+
+
+vector sınıfının push_back ve daha birçok  fonksiyonu non-const üye fonksiyondur:
+#include <vector>
+
+int main()
+{
+    using namespace std;
+    vector<int> ivec(10);
+    ivec.push_back(12);
+    ivec.insert(ivec.begin(), 45);  
+    ivec.erase(ivec.begin());
+    auto size = ivec.size();//const üye fonksiyon
+
+    //empty fonksiyonu da const olan bir fonksiyondur:
+    if(ivec.empty()) {
+        ////////
+    }
+    
+}
+
+
+Sınıfların constructor & destructor fonksiyonları
+
+Bir sınıf nesnesinin hayata gelmesini sağlayan sınıfın fonksiyon/fonksiyonlar vardır bu fonksiyonlara constructor denir. Bir sınıf nesnesi hayata gelip kullanılabilir bir nesne  olmuşsa onun kullanılabilir hale gelmesini sağlayan hayata 
+getiren constructor fonksiyonudur. Sınıf nesnelerinin hayata gelmesi için sınıfın constructor dediğimiz fonksiyonlardan birinin kodunun çalışması gerekir. Ve bu constructor'un kodu sonuna kadar çalışmak zorundadır. Eğer
+programın akışı devam ederken constructor exception throw ederse program akışı constructor'dan exception throw  edildiği için çıkarsa hayata gelmiş bir nesne olmaz. O halde bir nesnenin hayata gelmiş kabul edilmesi için
+o nesneyi hayata getirecek constructor fonksiyonun çağırılması ve kodunun tamamının çalışması gerekir.
+
+constructor sınıfın üye fonksiyonudur. Bir constructor ancak sınıfın non-static üye fonksiyonu olabilir. Yani global bir constructor olma ihtimali yoktur!!constructor global bir fonksiyon da olamaz, static bir üye fonksiyon da olamaz.
+Bazı dillerde static constructor vardır fakat C++'ta yoktur. constructor'dan bahsederken genelde member function terimi kullanılmıyor.
+
+Nasıl bir nesnenin hayata getiren onu kullanılabilir duruma getiren bir constructor ise C++'ta bir sınıf nesnesinin hayatının bitmesini sağlayanda yine sınıfın bir üye fonksiyondur buna da destructor denir.
+Yani C'den farklı olarak  C++'ta her nesne hayata geldiğinde constructor çağırılıyor; her nesnenin hayatı bittiğinde onun hayatını sonlandıracak destructor çağırılır.
+
+Sınıfın constructor & destructor fonksiyonlarına yönelik çok önemli temel sentaks  kuralları
+
+Bir sınıfın constructor'ı keyfi olarak isimlendirilemez. Bir sınıfın destructor'ı keyfi olarak isimlendirilemez. İsmi her iki fonksiyonunda sınıfın ismi ile aynı olmak zorundadır. Derleyici hangi fonksiyonun constructor hangisinin
+destructor olduğunu şuradan anlar: destructor fonksiyonunun isminin önünde ~ tokenı vardır. 
+constructor için kurallar:
+1.constructor için geri dönüş değeri kavramı yoktur. 
+2.constructor cont üye fonksiyon olamaz yani non-static member function olmak zorundadır.
+3.constructor diğer üye fonksiyonlardan farklı olarak  .  veya -> operatörü ile çağırılamaz!!
+4.constructor diğer üye fonksiyonlarda olduğu gibi sınıfın public, private, protected öğesi olabilir.
