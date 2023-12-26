@@ -1,0 +1,149 @@
+12. Ders Günü 03 Şubat 2023 - Cuma
+
+Sınıfın non-static üye fonksiyonlarını const correctness açısından 2'ye ayırıyoruz:
+non-const member functions
+const member functions
+
+Global bir fonksiyon olsun Myclass sınıfı türünden bir referans parametresine sahip ise bu fonksiyonun interface ile const Myclass& referanslı başka global fonksiyonun interface farklıdır.
+
+void func(Myclass &);//mutator
+void func(const Myclass &);//accesser
+
+function overload açısından bu iki fonksiyon birbirini overload eder ve bu duruma popüler olarak cont overloading dendiğini belirtmiştik.
+
+Referans semantiği yerine pointer semantiği de kullanılabilir:
+void func(Myclass *p);//mutator
+void func(const Myclass *p);//accesser
+
+Bir fonksiyon sınıfın hiçbir veri elemanının değiştirmiyor olmasına rağmen sınıf nesnesini değiştirebilir veya tam aksi öyle bir fonksiyon olabilir ki sınıf nesnesinin elemanlarını değiştiriyor olabilir fakat sınıf nesnesini değiştirmiyor olabilir. Dolayısıyla tipik yanılgılardan biri
+C++'ta bir sınıf nesnesinin değişmesini sınıfın veri elemanlarının değişip değişmemesiyle ölçmek. Oysa doğrudan ilişkili olmak zorunda değildir. Ve ayrıca bu fonksiyonların ne olduğu ne iş yaptığı daha sınıfın implementasyonundan önce belirleniyor. Eğer verilerin  fonksiyon ile değişip
+değişmediği ile ilgili olsaydı ancak fonksiyon koduna bakarak oysa olay öyle değil; daha fonksiyonun koduna bakmadan bir fonksiyonun bir sınıf nesnesinin değişip değiştirmediğini anlayabiliriz.
+
+Bir nesnenin değişmesi demek o nesne problem domaininde neyi temsil ediyorsa problem domaininde onun temsil ettiği anlam açısından bir değişiklik demektir. Ve değişim tipik olarak davranışı da tetikler(çoğunlukla). Yani sınıf nesnesinin değişimi demek sınıf nesnesinin problem 
+domainindeki taşıdığı anlam açısından bir durum değişikliği yaşaması demektir.
+
+class Myclass{
+public:
+  void foo();//non-const mmember function
+  void bar()const;//const mmember function
+};
+Myclass sınıfının 2 adet non-static üye fonksiyonu var ve bunlardan biri const member function; ve her iki üye fonksiyonun global fonksiyon karşılığı şu şekildedir:
+void foo(Myclass*);
+void bar(const Myclass *); //işte bu gizli parameter sentaks gereği üye fonksiyonda yazılamadığı için non-static üye fonksiyonun const mmember function olduğunu belirtmek için fonksiyon parantezlerinden sonra const anahtar sözcüğü bildirime eklenir. Ayrıca const anahtar sözcüğü
+imzanın bir parçası olduğu için hem bildirimde hem de tanım da olmak zorundadır.
+
+Dikkat: global fonksiyonlarda parametre parantezi kapandıktan sonra const anahtar sözcüğü getirilmesi gibi bir durum ssöz konusu değildir.!!
+
+sentaks açısından
+1) sınıfın const üye fonksiyonları sınfın non-static veri elemanlarını  değiştiremezler. Yani değiştirme girişimleri sentaks hatası olur. Çünkü gizli parametre olarak o sınıf türünden const bir nesneye sahiptir(low level const). Dolayısıyla const olan bir nesneyi değiştirmek sentaks hatasıdır.
+class Myclass{
+public:
+  void foo();//non-const mmember function
+  void bar()const;//const mmember function
+private:
+  int mx;
+};
+Myclass g;
+void Myclass::bar()const
+{
+    Myclass m;
+    *this = m;//sentaks hatası
+    mx = 10; //sentaks hatası
+    this->mx = 10; //sentaks hatası
+    g.mx = 10;//gayet legal const olan *this
+    //foo();//sentkas hatası çünkü foo'nun parametresi Myclass *p iken bar'ın const Myclass *p yani  cont T* türünden  T* türüne implicit dönsüşüm yoktur ve sentaks hatası meydana gelir fakat foo da const olsaydı gayet legal bir kod satırı olurdu.
+}
+
+
+Bir sınıf nesnesinin kendisininde const olma durumu oldukça sık karşılaşılan bir durumdur, kendisi const olan bir sınıf nesnesini o sınıfın const olmayan üye fonksiyonu ile çağrı yapmak sentaks hatasıdır çünkü nokta operatörünün sol tarafındaki nesnenin adresi fonksiynun gizli
+parametresine argüman olarak geçilir dolayısıyla sonuç olarak T* parametreye sahip fonksiyona const T* argüman olarak atanmaya çalışılır sentaks hatası meydana gelir:
+class Myclass{
+public:
+  void foo();//non-const mmember function
+  void bar()const;//const mmember function
+private:
+  int mx;
+};
+
+int main()
+{
+  const Myclass cm;
+  //cm.foo(); sentaks hatası
+}
+
+kendisi const olmayan bir sınıf nesnesini o sınıfın const olan üye fonksiyonu ile çağrı yapmak sentaks hatasıdır değildir çünkü nokta operatörünün sol tarafındaki nesnenin adresi fonksiynun gizli
+parametresine argüman olarak geçilir dolayısıyla sonuç olarak T* parametreye const T* argüman olarak geçilmeye  çalışılır sentaks hatası meydana gelmez:
+class Myclass{
+public:
+  void foo();//non-const mmember function
+  void bar()const;//const mmember function
+private:
+  int mx;
+};
+
+int main()
+{
+  Myclass cm;
+  //cm.bar(); legal
+}
+
+Yani:
+1. cont üye fonksiyonlar içinde sınıf nesnesinin elemanlarını değiştirme girişimi sentaks hatasıdır.
+2. const üye fonksiyon içinde aynı sınıfın non-const üye fonksiyonunu çağırmak sentaks hatasıdır. (Çünkü bu durumda const T* türünden T* türüne dönüşüme zorlamış oluruz.)
+3. const üye fonksiyon içinde *this'e atama yapmaya çalışmak sentaks hatası
+4.const sınıf nesneleri için sadece sınıfın const üye fonksiyonlarını çağırabiliriz. Yani const sınıf nesnesi için  sınıfın non-const üye fonksiyonunu çağırılması sentkas hatasıdır.
+
+sınıfın üye fonksiyonunun const overload oluşturduğu bu örnekte non-const member function main içinde yapılan fonksiyon çağrısı için viable değildir:
+class Myclass {
+public:
+  void foo();
+  void foo()const;
+};
+
+int main()
+{
+    const Myclass cm;
+    cm.foo();//void foo()const; bildirimine sahip fonksiyon çağırılır çünkü diğer overload viable değil çünkü onun gizli parametresi cont değildir.
+    Myclass m;
+    m.foo();//her iki fonksiyonda viable ama const olmayan seçilir.
+}
+
+Yani bir sınıfın constluk dışında imzası aynı sadece const üye fonksiyon olması ile farklılık oluşturan aynı isimli aynı  skoba sahip 2 fonksiyonu function overloading oluşturur ve buna popüler olarak const overloading denir. cont olan nesneler için const olan çağırılır
+const olmayan nesneler için cont olmayan çağırılır.
+
+C++'ta vector sınıfı dinamik alan tahsisi yapılan senaryolarda kullanılır. Yine bu sınıfta az önce bahsi geçen const overloading sınıfın üye fonksiyonları arasında yapılmıştır; örneğin:
+int main()
+{
+  using namespace std;
+  vector<int> ivec{1, 5, 7, 9, 2};
+  ivec.at(1) = 10;//legal
+  fakat eğerki ivec const olsaydı
+  const vector<int> ivec{1, 5, 7, 9, 2};
+  ivec.at(1) = 10;//legal değil at fonksiyonunun const overlaodu çağırıldı atama yapmak sentaks hatası oldu
+}
+
+Yukarıdaki örneği şu şekilde biz de yazabiliriz:
+class Vector{
+public:
+  int& at();
+  const int& at();
+};
+
+int main()
+{
+    Vector vx;
+    vx.at() = 45;
+    const Vector cvec;
+    cvec.at() = 10; sentaks hatası 
+}
+
+
+class Myclass {
+public:
+  Myclass& foo()const
+  {
+    return *this;//sentaks hatası *this const Myclass * iken biz const olmayan yani Myclass * türüne atama yapmaya çalışıyoruz bu durumda ya foo()const'taki cont kalkmalı ya da Myclass& yerine cont Myclass& yapılmalı geri dönüş değeri
+  }
+};
+
+
