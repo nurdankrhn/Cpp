@@ -1,0 +1,176 @@
+Standart kütüphanenin, sınıflarının üye fonksiyonlarının çok sayıda overload'u vardır. Yani function overloading hem global hem de üye fonksiyonlar için çok sık karşımıza çıkan bir yapıdır.C++'ın standar kütüphanesinin en sık kullanılan
+sınıfları:std::string ve std::vector'dür. Örneğin std::string sınıfında birçok üye fonksiyonunun birden fazla overload'u vardır: örneğin replace fonksiyonunun 14 tane overloadu vardır.  
+
+Biz derslerimizde sınıfın üye fonksiyon tanımlarını yöntem 1'de belirttiğimiz ayrı bir implementasyon dosyasında belirtmek yerine zamandan kazanç sağlamak adına inline olarak tanımlayıp kaynak dosya içinde tanımlayacağız; buradan
+her fonksiyon inline yapılmalı anlamı çıkarılmamalıdır.
+
+inline olarak sınıf tanımı içinde bulunan bir üye fonksiyon tanımı içinde tanımdan sonra tanımlanan bir değişkeni kullanmam sentaks hatası yaratır mı? HAYIR çünkü üye fonksiyonları içerisinde isim arama kuralları inline olup
+olmaması ile ilgili değildir. Yani fonksiyon inline olsa da olmasada inline olmadığında isim arama nasıl yapılacaktı ise yani nitelenmemiş isim için önce blok içinde sonra kapsayan blok içinde sonra class skopta orada da bulunamaz ise
+namespace içinde aranacaktır. O halde burada foo fonksiyonunun içinde mx değişkeninin kullanılması sentaks hatası meydana getirmez:
+
+class Alpo{
+public:
+  int foo()
+  {
+      mx = 5;
+  }
+  int mx;
+};
+
+this pointer
+this is a keyword. Yani bir anahtar sözcük olduğu için doğal olarak bir identifier değildir. Gelipte bize this'i kullanmak için hangi başlık dosyası include edilmelidir? diye soru sorulursa cevap this bir keyword olduğundan herhangi
+bir başlık dosyasına ihtiyaç duymaz dememiz gerekir.
+this keyword'ü legal olarak sadece ve sadece bir sınıfın non-static üye fonksiyonu içinde kullanılabilir. Bu anahtar sözcüğün:
+a)global bir fonksiyon içinde kullanılması
+b)sınıfın static üye fonksiyon içinde kullanılması doğrudan sentaks hatası!!!
+this anahtar sözcüğü bir pointerdır. Başka dillerde this, self anahtar sözcüğü gibi this'e benzer contextlerde kullanılan fakat o dillerde kullanımı farklı semantiğe sahip olan anahtar sözcükler vardır. Birçok dilde bu anahtar sözcük
+bir method içinde  kullanıldığı zaman bu fonksiyon hangi nesne için çağırıldıysa o nesnenin kendisini temsil ediyor. C++'ta ise durum öyle değildir; this bir pointerdır. Ve bu pointer'ın değeri bu fonksiyon hangi nesne için çağırıldıysa
+o nesnenin adresidir. Yani adeta bu anahtar sözcük fonksiyonun gizli parametresinin değeri olan adrestir.
+Örnekte main'de yazan adres ile foo fonksiyonunun içinde yazan adres aynıdır:
+class Neco{
+public:
+  void fuc()
+  {
+      std::cout << "this = " << this << "\n";
+  }
+  
+};
+
+int main()
+{
+    Neco myneco;
+    std::cout << "&myneco = " << &myneco << "\n";
+    myneco.func();
+}
+
+Ayrıca bir sınfın non-static üye fonksiyonu sınıfın başka bir non-static üye fonksiyonunu çağırdığında derleyici isim arama ile çağırılan fonksiyonun yine aynı sınıfın non-static üye fonksiyonu olduğunu anlarsa aslında bu kodu
+ilk üye fonksiyonu hangi nesne için çağırıldıysa o nesnenin adresi ile 2. non-static üye fonksiyonunu çağırır. O halde bu örnekte hem func hem de foo için yazılan this pointer değeri aynıdır:
+class Neco{
+public:
+  void fuc()
+  {
+      std::cout << "this = " << this << "\n";
+      foo();
+  }
+  
+  void foo()
+  {
+      std::cout << "this = " << this << "\n";
+  }
+  
+};
+
+int main()
+{
+    Neco myneco;
+    std::cout << "&myneco = " << &myneco << "\n";
+    myneco.func();
+}
+
+this pointer'ının oluşturduğu ifade bir PR value expression'dır. Aşağıdaki örnekte this = &xnec; sentaks hatası; legal değildir. Çünkü  PR val expression doğrudan L value expression gereken yerde kullanılamaz.
+Atama operatörünün sol operandı L value expression olmak zorundadır.
+class Neco {
+public:
+  void func();
+  
+};
+
+void Neco::func()
+{
+  Neco xnec;
+  this = &xnec;//sentaks hatası
+}
+
+this PR val. exp. kategorisinde olduğu için adres operatörünün operandı olamaz, dolayısıyla aşağıdaki örnekte auto x = &this; sentaks hatası olur:
+class Neco {
+public:
+  void func();
+  
+};
+
+void Neco::func()
+{
+  Neco xnec;
+  auto x = &this;//sentaks hatası
+}
+
+O halde *this hangi fonksiyon için çağırıldıysa o nesnenin kendisi olur. Ya da this->mx demek this->mx ifadesini barındıran fonksiyon hangi nesne için çağırıldıysa o nesnenin mx'i demektir. Buradan şu sonuç çıkar
+eğer ortada bir gizleme name hiding yok ise sınıfın bir memberının ismini doğrudan kullanmakla this pointerını niteleyerek kullanmak arasında  ve hatta sınıf ismi ile niteleyerek kullanmak arasında hiçbir fark yoktur:
+
+class Neco {
+public:
+  void func();
+private:
+  int mx;
+};
+
+void Neco::func()
+{
+    mx = 10;
+    //this->mx = 10;
+    //Neco::mx = 10;
+}
+
+Yine aynı şekilde eğer ortada bir gizleme yok ise bir sınfın üye fonksiyonu içinde benzer şekilde sınıfın yine bir diğer non-static üye fonksiyonunu nitelenmemiş isim ile şu şekillerde çağırabiliriz:
+class Neco {
+public:
+  void func();
+  void bar();
+private:
+  int mx;
+};
+
+void Neco::func()
+{
+    bar();
+    //this->bsr();
+    //Neco::bar();
+}
+
+Peki this anahtar sözcüğü neden var???
+Öyle senaryolar var ki this'i kullanmadan o işi yapmak imkanım olmaz yani zorunlu bir sentaks öğesi olarak this'in kullanılması gereken senaryoların varlığı vardır. Bu senaryolar şunlardır:
+1)sınıfın non-static üye fonksiyonu tanımında gloabl olan bir fonksiyon için non-static üye fonksiyonu hangi sınıf üyesi için çağırılmış ise aynı nesnenin adresi ile global fonksiyona argüman geçmek istensin eğer
+this pointerı olmasaydı bunu yapamazdık:
+2)Sol taraf referansını parametre alan global bir fonksiyon için tıpkı 1'deki seçenekte olduğu gibi üye fonksiyon içinde nesnenin kendisini argüman geçmem için *this'e ihtiyaç duyarım.
+3)Direk nesnenin kendisini alan global bir fonksiyon için tıpkı 1'deki seçenekte olduğu gibi üye fonksiyon içinde nesnenin kendisini argüman geçmem için *this'e ihtiyaç duyarım.
+
+//class.h
+class Neco {
+public:
+  void func();
+private:
+  int x;
+};
+
+//class.cpp
+void f1(Neco *);
+void f2(Neco &);
+void f3(Neco);
+
+void Neco::func()
+{
+    f1(this);
+    f2(*this);
+    f3(*this);
+}
+
+2)thisi non-static üye fonksiyonunu çağıran nesnenin kendisini döndürmek içinde kullanabiliriz:Böylece nesne.cagirilan_fonk ifadesinin kendiside o nesne dolayısıyla o ifadeyi bir daha . operatörünün operandı yapbilme olanağı
+kazandırır. C++'ta bu şekilde yapılan fonksiyon çağrılarına popüler olarak chaining denir genel olarak programlama dillerinde bu yapıya flound abi(? yazılışından tam emin değilim) denir:
+
+class Myclass {
+public:
+  Myclass& foo()
+  {
+    //code 
+    return *this;
+  }
+  void bar();
+};
+
+int main()
+{
+    Myclass m;
+    m.foo().bar();//m.foo() ifadesi m'e eşit olur çünkü foo fonksiyonu *this'i yani fonksiyonu çağıran nesnenin kendisini döndürüyor.
+}
+
+std::cout ile standart çıkışa yazdırdığımız durumlarda da hem function overloading hem de chaining vardır. İlerde daha iyi gözlemlenecektir.
