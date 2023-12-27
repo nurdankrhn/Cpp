@@ -51,4 +51,92 @@ public:
   Myclass(int x = 5);
 };
 
-special member functions(sınıfların özel üye fonksiyonları) 2.13.07'de
+special member functions(sınıfların özel üye fonksiyonları) 
+Sınıfların özel üye fonksiyonları özel bir üye statüsünde olan fonksiyonlardır. Bu özel statü şudur: Bu fonksiyonun kodları belirli koşullar oluştuğunda derleyici tarafından yazılabiliyor. C++20 standartı ile dile eklenen bir operatör
+içinde aynı durum geçerlidir; başka hiçbir durumda derleyici tarafından kod yazılmaz.
+
+Derleyicinin bir special member functionın kodunu yazması için kullanılan terim: to default a special member function. Modern C++ öncesinde special member functions sayısı 4 iken modern C++ sonrası special member functions sayısı 6'ya çıkmıştır.
+ C++11'den sonra olan special member functionslar
+default constructor
+destructor
+copy constructor
+move constructor
+copy assigment
+move assigment
+C++11'den önce olan special member functionslar(move ile ilgili olanlar yoktu)
+default constructor
+destructor
+copy constructor
+copy assigment
+
+
+Örneğin derleyicinin default constructor'ın kodunu yazmasına: to default the default constructor denir.
+
+C++'ın 2011 standartları ile dile bir fonksiyonu delete etmek için bir bildirim dile eklendi. Buradaki delete dinamik ömürlü nesnelerin hayatının sonlandıran delete ile alakası yoktur. Öncelikle bir fonksiyonun delete edilmesi
+sentaksı hem sınıfın üye fonksiyonlarına hem de gloabl fonksiyonlara   atanan bir haktır. Yani hem global fonksiyonu hem de bir sınıfın static veya non-static üye fonksiyonunu delete edebiliriz. Senataks şöyledir:
+void func(int) = delete;
+Bu şu anlama gelirböyle bir fonksiyon var ama bu fonksiyona yapılan çağrı sentaks hatası oluştursun.
+
+delete edilmiş bir fonksiyon overload oluşturur fakat buna yapılan çağrı sentaks hatası oluşturucağından aşağıda double argüman ile yapılan fonksiyon çağrısında function overload resolution'a göre seçilir fakat delete edilen 
+fonksiyon çağrısı yapılacağı için sentaks hatası meydana gelir:
+void func(int);
+void func(long);
+void func(double) = delete;
+
+int main()
+{
+    func(12);
+    func(12L);
+    func(3.4);//sentaks hatası
+}
+
+Sınıfın special member functionsları C++'ta şu statülerden birinde olmak zorundadır:
+1)Bir special member function olmayabilir yani "not declared" olabilir.
+C++'ta bir diğer kural ise şudur:Bir sınıfa bir constructor bildirirsek fakat bildirilen constructor default constructor değilse bu sınıfın default constructor'ı yoktur demektir. O halde böyle bir durumda bu sınıfın default constructor'ı
+not declared statüsünde olur:
+class Myclass {
+public:
+  Myclass(int);
+}
+2)Bir special member function user declared olabilir. Yani programcı tarafından bildirilmiş olması demektir. Programcı tarafından yapılan bu bildirim 3 şekilde yapılabilir:
+a)Programcı tanımlamak üzere bildirmiştir; yani tanımınıda programcı yapmıştır.--->Myclass(); şeklinde 
+class Myclass {
+public:
+  Myclass();
+};
+b)Fonksiyonun kodunu programcı bildirir fakat derleyiciden tanımı yapmasını istemesi için bir bildirim kullanır buna "default bildirimi" denir.---> Myclass() = default; şeklinde
+class Myclass {
+public:
+  Myclass() = default; //programcı sınıfın  default constructorı  için default bildirim yapmış 
+};
+c)Programcı fonksiyonu bildirir ama delete edilmiş olarak bildirir; yani delete bildirim yapar.--->Myclass() = delete; şeklinde
+class Myclass {
+public:
+  Myclass() = delete;
+};
+
+3)Sınıfın  special member functionının implicitly declared olmasıdır.
+Öyle durumlar var ki derleyici sınıfın bir  special member function'ını dilin kuralları gereği durumdan vazife çıkararak kendisi bildiriyor. Yani programcı tarafından bildirilmemiş fakat derleyici durumdan vazide çıkararak 
+kendisi bildirim yapmış oluyor:
+
+class Myclass {
+public:
+
+};
+Burada default constructor'ın da diğer 5 special member functionlarında  durumu implicitly declared'dır.
+impicitly declared'da kendi içinde 3'e ayrılır:
+a)defined:yani derleyici heö örtülü olarak bunu bildiriyor hem de kodunuda derleyici yazıyor.
+b)deleted:öyle durumlar var ki derleyici dilin kuralları gereği özel üye fonksiyonu default ediyor yani kodunu yazmaya girişiyor fakat sentaks hatası olduğunda sentaks hatası vermek yerine kodunu yazması gereken special member function'ı
+deleted olarak bildiriyor. Yani bir special member functionı derleyicide durumdan vazife çıkarıp delete edebilir. Buna bir örnek:
+
+class Myclass {
+public:
+
+private:
+  const int mx;
+};
+
+int main()
+{
+    Myclass m;//kod derlendiğinde sentaks hatası:the default constructor of "Myclass" cannot be referenced --it is a deleted function(derleyici tarafından silinmiş!)
+}
