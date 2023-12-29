@@ -2,10 +2,10 @@ Referans semantiği
 C++'ta C'deki pointer semantiğinin eş değeri, pointer semantiğine bir alternatif Referans Semantiği vardır. 
 Pointer semantiğine ek böyle bir semantiğinin bulunmasının nedeni pointer semantiğinin dildeki bazı araçlarına uyum sağlamaması:
 *operatör over loading'de implementasyon olanağı olmazdı.
-*pointer kullanımı program domaininden ziyade programlama dili domainine itiyor. Yanş düşünürken programlama dilinin kavramlarıyla düşünmeye itiyor. Oysa C++'nin iddiası iyi bir data absrtaction sağlamak.
+*pointer kullanımı program domaininden ziyade programlama dili domainine itiyor. Yani düşünürken programlama dilinin kavramlarıyla düşünmeye itiyor. Oysa C++'nin iddiası iyi bir data absrtaction sağlamak.
 Yani mümkün olduğu kadar programcının programlama dilinin kavramları ile değil problem domain'nin kavramları ile düşünmesini sağlamaktır.
 
-Pointer yerine referans kullanmam genel anlamda derleyici için bir fark yoktur, yani bu dil seviyesinde olan bir kavram. Sonuçta pointer için de referans içinde aynı assembly kodu üretilir.
+Pointer yerine referans kullanılması genel anlamda derleyici için bir farkı yoktur, yani bu dil seviyesinde olan bir kavram. Sonuçta pointer için de referans içinde aynı assembly kodu üretilir.
 
 Pointer kullandığımız her yerde referans kullanamayız. Referans şu yerlerde kullanılır:
 Bir pointer bir fonksiyonun parametre değişkeni olacaksa,
@@ -55,7 +55,7 @@ int main()
     a[0] // L value expression
 }
 
-Fakat aritmetik operatörler ile oluşturulan ifadeler: karşılaştırma operatürü, işaret operatürü dahil lojik operatörü  ile oluşturulan bütün ifadeler R value expression olur:
+Fakat aritmetik operatörler ile oluşturulan ifadeler: karşılaştırma operatürü, işaret operatürü dahil olmak üzere lojik operatörü  ile oluşturulan bütün ifadeler R value expression olur:
 
 int main()
 {
@@ -81,7 +81,7 @@ int main()
 }
 
 
-Modern C++ ile referans semasntiğinin 3 çeşidi ile beraber dile eklenen yeni eklemeler ile bu 2 araç artık kolaylıkla implemente edilebilir hale geldi:
+Modern C++ ile referans semantiğinin 3 çeşidi ile beraber; dile eklenen yeni eklemeler ile bu 2 araç artık kolaylıkla implemente edilebilir hale geldi:
 move semantics
 perfect forwarding
 
@@ -94,7 +94,7 @@ C++'ta value category:
     X   value (eXpiring value)
 Derleyici bir ifadeye baktığında statik olarak koda baktığında değer kategorisini anlıyor mu?
 KESİNLİKLEEE! Nasıl bir ifadenin türü derleyici statik olarak koda baktığında anlıyorsa, C++'ta da yine ifadenin değer kategoriside   derleyici koda bakarak (run time'dan bağımsız ) anlar.
-Bir ifadenin katgorisi bunlardan sadece biri olur aynı anda birden fazla kategoriye ait olmaz.!!!
+Bir ifadenin katgorisi value categoryden sadece biri olur aynı anda birden fazla kategoriye ait olmaz.!!!
 
 ön ek ++ operatörü ile oluşturulan ifadeler C'de R valu expression iken C++'ta L value expression oluyor (++x). Fakat son ek operatörü ile oluşturulan ifadeler (x++) C++'ta da R value expression'dır.
 
