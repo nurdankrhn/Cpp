@@ -34,7 +34,7 @@ Burada kural şu: eşittirin sağ tarafındaki ifadenin türü ne ise auto yerin
 auto x = 'A'; //char
 auto x = 'A' + 'A'; //int
 char c = 12;
-auto x = +c; //int (integral promotion kuralı uygulanır sonuç int türden olur)
+auto x = +c; //int (integer promotion kuralı uygulanır sonuç int türden olur)
 auto x = 4.5; // double
 auto x = 4.5F;// float
 auto x = 4.5L;//long double
