@@ -57,7 +57,7 @@ int main()
 
 C++'ta bool türü
 C++'ta bool bir keyword yani C’deki gibi bir makro değildir!!! Dolayısla bool, true ve false birer keyword’dur. 
-Ve bool statik tür sisteminde işaretsiz bir tam sayı türüdür. Diğer int altı türler gibi integral promotion’a tabidir.
+Ve bool statik tür sisteminde işaretsiz bir tam sayı türüdür. Diğer int altı türler gibi integer promotion’a tabidir.
 
 Yani false ve true bolean türden sabitlerdir. Bool türü C’deki gibi 1 bytelık alana sahiptir. Aritmetik türlerden bool türüne implicit dönüşüm vardır. 0-->false non-zero değerler---> true’ya dönüşür.
 
@@ -86,8 +86,8 @@ int main()
 
 C’de bu şekilde bir dizi tanımlamak sentaks hatası değilken, (tabii bu diziyi null-terminated stream olarak kullanmamamız gerekir):
 
-char str[4] = “kaya”; C++'ta bu sentaks hatasıdır. Çünkü C++ string literallerin sonuna null karakteri her zaman eklemeyi zorunlu kıldığı için dizi taşmıştır. Bunun şu şekilde kullanımı 
-C’de de ub’dir çünkü puts fonksiyonu null karakter görene kadar ekranan yazar bu dizi ise null-terminated stream değildir!
+char str[4] = “kaya”; C++'ta bu sentaks hatasıdır. Çünkü C++ string literallerin sonuna null karakteri her zaman eklemeyi zorunlu kıldığı için dizi taşmıştır. 
+Bunun şu şekilde kullanımı C’de de ub’dir çünkü puts fonksiyonu null karakter görene kadar ekranan yazar bu dizi ise null-terminated stream değildir!
 
 #include <stdio.h>
 
