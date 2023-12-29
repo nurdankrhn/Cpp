@@ -8,7 +8,7 @@ C'de NULL pointer'ın kullanıldığı tipik temalar:
  #include <time.h>
 
  time_t time(time_t*); // time_t türünden bir nesnenin adresini fonksiyona gönderdiğimizde nesneyi calendar time ile set eder (epoch'tan geçen saniye sayısı). Eğer bu fonksiyona NULL adres geçersek hiçbir
- nesneyi set etmez, ama geri dönüş değerinden calendar time'ı elde edebiliriz. İşte NULL pointer sayesinde böyle bir posiyon sunulmuştur.
+ nesneyi set etmez, ama geri dönüş değerinden calendar time'ı elde edebiliriz. İşte NULL pointer sayesinde böyle bir oposiyon sunulmuştur.
 
  fflush() (stdio.h başlık dosyasında tanımlı)--> buna file handler geçersem o dosyanın buffer'ını flash ederken NULL pointer göndermem halinde açık olan bütün dosyaların buffer'ını flash eder
  ÖNEMLİ: patrameteresi pointer olan bir fonksiyon için argüman olarak NULL gönderince ne olur dokümente etmek çok çok önemlidir.
@@ -36,9 +36,9 @@ int main()
 {
     foo(0); //artık void foo(int); isimli fonksiyon çağırılır. fakat biz diğer fonksiyon çağrısı için bunu yazmıştık!!!
 }
- Bir diğer sıkıntı yanlıkşlıkla bir tam sayıya 0 değeri atayackken pointer değişkene atama ihtimalinin olmasıydı. İşte böyle sorunları ortadan kaldırmak amacıyla modern C++'ta nullptr keyword'u getirildi.
+ Bir diğer sıkıntı yanlıkşlıkla bir tam sayıya 0 değeri atayacakken pointer değişkene atama ihtimalinin olmasıydı. İşte böyle sorunları ortadan kaldırmak amacıyla modern C++'ta nullptr keyword'u getirildi.
 
-nullptr: keyword, pr value expression, bir sabit ve türü nullptr_t'dır. Bunun türünün olması function overloading konusunda çok işimize yarar.
+nullptr: keyword, PR value expression, bir sabit ve türü nullptr_t'dır. Bunun türünün olması function overloading konusunda çok işimize yarar.
 
 nullptr_t türünden tüm pointer türlerine örtülü dönüşüm vardır. Fakat pointer olmayan türlere örtülü dönüşüm yoktur. Yani yanlışlıkla pointer olmyana bir değişkene atanması ihtimali veya fonksiyona argüman olarak
 gönderilme ihtimali ortadan kalkmış olur.
@@ -47,7 +47,7 @@ gönderilme ihtimali ortadan kalkmış olur.
 int main()
 {
     int *p = nullptr; //nullptr örtülü olarak pointer'a dönüşüm vardı sorun yok 
-    bool b = p; 
+    bool b = p; //pointer türünden bool türüne implicit dönüşüm var; legal
     b = nullptr; //sentaks hatası çünkü nullptr bir pointer türünden değil!!
 }
 
@@ -59,7 +59,7 @@ C++'ta NULL pointer belirtme yöntemleri:
 
  hocanın önerdiği yöntemler: 
  int *p = nullptr;
- int *p{}; // buna value initilazition
+ int *p{}; // buna value initilazition denir
 
  statik ömürlü pointer değişkenler default initialize edildiğinde hayata NULL pointer olarak başlar:
 
@@ -75,7 +75,7 @@ Sadece global olan pointerlar için değil şu şekilde static keyword'u ile tan
 void foo()
 {
     static int *p; //default olarak NULL pointer
-    //int *p; şeklinde olsaydı indetermined value olarak çöğ değerde olurdu
+    //int *p; şeklinde olsaydı indetermined value olarak çöp değerde olurdu
 }
 
 Bir diziye ilk değer verdiğimde; dizinin boyutundan daha az initializer ile ilk değer verirsem diğer elemanlar  zero initialize edilir. 
@@ -104,7 +104,7 @@ T x; // default initialization denir
 zero initialization--> kendisi aslen bir initialization biçimi değildir. Ama bazı initialization biçimlerinde ilk aşama olarak gerçekleştiriliyor. Örneğin:
 Statik ömürlü değişkenler default initialization edildiğinde zero initialization edilir. 
 
-C++2ta:
+C++'ta:
 const int x; //sentaks hatası demiştik Çünkü const nesneler default initialize edilemezler!!
 int& r; // sentaks hatası çünkü L value veya R value referanslar da default initialize edilemezler!!
 
