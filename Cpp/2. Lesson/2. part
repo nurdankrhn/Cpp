@@ -183,7 +183,9 @@ etmesi--> extrernal linkage.
 İç bağlantıya ait isimler öyle isimler ki projeyi oluşturan kaynak dosyaların birinde nereden kullanılırsa kullanılsın aynı varlığa aitken farklı kaynak dosyalarda aynı olan bu 
 isim farklı varlığa ait olur.---> internal linkage
 
-yerel değişkenler ise ---> no linkage C’de de C++'ta da global değişken ve fonksiyonlarınız default olarak external linkage’dır.  C’de eğerki global olarak tanımlanan ama aynı zamanda internal linkage sahip 
+yerel değişkenler ise ---> no linkage
+
+C’de de C++'ta da global değişken ve fonksiyonlarınız default olarak external linkage’dır.  C’de eğerki global olarak tanımlanan ama aynı zamanda internal linkage sahip 
 olmasını istediğim fonskiyon ve değişkenlerin başına static keywordunu eklemem gerekir.
 
 static int g = 10;
