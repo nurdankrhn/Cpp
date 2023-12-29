@@ -110,7 +110,7 @@ T& f3_(void); //referans karşılığı
 const T* f3(void);
 const T& f3_(void); //referans karşılığı
 
-Referansı arka planında pointer olduğundan, const bir nesneyi const olmayan bir değişkene bağlayamatyız. Anımsanacağı üzere, pointerlarda
+Referansı arka planında pointer olduğundan, const bir nesneyi const olmayan bir değişkene bağlayamayız. Anımsanacağı üzere, pointerlarda
 const T*'dan T*'a dönüşüm yoktu.
 
 int main()
@@ -145,7 +145,7 @@ int main()
 }
 Bu örnekteki const'luğa contractual constness deniliyor çünkü derleyici bakış açısıyla *p const olduğundan ona atama yapılmaz, fakat
 *p fiziksel olarak const değildir çünkü *p x demek fakat x const değil. İşte benim gösterdiğim yer const değil fakat yaptığım sözleşme gereği
-const'um diyen pointer const'luğa için contractual constness deniyor.
+const'um diyen pointer const'luğu için contractual constness deniyor.
 Burada önemli bir diğer nokta ise şudur; fiziksel olarak const olan bir nesneyi external olarak const olmayan bir pointer'a atayıp değerini değiştirmek
 TANIMSIZ DAVRANIŞ'a neden olurken tam aksine contractual constness için böyle bir durum oldukça normal ve geçerli olur:
 
@@ -191,7 +191,7 @@ int main()
 Bir pointer değişken kendisi const değilse yani top level const değilse hayatı devam ederken başka başka nesneleri gösterebilir, fakat referanslar
 doğustan const yani rebindlable değillerdir dolayısıyla ömrü boyunca hep aynı nesneyi gösterir.
 
-Pointer array oluşturabilirken(int *p[] = {&x, &y}; (x ve ye int türden birere değişken olmak üzere.)), elemanları referans olan bir dizi kavramı yoktur.
+Pointer array oluşturabilirken(int *p[] = {&x, &y}; (x ve ye int türden birer değişken olmak üzere.)), elemanları referans olan bir dizi kavramı yoktur.
 
 Null pointer olur fakat null referans olamaz, zaten C++'ta pointer semantiğinin hala kullanılma nedenlerinden biri de budur!!!
 
@@ -206,7 +206,7 @@ std::optional<int> foo();
 
 
 ÖNEMLİ BİR KURAL
-Bir L value reference bir R value expression'a bağlanamaz sentaks hatasıdır ama bir const L value expression bir R value expression'a bağlanabilir.
+Bir L value reference bir R value expression'a bağlanamaz sentaks hatasıdır ama bir const L value referans bir R value expression'a bağlanabilir.
 
   const int& r = 10;
   Burada referans bir sabite bağlanmıyor. Derleyici bu durumda geçici bir nesne üretiyor. Yani buradaki sözde kod şöyledir:
@@ -244,6 +244,6 @@ Bir L value reference bir R value expression'a bağlanamaz sentaks hatasıdır a
       const double& r = temp;
       */
   }
-Buradalarda ki geçici nesnenin ömrü referansın skobu devam ettikçe devam eder(life extension).
+Buralarda ki geçici nesnenin ömrü referansın skobu devam ettikçe devam eder(life extension).
 
 
