@@ -1,10 +1,10 @@
 decltype 
 Modern C++ ile (C++11) eklenen bir keyword'dür. Bu anahtar sözcük declaration type'den kısaltılmış bir anahtar sözcüktür. 
-decltype specifier'ı ile bir tür elde ediyoruz ve bu türü tür gereken yer yerde kullanabiliriz:
+decltype specifier'ı ile bir tür elde ediyoruz ve bu türü tür gereken her yerde kullanabiliriz:
 Dolayısıyla auto'ya göre daha geniş fakat daha az bir kullanıma sahiptir.   
 
 decltype kullanırken tür çıkarımı için 1 önemli husus var:
-1. decltype(x) parantezi içinde eğer identifier yani isim yazarsak uygulanan kurallar farklı7
+1. decltype(x) parantezi içinde eğer identifier yani isim yazarsak uygulanan kurallar farklı;
 decltype(x)
 decltype(a.b)
 decltype(ptr->val)
@@ -32,23 +32,22 @@ int main()
 {
     
 }
-
-auto'nun aksine artık const'luk &opeandı vb düşmez!!!
+   
+auto'nun aksine artık const'luk &operandı vb düşmez!!!
 
 int main()
 {
     const int x = 10;
-    decltype(x); //sentaks hatası çünkü const nesneler default initialize edilemezler.  
+    decltype(x) y; //sentaks hatası çünkü const nesneler default initialize edilemezler.  
   
 }
 
 
 int main()
 {
-    int x = 0;
-    int y = 10;
+    const int x = 13;
     const int* const ptr = &x;
-    decltype(x) p = &x; //tür const int* const olur
+    decltype(ptr) p = &x; //tür const int* const olur
     p = &y; //sentaks hatası const
     *p = 5; //sentaks hatası const
 }
@@ -104,8 +103,8 @@ int main()
     Nec myNec{};
     Nec *p{&myNec};
 
-    decltype(p->a);
-    decltype(myNec.dval);
+    decltype(p->a) ival;
+    decltype(myNec.dval) dobval;
 }
 
 
@@ -246,18 +245,18 @@ typedef struct {
 NecPtr yukarıda bildirilen yapı türünden pointer türünün eş ismi. Fakat yapı türünün ismi yok, o halde NecPtr türünden bir değişken tanımlarsak pointer türünden bir değişken tanımlamış oluruz:
 Pointer değişken bir nesneyi göstercek ise göstereceği nesne bu yapı türünden olmalı fakat bu yapı türünün bir ismi yok, nasıl p'nin bu yapı türünden bir nesneyi göstermesini sağlayacağım??
 Bunu yapmamızın nedeni, bu yapı türünü sadece dinamik ömürlü nesneler için kullanmak çünkü statik veya otomatik ömürlü bir nesne kullananam. Çünkü türün ismi yok!!! Malloc ile dinamik ömürlü bir nesne 
-oluşturabilirim. O halde malloc ile bu yapı türünden bir nesne için   allocation yapmam bu yapı türünün sizeof değerine ihtiyacım var. Yapı türünün adı yok bu durum şu şekilde yapılır:
+oluşturabilirim. O halde malloc ile bu yapı türünden bir nesne için   allocation yapmam için  bu yapı türünün sizeof değerine ihtiyacım var. Yapı türünün adı yok bu durum şu şekilde yapılır:
 
 int main()
 {
     NecPtr pd = (NecPtr)malloc(sizeof(*pd)); //sizeof operatörünün operandı olan ifade hangi türden türün sizeof değeri elde edildiğinden pd NecPtr türünden olduğundan yapı türünün sizeof değeri elde edildi
-                                            //Bunu böyle yapabilmemizin nedeni aynı zamanda sizeof operatörünün operandı için bir işlem kodu üretilmemesi öyle olsaydı pd ilk başta garbage değerde olduğu için
+                                            //Bunu böyle yapabilmemizin nedeni aynı zamanda sizeof operatörünün operandı için bir işlem kodu üretilmemesi; öyle olsaydı pd ilk başta garbage değerde olduğu için
                                             //ub olurdu. İşte bu ideomik yapı sizeof operatörünün operandının unevaluated context'te olmasından kaynaklıdır.    
     
 
 }
 
-C++ta ise unevaluated context ise sadece sizeof operatörün'de değilde nirkaç yerlerde bulunur:
+C++ta ise unevaluated context ise sadece sizeof operatörün'de değilde birkaç yerlerde bulunur:
 sizeof
 decltype
 typeid
@@ -277,62 +276,3 @@ int main()
 
   std::cout<< "x = " << x << "\n"; // x = 10'dur 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
