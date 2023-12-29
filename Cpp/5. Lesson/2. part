@@ -127,9 +127,9 @@ int main()
 }
 
 
-int foo(int);int(int);
+int foo(int);
 
-using FUNC = 
+using FUNC = int(int);
 
 int main()
 {
@@ -164,7 +164,7 @@ int main()
 
     REF &r = y; // r nin türü int&
 
-    REF &&x = y; //r nin türü int&
+    REF &&x = y; //x nin türü int&
     //int& x = y; demek yani
 }
 
@@ -260,7 +260,7 @@ auto foo()
 Burada return için tek tür olması gerekir, birden fazla türde değer döndürümü sentaks hatasıdır:
 auto foo(int x)
 {
-    if(x % == 0 )
+    if(x % 2 == 0 )
       return 1;
     return 2.3; //sentaks hatası int türden değil aynı türden bir değer olması lazım;
 }
