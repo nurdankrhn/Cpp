@@ -22,7 +22,7 @@ struct Nec{
 
 int main()
 {
-	Nec myStruct; //C de sentaks hatası struct Nec myStruct şeklinde olmalı çünkü typedef struct değil, fakat C++'ta kabul edilir herhangi bir problem yok, ayrıca bunu C de olduğu gibi struct Nec myStruct şeklinde
+	Nec myStruct; //C de sentaks hatası struct Nec myStruct şeklinde olmalı çünkü typedef struct değil, fakat C++'ta kabul edilir herhangi bir problem yok, ayrıca bunu C de olduğu gibi struct Nec myStruct şeklinde de bildirebiliriz.
  																																							de kullanabiliriz.
 }
 C'de bir struct belirttiğimiz zaman en az 1 elemanı olmak zorunda yani boş bir struct tanımı yapamayız, sentaks hatası fakat C++'ta böyle bir zorunluluk yoktur. Hatta C++'ta bu çok sık kullanılır ve buna 
@@ -43,7 +43,7 @@ enum Color : unsigned int { Blue, Brown, Black };
 C'de şöyle bir assertion koyarsak:
 //assert(sizeof(enum Color) == sizeof(int)) bunun fail olma ihtimali yok fakat bu C++'ta olsaydı böyle bir kesinlik yok.
 
-C'de enum'dan diğer türlere implicit dönüşüm vardır ve tehlikelidir. Aritmetik türlerden enum'a hatta enum türleri arasında implicit tür dönüşümü vardır.
+C'de enum'dan diğer türlere implicit dönüşüm vardır ve tehlikelidir. Aritmetik türlerden enum'a hatta enum türleri arasında da implicit tür dönüşümü vardır.
 
 C de:
 enum Color { Blue, Brown, Black };
@@ -117,7 +117,7 @@ int main()
 	int *p = a[10];
  	*p = 20; //ub görüldüğü gibi dizinin bittiği yeri göstermesi ub değilken dereference etme tanımsız davranıştır.
 }
-Burada dikkat edilmesi gereken bir diğer konu şudur pointer'ın geçerli olması ayrı derefencerable olması ise çok ayrıdır. 
+Burada dikkat edilmesi gereken bir diğer konu şudur pointer'ın geçerli olması ayrı dereferencable olması ise çok ayrıdır. 
 
 wild pointer çöp değerde olan pointer'lar için söylenir. Bu haliyle kullanmak ub'dir. Ve bu pointer invaliddir!!!
 
