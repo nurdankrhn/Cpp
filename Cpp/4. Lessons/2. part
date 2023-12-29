@@ -1,7 +1,7 @@
 Referans semantiği ve Pointer semantiği arasındaki farklar
 
-Bir araç eklenmesiyle, programcının işinş kolaylaştıralım cpp dilinin diğer araçları ile uyumu arttıralım. Programcı initialize ederken adres operatörünü kullansın ne de dereference etmek zorunda kalsın.
-Değişkenin ismini kullandığı zaman zaten arka planda nesnenin gösterdiği yere ulaşşın, işte bu "referans" demek.
+Bir araç eklenmesiyle, programcının işini kolaylaştıralım cpp dilinin diğer araçları ile uyumu arttıralım. Programcı initialize ederken ne adres operatörünü kullansın ne de dereference etmek zorunda kalsın.
+Değişkenin ismini kullandığı zaman zaten arka planda nesnenin gösterdiği yere ulaşşın, işte bu "referans" semantiği demektir.
 
 
 Referansları şöyle düşünebiliriz:
@@ -113,7 +113,7 @@ Nasıl diziyi gösteren pointer varsa diziyi bir değişkene referans edecek bir
 int main()
 {
 	int a[5] {1, 2, 3, 4, 5};
- 	int (&)[5] = a; // r demek a demek, yani r 5 elemanlı int bir diziye referans
+ 	int (&r)[5] = a; // r demek a demek, yani r 5 elemanlı int bir diziye referans
 
   	for(int i = 0; i < 5; i++) {
    		printf("%d %d", r[i], a[i]);
@@ -204,7 +204,7 @@ int& foo()
 
 int main()
 {
-	foo() = 999; //C'de hiçbir zaman fonksiyon çağrı operatörü ile oluşturulmuş bir ifade atama operatörünün sol operandı olamaz!!! C++ de bu sık kullanılan,
+	foo() = 999; //C'de hiçbir zaman fonksiyon çağrı operatörü ile oluşturulmuş bir ifade; atama operatörünün sol operandı olamaz!!! C++ de bu sık kullanılan,
 														//normal bir durumdur
 	//Fonksiyonun geri dönüş değeri L value referans ise fonskiyon çağrı ifadesi de L value expression olur, yani bu fonksiyon hangi nesneyi dönderiyorsa
 	//atama o nesneye yapılır.
