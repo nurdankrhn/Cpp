@@ -6,7 +6,8 @@ compile time'da fakat argüman/argümanlar noncontsant expression olursa yani de
 
 inline anahtar sözcüğü, inline fonskiyonlar ve ODR
 C ve C++ derleyicileri optimazing compiler derleyicilerdir. Bu çok önemlidir. Bu sayede kodun daha hızlı çalışması için daha az işlem ile yazılan kodda istenileni( gözlenen 
-davranış (observal behavior) değişmeyecek şekilde)  yapması  için birçok yöntem kullanılır.
+davranışı (observal behavior) değişmeyecek şekilde)  yapması  için birçok yöntem kullanılır.
+
 Optimizaysonun da birkaç farklı çeşidi vardır:
 Compiler optimization
 Link Time optimization (LTO)
@@ -15,18 +16,19 @@ Preprocessor optimization
 
 
 Eğer ki derleyicinin yaptığı optimizasyonu baz alacaksak temelde 2 ayrı kategoriye ayırmak gerekir:
-Birincisi gözlemlenen davranış değişmeden yapılan optimizasyonlar,
-İkincisi C++ derleyicisinin bizim için compile-time'da kod yazması; derleyici birtakım parametrelere bakarak bu kodu nasıl yazacağını anlar. Yani bu aslında
-derleyicinin koda bakarak koddan elde ettiği bazı çıkarımlardan hareketle hangi kodu yazacağına karar vermesi.
+Birincisi: gözlemlenen davranış değişmeden yapılan optimizasyonlar,
+İkincisi: C++ derleyicisinin bizim için compile-time'da kod yazması; derleyici birtakım parametrelere bakarak bu kodu nasıl yazacağını anlar. Yani bu aslında
+derleyicinin koda bakarak koddan elde ettiği bazı çıkarımlardan hareketle hangi kodu yazacağına karar vermesi olayıdır.
 
 inline expansion
 
-Sadece bildirimi gören kaynak kodda derleyici fonksiyona giriş kodunun üretilmesi(stack pointer'ının alınması, argümanların parammetrelere kopyalanması) - çıkış kodunun üretilmesi
+Sadece bildirimi gören kaynak kodda derleyici fonksiyona giriş kodunun üretilmesi(stack pointer'ının alınması, argümanların parametrelere kopyalanması) - çıkış kodunun üretilmesi
 (geri dönüş değerinin yazılacağıyerden geri dönüş değerinin alınması, stack'in eski haline getirilmesi vb.) ardından işi linker'a bırakır. Yani aslında bir fonksiyon çağrısı
 derleyicinin fonksiyona giriş-çıkış kodunu üretip arayada bilgiler yazıp, obje koda yazılan sembolden hareketle derlenen fonksiyonun kodu ile çağırılan fonksiyon kodunun
 linker tarafından bağlanmasıdır.
+
 Burada eğer derleyici fonskiyon bildirimini değil de tanımını görürse; inline expansion denilen optimizasyon tekniğini kullanma şansına sahip olur.
-O halde fonskiyon çağrısı yerine fonksiyon tanımında bulunan sonucu yazabilir. Böylece derleme, linker tarafından yapılan işlemlere gerek kalmaz:
+O halde fonskiyon çağrısı yerine fonksiyon tanımında bulunan sonucu yazabilir. Böylece derleme, linker vb. tarafından yapılan işlemlere gerek kalmaz:
 
 //inline expansion
 
@@ -42,8 +44,8 @@ int main()
     auto x = foo(a, b); // auto x = a*a + b*b + 1; gibi olur eğer ki derleyici inline expansion denilen optimizasyonu yaparsa tabii
 }
 
-Bu durumda maaliyet düşe çünkü artık fonskiyona giriş - çıkış kodları üratilmez,
-Bunu yapmasının her zaman avantaj olup olmadığı derleyicinin  yaptığı analiz sonucu belli olur; özellikle kodu küçük fazla deyim barındırmayan üstaelik sık 
+Bu durumda maaliyet düşer çünkü artık fonskiyona giriş - çıkış kodları üretilmez,
+Bunu yapmasının her zaman avantaj olup olmadığı derleyicinin  yaptığı analiz sonucu belli olur; özellikle kodu küçük fazla deyim barındırmayan üstelik sık 
 çağırılan fonksiyonlarda bu optimizasyon(fonksiyon çağrısı yokmuş gibi oraya inline olarak fonksiyonun adeta derlenmiş kodunun koyulması) çok büyük fayda sağlar.
 Böylece çalışacak kodda daha az işlem yapılır(assembly'deki cycle sayısı azalır.).
 
@@ -73,7 +75,7 @@ zero-cost absraction
 sınıf türü kullanılmasına rağmen compile time'da birçok kontrol yapılmasına rağmen assembly düzeyinde tam sayı türü için üretilen koddan farklı kod üretilmemesi
 gibi düşünebiliriz. chrono başlık dosyasında böyle türler vardır. Bir senaryo düşünelim milisaniye ve nanosaniye bilgilerini tutmak isteyeceğimiz fakat tam sayı türlerinde
 taşma olma ihtimalinden dolayı kendimizin duruma özgü türler oluşturduğu senaryo olsun. Ve bu senaryoda bu iki farklı tür rahatlıkla birbiriyle işleme girebilsin, assembly düzeinde
-ise üretilen kod int gibi long int gibi tam sayı türü için üretilen kodla birebir aynıdır:
+ise üretilen kod int gibi long int gibi tam sayı türü için üretilen kodla birebir aynı olsun işte bunun olmasına olanak sağlayan zero-cost absraction'dır:
 
 #include <chrono>
 
@@ -87,16 +89,16 @@ int main()
         ms + ns; 
 }
 
-Yani tam sayı gerçek sayı türlerinin kullanılmasıyla ilgili böyle soyutlamalar çok ince bir soyutlama katmanı (thin layer) oluşturur.
+Yani tam sayı, gerçek sayı türlerinin kullanılmasıyla ilgili böyle soyutlamalar çok ince bir soyutlama katmanı (thin layer) oluşturur.
 
 smart pointer
 C++'ta pointer olmamasına rağmen pointer gibi davranan sınıf nesneleri vardır. İşte bu sınıf nesnelerinin ilişkin olduğu türlere "pointer like classes" denir.
 Yani bir sınıf türünden bir nesne tanımlıyoruz fakat bu nesne sanki C'deki pointer'mış gibi görev yapıyor. Bunların farklı farklı kullanım amaçları vardır:
-Örneğin pointer like class'ların kullanım amaçlarından biri dinamik ömürlü nesnelerin/kaynakların hayatını kontrol etmek. İşte eğer bir sınıf pointer like class
+Örneğin pointer like class'ların kullanım amaçlarından biri dinamik ömürlü nesnelerin/kaynakların hayatını kontrol etmektir. İşte eğer bir sınıf pointer like class
 ise ve sınıfın varlık nedeni dinamik ömürlü nesnelerin ömrünü kontrol etmek ise böyle sınıflara "smart pointer" denir. Standart kütüphanede ismi:
 unique_ptr
-shared_ptr isminde 2 tane smart pointer sınıfı vardır. 
-Smart pointer kullanmanın ne bir maaliyeti vardır ne de assembly düzeyinde pointer nesneden farklıdır. Bunu sağlayan arka plandaki fonksiyonların inline expand edilmesidir.
+shared_ptr isminde olan 2 tane smart pointer sınıfı vardır. 
+Smart pointer kullanmanın ne bir maaliyeti vardır ne de assembly düzeyinde pointer nesneden bir farkı vardır. Bunu sağlayan arka plandaki fonksiyonların inline expand edilmesidir.
 
 #include <memory.h>
 
@@ -108,16 +110,4 @@ int main()
 
 Fonksiyonu inline anahtar sözcüğü ile tanımladık diye derleyici inline expansion yapmak zorunda değildir. Ayrıca inline anahtar sözcüğü olmadan derleyici inline expansion yapabilir.
 Bunu yaptığımızda derleyiciden bu optimizasyon için ricada bile bulunamıyoruz, bunu rica etmek için derleyicmizin swticlerini kullanmalıyız.
-
-
-
-
-
-
-
-
-
-
-
-
   
