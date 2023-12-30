@@ -50,7 +50,7 @@ Varsayılan argüman olan ifadelerde daha önceki parametre değişkenlerini kul
 
 void func (int x, int y = x + 10);//sentaks hatası
 
-Varsayılan argüman bildirildi halde fonskiyona istediğim argümanı geçebilirim:
+Varsayılan argüman bildirildiği halde fonskiyona istediğim argümanı geçebilirim:
 
 void func(int  = 10, int = 20, int = 30);
 
@@ -117,39 +117,5 @@ int main()
 maximal munch kuralının varsayılan argümanlarda gösterimi:
 maximal munch kuralı çok önceki aşamalarda olan bir şey olduğu için eğer ki varsayılan argümanlarda token'ları 
 birleştirirsek sentaks hatası oluşur:
-void func(int, const char *= "necati"); // sentaks hatası ,aslında bildirilen fonksiyon şuydu:
-void func(int, const char * = "necati"); //maximal munch'a girdi *= bir operatör: compound assignment operators
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
- 
+void func(int, const char *= "necati"); // sentaks hatası maximal munch'a girdi *= bir operatör: compound assignment operators ,aslında bildirilen fonksiyon şuydu:
+void func(int, const char * = "necati"); //bu şekilde bildirim yapılması gerekiyordu.
