@@ -34,12 +34,12 @@ class Myclass {
 sınıfın size'ı int türünün 4 byte yer kapladığı varsayımıyla 16'dır.
 
 
-class anahtar sözcüğü ile tanımlanan sınıf tanımı içinde eğer ki değiken için herhangi bir erişim belirteci kullanmazsam default erişim bölgesi olarak sınıfın private bölümü olur.
+class anahtar sözcüğü ile tanımlanan sınıf tanımı içinde eğer ki değişken için herhangi bir erişim belirteci kullanmazsam default erişim bölgesi olarak sınıfın private bölümü olur.
 class Myclass {
   int mx;
 };
 
-struct anahtar sözcüğü ile tanımlanan sınıf tanımı içinde eğer ki değiken için herhangi bir erişim belirteci kullanmazsam default erişim bölgesi olarak sınıfın public bölümü olur.
+struct anahtar sözcüğü ile tanımlanan sınıf tanımı içinde eğer ki değişken için herhangi bir erişim belirteci kullanmazsam default erişim bölgesi olarak sınıfın public bölümü olur.
 struct Myclass {
   int mx;
 };
@@ -86,14 +86,14 @@ client kodlara diyorum ki burası seni ilgilendirmez. Böylece bozulma ihtimali 
 
 Neden private bölüm/elamanlar var?
 1. öğrenme yükünü ortadan kaldırır, kullanım kolaylığı sağlar. Her şey açık olacaksa programcı her şeyi bilmek zorunda ayrıca tam bilinmediğinde yapıyı bozadabilir: buna örnek C'deki struct tm.
-2.sınıf nesnelerinin işleyiş bozukluğu ihtimali ortadan kalkar.
+2. sınıf nesnelerinin işleyiş bozukluğu ihtimali ortadan kalkar.
 
 C#, java gibi dillerde bir sınıfın public arayüzü class definition içinde sınıfın public bölümünden oluşur:
 class Myclass {
 public:
 //data members, member functions ve nesnted types
 };
-Fakat C++'da böyle değildir. C++'ta bir sınıfın arayüzü ya da public interface'i dediğimiz zaman buna şunlar dahildir:dışarıya hizmet verme iddiasında olan sınıflar tipik olarak
+Fakat C++'da böyle değildir. C++'ta bir sınıfın arayüzü ya da public interface'i dediğimiz zaman buna şunlar dahildir: dışarıya hizmet verme iddiasında olan sınıflar tipik olarak
 başlık dosyalarında tanımlanırlar:
 //myclass.h
 class Myclass {
@@ -108,7 +108,7 @@ fakat bizde hala global fonksiyonlar var. Yani üye fonksiyonların hayatımıza
 çıkartmaz!!!
 
 int compare_xyz(const Myclass&, const Myclass&);
-Bu şekilde fonksiyon bildirimi/tanımı C++'ın standart kütüphanesinin modüllerinde 3. parti kütüphanelerde çok sık bulunur. Yani biz gidip bir modülden   hizmet aldığımızda bir 
+Bu şekilde fonksiyon bildirimi/tanımı C++'ın standart kütüphanesinin modüllerinde, 3. parti kütüphanelerde çok sık bulunur. Yani biz gidip bir modülden hizmet aldığımızda bir 
 başlık dosyasını tipik olarak include ettiğimizde oradan tipik olarak bir veya birden daha fazla sınıf tanımı gelir. Biz işimizi halletmek için sınıf nesneleri oluşturup
 o nesneler yoluyla sınıfın public üye fonksiyonlarını çağırdığımız gibi bazende sınıf nesnelerini global fonksiyonlara argüman olarak gönderebiliriz. Dolayısıyla başlık
 dosyasında içinde bize sunulan global fonksiyonlar C++'ta halen class'ın public interface'nin bir bileşenidir. C#, java gibi dillerde global function yoktur.
@@ -130,4 +130,3 @@ int main()
 protected bölümde bulunan kodlarda client koda kapalıdır private bölümden farkı ise Myclass sınıfından inheritance aracıyla bir sınıf oluşturduğumuzda o kalıtım yoluyla elde
 edilen sınıf(böyle sınıflara child class veya sub class, derived class)'a kodları açıktır. (kalıtım edilen sınıfa ise parent/super/base class denir) kalıtımın implementasyon tarafına derivation
 denir.
-
