@@ -12,7 +12,7 @@ void foo()
     auto x = Blue;
 }
 
-using enum bildirimini ölçülü, dikkatli kullanmakta fayda vardır global düzeyde yapılıursa  isim çakışmasının önünü açabiliriz:
+using enum bildirimini ölçülü, dikkatli kullanmakta fayda vardır global düzeyde yapılırsa  isim çakışmasının önünü açabiliriz:
 //#include "screen.h"
 namespace neco {
     namespace details {
@@ -41,7 +41,7 @@ void foo()
      auto z = Blue; //sentaks hatası
 }
 
-Bu anlamdaki using bildirimleri comma seperated list kuallanılabiliyor bu dile modern C++ ile eklendi; aslında bu ilk etapta namespace'ler ile başladı:
+Bu anlamdaki using bildirimlerinde comma seperated list kuallanılabiliyor bu dile modern C++ ile eklendi; aslında bu ilk etapta namespace'ler ile başladı:
 
 //#include "screen.h"
 enum class ScreenColor {Blue, Black, Purple, Brown, Red};
@@ -96,8 +96,8 @@ int main()
 Bu bazı durumlarda eş görüntü sağlar ve template'larda vs ile ilgili avantaj sağlar.
 
 floating types terimi ile float türü farklı terimlerdir:
-floating types: gerçek sayı türlerinin kümesi, yani bit kategoridir.
-float türü: bu kategorinin içinde olsn bir çeşittir/türdür.
+floating types: gerçek sayı türlerinin kümesi, yani bir kategoridir.
+float türü: bu kategorinin içinde olan bir çeşittir/türdür.
 
 compiler extension(s) (derleyici eklentisi)
 Dilin standart, özel bir aracı değildir; fakat derleyiciler programcıların işini kolaylaştırmak amacı ile standart olarak dilde yer almasa bile kendileri ilave öğeler sağlıyor. Bunlar sentaks özellikleri veya yerine 
@@ -136,24 +136,3 @@ int main()
 
     auto w = 0b1011'0100;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
