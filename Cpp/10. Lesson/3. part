@@ -4,7 +4,7 @@ int main()
 {
     int x = x;//ub
 }
-Burada yerel değişken olan x'e global olan x atanamaz; diliin kuralları bu şelilde işlemez:int x bir bildirimken = x bir ifade dolayısıyla derleyici x ismini arar, önce kullanıldığı
+Burada yerel değişken olan x'e global olan x atanamaz; diliin kuralları bu şekilde işlemez: int x bir bildirimken; = x bir ifade dolayısıyla derleyici x ismini arar, önce kullanıldığı
 blokta arar ve bu aramaya bildirimin yapıldığı yer de dahildir dolayısıyla bu kod tanımsız davranış kendi çöp değeri yerel x değşkenine atanır. Fakat unary çözünürlük operatörünü
 kullansaydım bu halde isim arama global skopta yapılacağı için ub oluşmaz ve yerel x değişkenine global olan x'in değeri atanırdı:
 int x = 10;
@@ -21,7 +21,7 @@ void func(int func)
 }
 
 Bir ismin bir class definition içinde aranamsı için ismin nitelenmiş olarak kullanılması gerekir. 2 farklı isim kullanım biçimi vardır:
-qualified name:eğer bir isim member selection operatörlerinden: . -> scope resolation operatörü operandı olursa o halde qualifed name olur:
+qualified name:eğer bir isim member selection operatörlerinden: . -> scope resolation operatörü operandı olursa o halde qualified name olur:
 x.y
 ptr->a
 ::x
@@ -69,7 +69,7 @@ class variable--->static data members
 Biz genelde data member derken non-static data member'ı kastetmiş oluruz.
 
 
-Sınıf tanımı içinde fonksiyon bildirebiliriz bu C'de olmayan bir özalliktir. C++'ta bir fonksiyonun sınıfın dışında namespace içinde bildirilmesi durumunda statüsü ayrı
+Sınıf tanımı içinde fonksiyon bildirebiliriz bu C'de olmayan bir özelliktir. C++'ta bir fonksiyonun sınıfın dışında namespace içinde bildirilmesi durumunda statüsü ayrı
 sınıfın içerisinde bildirilmesi durumunda statüsü ve ona karşılık gelen terim ayrıdır. C++'ta 2 farklı fonksiyon kategorisi vardır:
 
 //free function
@@ -85,7 +85,7 @@ Member veya global function ayrımı assembly katmanında olan kavramlar değild
 
 Sınıfın member functionları sınıf türünün sizeof'unu etkilemez yani C'deki global fonskiyonlardan assembly düzeyinde hiçbir farkı yoktur. 
 Aslında sınıfların non-static üye fonksiyonlarının bir tane fazladan parametreleri vardır. Yani aslında sınıfların non-static üye fonksiyonlarının bildiirimde kaç tane 
-parametresi varsa assembly kodunda 1 tane fazla paramteresi vardır. O parametre türüde sınıf  türünden pointerdır. Yani non-static üye fonksiyonları paradigmaya uyum sağlamak
+parametresi varsa assembly kodunda 1 tane fazla paramteresi vardır. O parametre türü de sınıf  türünden pointerdır. Yani non-static üye fonksiyonları paradigmaya uyum sağlamak
 için tasarlanmış fonksiyonlardır.
 
 class Myclass {
@@ -99,7 +99,7 @@ public:
 int main()
 {
     Myclass m;
-    m.func(12);//member function sayesinde cpp ile bu şekilde calle edebiliriz
+    m.func(12);//member function sayesinde cpp ile bu şekilde call edebiliriz yani m nesnesinin adresi fonksiyonun gizli parametresine argüman olarak geçilir.
     func(&m, 12);//C'de dolayısıyla assembly düzeyinde kodun karşılığı bu şekilde düşünebiliriz.
 }
 
@@ -113,4 +113,3 @@ erişim kontrolü gibi. Dolayısıyla global fonksiyon yerine üye fonksiyon kav
 1.fonksiyon isimlerinin ayrı bir skop kategorisine sokulmasını
 2.bir erişim kontrolünün sağlanmasına 
 3.kodun sadeleşmesine olanak sağlar
-
