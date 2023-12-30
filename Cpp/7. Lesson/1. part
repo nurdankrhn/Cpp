@@ -87,7 +87,7 @@ class Myclass {
 
 incomplete type kullanmanın en büyük faydası projemize dahil edeceğimiz başlık dosyalarınında başka dosyaları içermesinden dolayı ortaya çıkan bağımlılığı incomplete type kullanımı ile en aza indirip
 ileride ortaya çıkacak şu sorunlarında önüne geçmektir:
-başlık dosyalarda başka başlık dosyaları include ettiği için projeye eklenen başlık dosya sayısının dolaylı yoldan çok olması,
+başlık dosyalarda başka başlık dosyaları include ettiği için projeye eklenen başlık dosya sayısının dolaylı yoldan çok olması, şunlara neden olur:
 ilk nedenden dolayı "complation time" uzar, çünkü derleyicinin üzerinden geçmesi gereken bildirim sayısı artar,
 en baştada söylendiği gibi "dependency" 'i çok arttırır.
 
@@ -100,7 +100,7 @@ enum Color;
 
 struct Data {
     //,,
-    Color x; //Color'ın türü ne?? bilinmiyor C olsa idi enum türleri int olduğundan int diyebilirdik fakat C++'ta türü belirlemek programcıya bırakılmıştı ve incomplete type olarak tanımlandığından
+    Color x; //Color'ın türü ne?? bilinmiyor C olsa int idi enum türleri int olduğundan int diyebilirdik fakat C++'ta türü belirlemek programcıya bırakılmıştı ve incomplete type olarak tanımlandığından
             //bir yapıya eleman olarak verilemez!!
 }
 
@@ -113,14 +113,14 @@ underline type'ı belirtmeyi sadece enum tür tanımında değil forward declara
 enum Color: unsigned char;
 
 class Myclass {
-    Color mcolor; //underline type belli incomplete type olan enum artık bir sınıfın veya yapının elemanı olabilir, artık derleyicinin storage hesaplamada bir problemi kalmaz
+    Color mycolor; //underline type belli incomplete type olan enum artık bir sınıfın veya yapının elemanı olabilir, artık derleyicinin storage hesaplamada bir problemi kalmaz
 }
 
 2. değişiklik
 Yeni bir enum kategorisinin dile eklenmesi (scoped enum)
 Popüler terminolojide enum class'da denir. Bu bir class değildir ----> enum class is not a class!!
 Scoped enum'da da underline type'ı belirtebiliriz. Eğer ki underline type'ı belirtmez isek default olarak underline type signed int türünden olur.
-Artık numaralandırma türlerinin numaralandırma sabitleri numaralandırma türlerinin skobunda değillerdir, ayrı skopları vardır. 
+Artık numaralandırma türlerinin numaralandırma sabitleri; numaralandırma türlerinin skobunda değillerdir, ayrı skopları vardır. 
 enum class Color {Blue, Black, Purple, Brown}; //artık Color ismi global isim alanında olsada fakat Blue, Black, Purple, Brown isimleri Color enum'nın skobuna eklenmez
                                               //bunlar kendi skobunda yer alır.
 
@@ -132,7 +132,7 @@ enum class ScreenColor {Blue, Black, ;Purple, Brown, Red};
 //#include "traffic.h"
 enum class trafficLight {Red, Yellow, Green};
 
-Her iki enum türünü içeren kod parçası Red isimli enum sabitine sahip olmasına rağmen artık sentaks hatası meydana gelmez! Çünkü her ikisi de farklı skoplarda yer alıyor. Fakat bunun da bir bedeli bulunmakta: name lookup
+Her iki enum türünü içeren kod parçası Red isimli enum sabitine sahip olmasına rağmen artık sentaks hatası meydana gelmez! Çünkü her ikisi de farklı skoplarda yer alıyor. Fakat bunun da bir bedeli bulunmakta: name lookup'ta
 enum eğer ki scope enum ise enum sabitinin aranıp bulunması için artık nitelenmesi gerekir:
 
 
@@ -153,8 +153,9 @@ x.y
 p->y
 nec::y
 ::g (unary scope resolution operator)
+
 unqualified name
-Bir ismi yalın olarak kullanırsak yani doğrudan kendisini kullanırsak, böyle kullanılan isimlere ise unqualified name olarak değerlendirilir.
+Bir ismi yalın olarak kullanırsak yani doğrudan kendisini kullanırsak, böyle kullanılan isimler ise unqualified name olarak değerlendirilir.
 
 C++20 standartları ile dile eklenen şu özellik ile numaralandırma sabitlerinin kapsamlandırılmış numaralandırma türlerinde faydası var çünkü isim çakışmasını engelliyor fakat şöyle bir dezavantaja sahip:
 bir fonskiyon/kapsam içerisinde bu numaralandırma sabitlerinin sık kullanıldığı bir senaryoda bunu sürekli nitelemek gereksizdir (verbose kod)
@@ -170,20 +171,3 @@ void foo()
     using enum ScreenClor;
     auto x = Blue;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
