@@ -5,7 +5,7 @@ Yani ODR ihlal ediliyordu.
 
 C++ 2017 standartlarındandan önce global değişkenleri ve sınıfların statik veri elemanlarının bulunduğu bir header only library oluşturmak ill-formed program'a neden oluyordu.
 
-2017 standart'ından bu sorun kalktı: 
+2017 standart'ında bu sorun kalktı: 
 inline int x = 10; //bu sayede nasıl fonskiyonlar inline anahtar sözcüğü ile tanımlanabiliyorsa global değişkenlerde inline anahtar sözcüğü ile tanımlayabiliriz, yine aynı anlama gelir:
 1. bu bir global değişken
 2. kaç tane kod dosyası bunu include ederse etsin sonuçta link aşamasında bu değişkenden sadece bir tane olur. Hem ODR ihlal edilmemiş olacak hem de tanımı artık başlık dosyasına 
@@ -26,7 +26,7 @@ gerkiyor, fonskiyonlarda bir istisna değildir.
 Birden fazla fonskiyona aynı ismi vermemizin nedeni bu değişkenler soyutlandıkları zaman belirli bir  soyutlama seviyesinde aynı işi yapıyorlar; sadece kodları farklıdır.
 Örneğin C'de bir sayının mutlak değerini almak istediğimizde değişkeninin türüne göre farklı isimler vardır(absi fabs, labs, llabs). 
 C++'ta böyle bir şey yerine function overloading ile her değişken için farklı fonksiyonlar olsada hepsine aynı isime sahip olduğundan programcı tarafından çağırılan fonskiyon 
-hep aynı isimde olacaktı.
+hep aynı isimde olacaktı ve yapılan iş kolaylaşmış olacaktı.
 
 Bir fonksiyonu overlaod etmek ile override etmek çok farklı terimlerdir.
 override----> run time yönelik bir araçtır.
@@ -34,7 +34,7 @@ override----> run time yönelik bir araçtır.
 Function overlaoding iyi bir araç olması için soyutlama gerçekleştiğinde aynı soyutlama yapabilmeli. Yani farklı işi yapan fonskiyonlar için function overloading olması 
 faydadan çok zarar sağlar.
 
-Function overloading varsa ve eğer bir fonksiyonçağrısı yapılıyor ise derleyici çok önemli bir süreci yönetir, bu sürece "function overload resulation" denir.
+Function overloading varsa ve eğer bir fonksiyon çağrısı yapılıyor ise derleyici çok önemli bir süreci yönetir, bu sürece "function overload resulation" denir.
 Yani fonskiyon çağrısı hangi fonskiyona bağlanacağının tespitinin yapıldığı sürecidir.
 
 Function overloading'de 2 önemli soru vardır:
@@ -45,10 +45,10 @@ Ortada function overloading'in olması, çağırılan fonksiyonun hangi fonksiyo
 
 Fonksiyon çağrısında;
 a)Dereyici bir koda bakarak statik olarak derleme zamanında hangi fonksiyonun çağırıldığını anlıyorsa ve o fonskiyonun çağırılacağı şekilde bir kod üretiyorsa bir çağrının 
-fonskiyona bu şekilde bağlanmasına -->static binding  veya early binding denir. (unction overloading bu anlamda static binding'dir)
+fonskiyona bu şekilde bağlanmasına -->static binding  veya early binding denir. (function overloading bu anlamda static binding'dir)
 b)C++ dahil birçok programlama dilinde olan başka araçlar vardır. Hangi fonksiyonun çağırıldığı programın çalışma zamanında belli olur. Yani programın çalışma zamanında bir kod
-çalışır bu kod hangi fonksiyonun çağırılması gerektiğini anlar. Yani derleyici conpile time bakarak aslında hangi fonksiyonun çağırıldığını bilmez. Hangi fonksiyonun
-çağırıldığını belirleyen derleyicinin ürettiği compile time'da çalışan bir koddur. Buna --->dynamic binding veya late binding (function overriding ise late binding oluşturuyor) denir.
+çalışır bu kod hangi fonksiyonun çağırılması gerektiğini anlar. Yani derleyici compile time bakarak aslında hangi fonksiyonun çağırıldığını bilmez. Hangi fonksiyonun
+çağırıldığını belirleyen derleyicinin ürettiği run time'da çalışan bir koddur. Buna --->dynamic binding veya late binding (function overriding ise late binding oluşturuyor) denir.
 
 1)Function overloading olup olmadığının tespiti?
 function overloading olması için belli başlı şartlar vardır:
@@ -92,10 +92,10 @@ int func(int);
 int func(int);
 
 function overlaoding:
-int funt(int);
-int funt(long);
-int funt(int, int);
-int funt(double, int); //+ tane function overlaoding 
+int func(int);
+int func(long);
+int func(int, int);
+int func(double, int); //+ tane function overlaoding 
 
 Eğer ki parametre referans veya pointer değilse parametrenin const anahtar sözcüğü ile function overloading oluşturmaz function redeclaration oluşturur:
 int func(int);
