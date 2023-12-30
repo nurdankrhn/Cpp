@@ -1,7 +1,7 @@
 sınıfın üye fonksiyonları nasıl tanımlanır?
-Sınıflarun tanımı tipik olarak başlık dosyasındadır. Çünkü sınıfları oluşturmamızın temel nedenlerinden biri diğer modüllere hizmet vermenin bir aracı olarak kullanmak. a
+Sınıfların tanımı tipik olarak başlık dosyasındadır. Çünkü sınıfları oluşturmamızın temel nedenlerinden biri diğer modüllere hizmet vermenin bir aracı olarak kullanmak. 
 Böyle bir durumda ODR ihlal edilmez normalde yazılımsal varlıkların 1 tane tanımı olmak zorundadır fakat class definition bir istisnadır. Token by token aynı olmak üzere
-aynı projeyi oluşturan kaynak dosyalarda aynı sınıfın tanımı tekrar etmesi ODR ihlali değildir. Bunun olması için baştada söylediğimiz gibi aynı projeyi oluşturan kaynak dosyalarda
+aynı projeyi oluşturan kaynak dosyalarda aynı sınıfın tanımının tekrar etmesi ODR ihlali değildir. Bunun olması için baştada söylediğimiz gibi aynı projeyi oluşturan kaynak dosyalarda
 token by token aynı olması gerekir.
 
 ODR'ı ihlal etmeyen birkaç tane örnek:
@@ -26,7 +26,7 @@ void Alpo::func(int x)
   
 };
 
-2. Yöntem fonksiyon tanımını başlık dosyasında inline olarak yapmak:a)fonksiyon tanımını class tanımının içinde yapmak. Bu fonksiyon zaten implicit inline ve genelde inline keywordunu
+2. Yöntem fonksiyon tanımını başlık dosyasında inline olarak yapmak: a)fonksiyon tanımını class tanımının içinde yapmak. Bu fonksiyon zaten implicit inline ve genelde inline keywordunu
 yazmama eğilimi daha yüksek. b)tanımı class tanımı dışında inline keywordunu kullanarak yapmak.
 a)
 //alperen.h başlık dosyası
@@ -76,7 +76,8 @@ public:
 void Alpo::foo(int x)
 {
   
-}; sınıf tanımında foo isminde bir fonksiyon class yapısında bildirilmediği için sentaks hatası. Yani class tanımı içinde bildirilmeyem bir fonksiyonun tanımlanması doğrudan
+}; 
+sınıf tanımında foo isminde bir fonksiyon class yapısında bildirilmediği için sentaks hatası. Yani class tanımı içinde bildirilmeyen bir fonksiyonun tanımlanması doğrudan
 sentaks hatasıdır.
 
 void foo(int x)
@@ -122,6 +123,7 @@ void Alpo::func(int x)
   //
   
 };
+
 Bu örnekte global olan mx'e class'ın veri elamanı mx ve yerel değişken olan mx'in toplam değerleri atanmıştır:
 
 //alperen.h başlık dosyası
@@ -140,6 +142,7 @@ void Alpo::func(int x)
   ::mx = Alpo::mx + mx;
   
 };
+
 Buradan da gördüğümüz gibi sınıfın üye fonksiyonları sınıfın private bölümüne erişebilir.
 
 
@@ -238,7 +241,7 @@ class Alpo {
 public:
   void foo();
 private:
-  int foo;//aynı ismi birden fazla varlığa veremediğimiz için sentkas hatası oluşur.
+  int foo;//aynı skopta aynı ismi birden fazla varlığa veremediğimiz için sentkas hatası oluşur.
 };
 
 Burada da function overloading oluşur:Dolayısıyla bir sınıfın aynı isimli farklı imzaya sahip fonksiyonları onların erişim kategorisinin ne olduğundan bağımsız overloading oluştururlar.
@@ -272,6 +275,3 @@ int main()
     Alpo ax;
     ax.foo(2.3);//sentaks hatası
 }
-
-
-
