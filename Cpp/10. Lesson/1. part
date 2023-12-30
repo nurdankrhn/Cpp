@@ -30,7 +30,7 @@ int main()
     Myclass m;
     func(m);//m l val exp. dolayısıyla sol taraf referasnına  bağlanabilir. O halde 1. fonksiyon çağırılır.
     func(Myclass{});//Myclass temprorary object. bu durumda her iki fonksiyonda viable çünkü const L val ref const olmayan L val ref.'ten farklı olarak R val. exp.'na bağlanabilir buna move overloading diyor hocamız. 
-                    //Her iki fonksiyon varlığında 2 seçilir.
+                    //Her iki fonksiyon varlığında 2. seçilir.
 }
 
 Örnek şu şekilde olursa:
@@ -52,7 +52,7 @@ int main()
 }
 
 Bu zamana kadar function overloading için verdiğimiz örneklerde parametreleri hep tek olan örnekleri ele aldık fakat fonksiyonlar birden fazla parametre alabilir. Peki böyle bir durumda nasıl bir yol izlenerek fonksiyon çağrısı yapılır?
-Dilin standartları bu konu ile alakalı şunu söyler:Birden fazla parametre olması durumunda bir overload'un şeçilebilir olması için "en az bir parametrede diğer overload'lara üstünlük sağlamalı ancak diğer parametrelerde diğerlerinden 
+Dilin standartları bu konu ile alakalı şunu söyler: Birden fazla parametre olması durumunda bir overload'un şeçilebilir olması için "en az bir parametrede diğer overload'lara üstünlük sağlamalı ancak diğer parametrelerde diğerlerinden
 kötü olmamalıdır (eşit olabilir)" 
 
 void foo(float, double, int);//1
@@ -79,9 +79,9 @@ int main()
 
 C ve C++'ta referans isimlerin obje koda yazılma biçimleri farklıdır. Derleyicinin obje koda external referansı yazma biçimi farklıdır. Derleyici linker ile iş birliği halinde linker ile ortaklaşa kararlaştırılan bir notasyonla
 obje koda harici referanslara yönelik bir isim yazıyor, bu ismi de bir şekilde fonksiyonun isminden hareketle oluşturuyor. Burada kullanılan terim "decoration" veya "manlink"'dir. Yani derleyici program obje koda yazacağı isim için
-bir name decoration ya da name manlink yapıyor. C derleyicilerinin obje kod için oluşturduğu manlink veya decoration yapısı ile C++ derleyicilerinin yapsıı farklıdır.
+bir name decoration ya da name manlink yapıyor. C derleyicilerinin obje kod için oluşturduğu manlink veya decoration yapısı ile C++ derleyicilerinin yapısı farklıdır.
 C'de function overloading olmadığı için C derleyicileri obje koda referans isim yazarken sadece fonksiyon isminden haraketle bir referans yazarken C++'ta function overloading olduğu için sadece fonksiyon isminden dekore ederse o zaman aynı
-isimli overloadlar nasıl ayrılacak? Dolayısıyla C++ derleyicisi bu durumda   parametrelerden de yola çıkarak bir dekorasyon yapıyor. Örneğin necati.h isimli dosyada int fnec(int a, int b); isimli nir fonksiyon bildirimi olsun.
+isimli overloadlar nasıl ayrılacak? Dolayısıyla C++ derleyicisi bu durumda parametrelerden de yola çıkarak bir dekorasyon yapıyor. Örneğin necati.h isimli dosyada int fnec(int a, int b); isimli bir fonksiyon bildirimi olsun.
 necati.c de ise bu fonskiyonun tanımı olsun:
 
 "include necati.h  
@@ -101,8 +101,8 @@ int main()
     x = fnec(12, 34);
     std::cout << "x" << x <<"\n";
 }
- Linker referans isimlendirmesini derleyicinin kendi dekorasyonu ile verdiği fnec için arayıp bulamadığına dair bir hata verir kod linker tarafından bağlanamaz!! Bunun nedeni az önce bahsi geçen C ve C++ derleyicilerinin 
-dekorasyon farkından kaynaklanır. Yani C ve C++ derleyicisinin aynı parametrik yapıdaki fonksiyonun obje kod için dekore etme biçimleri farklıdır.
+Linker referans isimlendirmesini derleyicinin kendi dekorasyonu ile verdiği fnec için arayıp bulamadığına dair bir hata verir kod linker tarafından bağlanamaz!! Bunun nedeni az önce bahsi geçen C ve C++ derleyicilerinin 
+dekorasyon farkından kaynaklanır. Yani C ve C++ derleyicisinin aynı parametrik yapıdaki fonksiyonun obje kodunun  dekore etme biçimleri farklıdır.
 Bunu önlemek için şu yapılabilir: fnec fonksiyonunun C'de derleyicisi ile derlendiği bilgisini vermeliyiz. O zaman bu fonksiyon çağrısı karşısı obje koda artık dekorasyon yaparken C tarzı dekore eder ve linker artık bunu bulabilecek.
 Bu bildirime "extern C bildirimi" denir. Bunu yapmak için :
 necati.h
@@ -160,7 +160,7 @@ __SDTC__
 
 C++'ta ise sayıları oldukça fazladır:
 __cplusplus C++ derleyicilerinde defined kabul edildiği gibi long türden bir sabite define edilmek zorundadır. Yani bu predefined symbolic constant'ı kullandığımız zaman long türden bir sabiti kullanmış oluruz.
-Bu değerin hangi değere define edilmiş olamasının önemi vardır çünkü bu değer hangi C++ standartını desteklediğini yani yani hangi C++ standartına göre yapıldığını belirliyor. Eğer ki standart kontrolüde yapmak
+Bu değerin hangi değere define edilmiş olamasının önemi vardır çünkü bu değer hangi C++ standartını desteklediğini yani hangi C++ standartına göre yapıldığını belirliyor. Eğer ki standart kontrolüde yapmak
 istersek hangi standartın hangi değere eşit olup olmadığını kontrol etmeliyiz(__cplusplus === deger gibi) .Dolayısıyla derleyicinin C++ derleyicisi olup olmadığını test etmek istersek:
 #ifdef __cplusplus (if defined __cplusplus demek aynı şey)
 //bildirimler
