@@ -117,7 +117,9 @@ int main()
 
 C++'ta numaralandırma türleri
 C++'ta modern C++ ile yapılan ekleme ile 2. bir enumaration kategorisi dile eklenmiştir. Buna standartların kullandığı terimle "scoped enums" deniliyor. Popüler olaral "enum class" da deniliyor.
+
 enum class is not a class.
+
 C'den gelen enum'lara "conventional enum's" veya "unscoped enum's" denilmektedir.
 
 unscoped enum's
@@ -170,32 +172,5 @@ enum trafficLight {Red, Yellow, Green}; // numaralandırma türünün skobu clas
 
 Ya da namespace kullanmak.
 
-3. numaralandırma sabitlerinin değerine bağlı olarak underline type'ın(derleyici tarafından kullanılan int türünün derleyiciden derleyiciye değişebilmesi) değişebilmesi.
+3. numaralandırma sabitlerinin değerine bağlı olarak underline type'ın(derleyici tarafından kullanılan enumarator sabitinin türünün derleyiciden derleyiciye değişebilmesi) değişebilmesi.
 enum Color {Blue = 762343, Black = 892437, Green = 76234}; numaralandırma sabitlerinin türü derleyiciden derleyiciye değişebilir.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
