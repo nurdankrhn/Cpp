@@ -22,7 +22,7 @@ argüman olarak geçecek isek bunun için de yeniden bildirim yapmalıyız:
 int bar(int x, int y = 10, int z); böyelikle hem z için hem de y parametresi için varsayılan argüman 
 belirlemiş olduk. Derleyici gözünden olaya bakarsak:
 int bar(int x, int y, int z = 30);
-int bar(int x, int y = 10, int z); sonuç söyleymiş gibi olur o halde
+int bar(int x, int y = 10, int z); sonuç söyleymiş gibi olur o halde:
 int bar(int x, int y = 10, int z = 30);
 
 Varsayılan argüman olan ifadenin değeri hesaplanıp her fonksiyon çağrısında o değer kullanılmaz; varsayılan argüman olan
@@ -100,7 +100,7 @@ Typecast operators
 type-cast --> eğer aşağıda bulunan tür dönüştürme operatörleri değilde C'den gelen type-cast operatörü ile tür dönüşümü yapıyorsak c-style-cast
 terimini kullanabiliriz.
 
-(targey_type) //tür dönüştürme operatörü
+(target_type) //tür dönüştürme operatörü
 static_cast
 const_cast
 reinterpret_cast
@@ -119,7 +119,7 @@ yapılmaz ise ifade bizim istediğimiz türde yapılmıyor.
 int i1 = 10, i2 = 6;
 i1/i2---> sonucun gerçek sayı türünden olabilmesi için operandlardan en az birini double türden yapmalıyız. O halde şöyle olmak zorundadır:
 (double)i1/i2 şeklinde olmalıdır; böylece (double)i1 ifadesi double türden bir değer üretir, bu durumda operandlar'dan biri double biri int türünde 
-olduğundan bu seferde implicit type conversion ile 2. operan'da double türüne dönüştürülür ve işlem double türden yapılır.
+olduğundan bu seferde implicit type conversion ile 2. operand'da double türüne dönüştürülür ve işlem double türden yapılır.
 
 Bir diğer örnek çarpma işleminde taşma aralığını daha büyük tutmak için daha büyük tam sayı türünde çarpma işlemi yapmak:
 int i1 = 34, i2 = 11;
@@ -166,19 +166,3 @@ char* strchr(const char *p, int c)
 
     return NULL;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
