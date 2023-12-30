@@ -1,4 +1,5 @@
 Peki variadic conversion ve user-defined conversion yoksa ve hala birden fazla overload varsa bu durumda ne olur?
+
 Bu durumda argümandan paremetre aktarımında 3 tane yine kalite durumu var (en kaliteliden en düşük kaliteye doğru):
 exact match:
 argümanın türü ile parametre türü tamamen uyuyor. Birde bazı istisnalar var bunlarda exacth match'e giriyor:
@@ -30,7 +31,7 @@ argümanın türü ile parametre türü tamamen uyuyor. Birde bazı istisnalar v
   }
     
 promotion:
-int altı türlerden int'e yükseltme (integral promotion) 
+int altı türlerden int'e yükseltme (integer promotion) 
 float'tan --> double dönüşüm
 
 conversion 
@@ -43,7 +44,7 @@ void func(long);
 
 int main()
 {
-    func(12u);//sentaks hatası exact match değil, promotion değil o zaman conversion ve unsigned'dan inte conversion; unsigned intten double converison ve unsigned inttten longa conversion ambiguity oluşur!!
+    func(12u);//sentaks hatası exact match değil, promotion değil o zaman conversion ve unsigned int'ten inte conversion; unsigned intten double converison ve unsigned inttten longa conversion ambiguity oluşur!!
 }
 
 exact macth örneği:
@@ -70,7 +71,7 @@ int main()
     int y = 56;
     func(&y);//her iki fonkdiyonda viable ama kazanan int * parametreli fonk. olur.
 }
-Yani biz böylece const nesneler için ayrı bir oveload const olmayan nesneler için ayrı bir overload oluşturmuş oluruz. Bu const overloading dediğimiz overloading biçimi pointer semantiği ile karşımıza çıktığı gibi
+Yani biz böylece const nesneler için ayrı bir oveload; const olmayan nesneler için ayrı bir overload oluşturmuş oluruz. Bu const overloading dediğimiz overloading biçimi pointer semantiği ile karşımıza çıktığı gibi
 referans semantiği ile de karşımıza çıkabilir:
 
 void func(int &);
@@ -90,10 +91,10 @@ void func(int x);
 
 int main()
 {
-    func(25;//sentaks hatası ambiguity oluşur
+    func(25);//sentaks hatası ambiguity oluşur
 }
 
-3. vall by value ile call by reference arasında seçilebilirlik açısından bir fark yok:
+3. call by value ile call by reference arasında seçilebilirlik açısından bir fark yok:
 void foo(int);
 void foo(int&);
 
@@ -150,14 +151,14 @@ void func(double*);
 
 int main()
 {
-    f
+    
     func(nullptr);//void func(std::nullptr_t); fonskiyon çağırılır exatch match
 }
 
 Bu bazı durumlarda function overloadingde fonskiyonu nullptr  ile çağırdığımızda özel bir implementasyonun devreye girmesi anlamına gelir. Yani nullptr çağrısı için ayrı bir kod nullptr olmayan adres çağrıları için ayrı bir kod oluşturma 
 imkanı sunar.
 
-6. Eğer ki void * ve bool overload'ı varsa ve bu fonksiyon bir object pointer ile çağırışırsa aslında her ikside vaible'dır ve üstelik he ikiside conversion'dır fakat yine de void * parametreli fonskiyon çağırılır:
+6. Eğer ki void * ve bool overload'ı varsa ve bu fonksiyon bir object pointer ile çağırılırsa aslında her ikside viable'dır ve üstelik he ikiside conversion'dır fakat yine de void * parametreli fonskiyon çağırılır:
 
 void func(void *);
 void func(bool);
@@ -167,17 +168,6 @@ int main()
     int x = 564;
     func(&x);//void * parametreli fonk. çağırılır.
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 
