@@ -75,11 +75,11 @@ void foo(int);
 void foo(decltype((x)));//2 tane overload olur decltype((x)) PR val exp. tür int& olur;
 
 Function Overload Resolution
-Dilin en önemli konularından biridir. Karşımıza sık olarak çıkar. Function Over Resolution yani hangi fonksiyonun çağırılacağı süreci dilin kuralları ile belirlidir.
+Dilin en önemli konularından biridir. Karşımıza sık olarak çıkar. Function Overload Resolution yani hangi fonksiyonun çağırılacağı süreci dilin kuralları ile belirlidir.
 Function overloading olması her fonksiyon çağrısının geçerli bir yapı oluşturması anlamına kesinlikle gelmez!! Yani function overloading var diye o fonksiyon çağrısı ile yapılan tüm çağrılar legal olmaz. Yani function overload resolution
 sentaks hatası ile sonuçlanabilir. 2 farklı sentaks hatası vardır:
 1)overload'lardan hiçbirinin uygun olmaması (no match yani uygun fonksiyon yok) yani yapılan fonksiyon çağrısı ile bildirilen fonksiyonların hiçbiri legal olarak çağırılamaz.
-2)Birden fazla uyumlu fonksiyon olması (ambiguity). Fakat dilin kuralları ikisi arasında  bir seçim kriteri oluşturamadığı için hata meydana gelir.
+2)Birden fazla uyumlu fonksiyon olması (ambiguity). Fakat 2 uyum olması nedeni ile dilin kuralları ikisi arasında  bir seçim kriteri oluşturamadığı için hata meydana gelir.
 
 Function Overload Resolution Nasıl Yapılır?
 Maksimum 3 aşamalı bir süreçtir:
@@ -97,6 +97,7 @@ arasında bir fark görmeyecek ve bu durumda ambiguity olur.
 
 best viable fonksiyonu derleyici bulmaya çalışırken:
 Argümandan parametre değişkenine aktarımın geçerli olması durumunda bazı ihtimaller var. Argümandan parametreye aktarım geçerliliği farklı kalite gruplarına bölünmüştür:
+
 Bütün viable rakiplerine kaybeden dönüşüm variadic conversion'dur.
 C'de son parametresi elipsis atomı olan fonksiyonlardır: void foo(int, ...); printf, scanf fprintf, sprintf, fscanf vb standrt C fonk. da variadic fonksiyonlardır.
 C++'ta variadic fonksiyonun C'deki fonksiyondan farkı parametre olarak tek başına elipsis atomu ile tanımlanabilmesi:
@@ -104,9 +105,10 @@ void bar(...);//C'de sentaks hatası C++'ta geçerli
 
 İşte void foo(...); bildirimine sahip bir fonksiyona  her türden argüman gönderebildiğim için bu variadic conversion oluyor.
 
-void foo(...);'nun diğer viable'lardan daha düşük kalitede olduğundan diğer karşı kaybeder:
+void foo(...);'nun diğer viable'lardan daha düşük kalitede olduğundan diğere karşı kaybeder:
 
-variadic conversion'dan daha iyi olan  C'de olmayan user-defined conversion karşımıza çıkar. user-defined conversion:C++'ta sınıflar işin içine girince şöyle bşr durum oluşur
+variadic conversion'dan daha iyi olan  C'de olmayan user-defined conversion karşımıza çıkar. 
+user-defined conversion:C++'ta sınıflar işin içine girince şöyle bir durum oluşur
 normalde olmayan dilin sentaksında örtülü olarak yapılamayan bazı dönüşümler programcının 1 fonksiyon bildirmesi neticesinde derleyicinin o bildirilen fonksiyona örtülü olarak
 çağrı yaparak bir dönüşüm gerçekleştirme sonucunu doğurmasına denir.
 
@@ -134,36 +136,3 @@ int * --> void *
 int --> bool
 bool --> int
 unscoped enum --> int
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
