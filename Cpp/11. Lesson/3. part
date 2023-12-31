@@ -1,12 +1,12 @@
-Standart kütüphanenin, sınıflarının üye fonksiyonlarının çok sayıda overload'u vardır. Yani function overloading hem global hem de üye fonksiyonlar için çok sık karşımıza çıkan bir yapıdır.C++'ın standar kütüphanesinin en sık kullanılan
-sınıfları:std::string ve std::vector'dür. Örneğin std::string sınıfında birçok üye fonksiyonunun birden fazla overload'u vardır: örneğin replace fonksiyonunun 14 tane overloadu vardır.  
+Standart kütüphanenin, sınıflarının üye fonksiyonlarının çok sayıda overload'u vardır. Yani function overloading hem global hem de üye fonksiyonlar için çok sık karşımıza çıkan bir yapıdır.C++'ın standart kütüphanesinin en sık kullanılan
+sınıfları: std::string ve std::vector'dür. Örneğin std::string sınıfında birçok üye fonksiyonunun birden fazla overload'u vardır: örneğin replace fonksiyonunun 14 tane overloadu vardır.  
 
 Biz derslerimizde sınıfın üye fonksiyon tanımlarını yöntem 1'de belirttiğimiz ayrı bir implementasyon dosyasında belirtmek yerine zamandan kazanç sağlamak adına inline olarak tanımlayıp kaynak dosya içinde tanımlayacağız; buradan
 her fonksiyon inline yapılmalı anlamı çıkarılmamalıdır.
 
 inline olarak sınıf tanımı içinde bulunan bir üye fonksiyon tanımı içinde tanımdan sonra tanımlanan bir değişkeni kullanmam sentaks hatası yaratır mı? HAYIR çünkü üye fonksiyonları içerisinde isim arama kuralları inline olup
 olmaması ile ilgili değildir. Yani fonksiyon inline olsa da olmasada inline olmadığında isim arama nasıl yapılacaktı ise yani nitelenmemiş isim için önce blok içinde sonra kapsayan blok içinde sonra class skopta orada da bulunamaz ise
-namespace içinde aranacaktır. O halde burada foo fonksiyonunun içinde mx değişkeninin kullanılması sentaks hatası meydana getirmez:
+namespace içinde aranacaktır yine aynı şekilde isim araması gerçekleşir. O halde burada foo fonksiyonunun içinde mx değişkeninin kullanılması sentaks hatası meydana getirmez:
 
 class Alpo{
 public:
@@ -20,9 +20,11 @@ public:
 this pointer
 this is a keyword. Yani bir anahtar sözcük olduğu için doğal olarak bir identifier değildir. Gelipte bize this'i kullanmak için hangi başlık dosyası include edilmelidir? diye soru sorulursa cevap this bir keyword olduğundan herhangi
 bir başlık dosyasına ihtiyaç duymaz dememiz gerekir.
+
 this keyword'ü legal olarak sadece ve sadece bir sınıfın non-static üye fonksiyonu içinde kullanılabilir. Bu anahtar sözcüğün:
 a)global bir fonksiyon içinde kullanılması
 b)sınıfın static üye fonksiyon içinde kullanılması doğrudan sentaks hatası!!!
+
 this anahtar sözcüğü bir pointerdır. Başka dillerde this, self anahtar sözcüğü gibi this'e benzer contextlerde kullanılan fakat o dillerde kullanımı farklı semantiğe sahip olan anahtar sözcükler vardır. Birçok dilde bu anahtar sözcük
 bir method içinde  kullanıldığı zaman bu fonksiyon hangi nesne için çağırıldıysa o nesnenin kendisini temsil ediyor. C++'ta ise durum öyle değildir; this bir pointerdır. Ve bu pointer'ın değeri bu fonksiyon hangi nesne için çağırıldıysa
 o nesnenin adresidir. Yani adeta bu anahtar sözcük fonksiyonun gizli parametresinin değeri olan adrestir.
@@ -123,12 +125,13 @@ private:
 void Neco::func()
 {
     bar();
-    //this->bsr();
+    //this->bar();
     //Neco::bar();
 }
 
 Peki this anahtar sözcüğü neden var???
-Öyle senaryolar var ki this'i kullanmadan o işi yapmak imkanım olmaz yani zorunlu bir sentaks öğesi olarak this'in kullanılması gereken senaryoların varlığı vardır. Bu senaryolar şunlardır:
+Öyle senaryolar var ki this'i kullanmadan o işi yapma imkanım olmaz yani zorunlu bir sentaks öğesi olarak this'in kullanılması gereken senaryoların varlığı vardır. Bu senaryolar şunlardır:
+
 1)sınıfın non-static üye fonksiyonu tanımında gloabl olan bir fonksiyon için non-static üye fonksiyonu hangi sınıf üyesi için çağırılmış ise aynı nesnenin adresi ile global fonksiyona argüman geçmek istensin eğer
 this pointerı olmasaydı bunu yapamazdık:
 2)Sol taraf referansını parametre alan global bir fonksiyon için tıpkı 1'deki seçenekte olduğu gibi üye fonksiyon içinde nesnenin kendisini argüman geçmem için *this'e ihtiyaç duyarım.
@@ -154,7 +157,7 @@ void Neco::func()
     f3(*this);
 }
 
-2)thisi non-static üye fonksiyonunu çağıran nesnenin kendisini döndürmek içinde kullanabiliriz:Böylece nesne.cagirilan_fonk ifadesinin kendiside o nesne dolayısıyla o ifadeyi bir daha . operatörünün operandı yapbilme olanağı
+2)thisi non-static üye fonksiyonunu çağıran nesnenin kendisini döndürmek içinde kullanabiliriz:Böylece; nesne.cagirilan_fonk ifadesinin kendiside o nesne dolayısıyla o ifadeyi bir daha . operatörünün operandı yapbilme olanağı
 kazandırır. C++'ta bu şekilde yapılan fonksiyon çağrılarına popüler olarak chaining denir genel olarak programlama dillerinde bu yapıya flound abi(? yazılışından tam emin değilim) denir:
 
 class Myclass {
