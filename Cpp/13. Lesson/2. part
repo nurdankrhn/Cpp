@@ -70,3 +70,168 @@ delete p;
 //pseudo code
     p->~Fighter(); //böylece delete ifadesinde kullanılan adres dinamik ömürlü nesnenin adresidir o adres this pointerı olarak kullanıldı ve sınıfın destructor'ı çağırıldı
     operator delete(p); alınan alan geri verildi
+
+default constructor'ın çağırıldığı senaryolar(otomatik veya statik ömürlü nesneler için):
+1)Default initialization-->Eğer bir sınıf türünden nesneyi default initialize edersek bu durumda sınıfın default constructor'ı çağırılır. Eğer default constructor'ı yoksa/delete edilmiş ise/private ise sentaks hatası meydana gelir.
+
+#include <iostream>
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+int main()
+{
+  Nec mynec;//legal default initialize ettik
+  
+}
+
+#include <iostream>
+
+class Nec {
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+public:
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+int main()
+{
+  Nec mynec;//sınıfın default constructor'ı private bölümde sentaks hatası
+  
+}
+
+#include <iostream>
+
+class Nec {
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+public:
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+int main()
+{
+  Nec mynec;//sınıfın default constructor'ı private bölümde sentaks hatası  access control'den dolayı
+  
+}
+
+#include <iostream>
+
+public:
+  Nec() = delete;
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+int main()
+{
+  Nec mynec;//sentaks hatası sınıfın default constructor'ı delete edilmiş 
+  
+}
+
+#include <iostream>
+
+class Nec {
+public:
+  Nec(int);
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+int main()
+{
+  Nec mynec;//sınıfın default constructor'ı not declared
+  
+}
+
+2)Value initialization'da da çağırılan constructor default constructor'dır.
+
+#include <iostream>
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+  int a, b;
+};
+
+int main()
+{
+  Nec x;//x default initialize edildiği için  sınıfın veri elemanlarının değeri indetermined  o halde a ve b indetermined value'da olur.
+  Nec y{};//y value initialize edildiği için zero initialize edildi yani sınıfın veri elemanlarının değeri 0'dır; o halde a ve b 0 değerinde olur.C++11 ile dile eklendi
+  //x için  de y içinde default constructor çağırılır.
+
+  Nec a[10];//nesnenin dizi olması durumunda dizinin her bir elemanı için default constructor çağırılır.
+  
+}
+
+C++ dilinde bir sınıfın default constructor'ı olmayabilir. Ancak bir sınıfın default constructorı olmayışı o sınıfın bazı bağlamlarda kullanılma olanağını ortadan kaldırır.
+
+Parametreli  constructor nasıl çağırılır?
+1)Nesne direct initialization ile initialize edildiğinde
+2)Nesne direct-list initialization ile initialize edildiğinde
+3)Nesne copy initialization ile initialize edildiğinde
+
+class Nec {
+public:
+  Nec() = default;
+  Nec(int x)
+  {
+    std::cout << "Nec(int x) x = " << x << "this = " << this << '\n';
+  }
+};
+
+int main()
+{
+    Nec n1(1.1); //direct initialization
+    Nec n2{5}; //direct-list initialization; hatırlatma: bu initialization biçiminde narrowing conversion sentaks hatası!!
+    Nec n3 = 6;//copy initialization
+}
+
+initialization biçimleri arasında bazı kural farklılıkları vardır; örneğin direct-list initialization'da narrowing conversionın sentaks hatası olması veya expilicit constructor'da ise copy initialization sentkas hatası olur:
+ileride bu konu ele alınacak
+class Nec {
+public:
+  Nec() = default;
+  explicit Nec(int x)
+  {
+    std::cout << "Nec(int x) x = " << x << "this = " << this << '\n';
+  }
+};
+
+int main()
+{
+    Nec n1(1.1); //direct initialization
+    Nec n2{5}; //direct-list initialization; hatırlatma: bu initialization biçiminde narrowing conversion sentaks hatası!!
+    Nec n3 = 6;//expilicit constructor'da copy initialization sentaks hatası
+}
+
