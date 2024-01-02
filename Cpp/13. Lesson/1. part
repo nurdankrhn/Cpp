@@ -133,4 +133,212 @@ int main()
 }
 
 
+static initialization fiasco
+Aynı projeyi oluşturan kaynak dosyalar içinde bulunan global değişkenler vardır. Peki bu global değişkenlerden hangisi önce hayata gelir(contsruct olucak)? Bu konuda hiçbir garanti yoktur. Main fonksiyonu başlamadan hepsinin çağırılacağı garanti altında; fakat
+hangisinin constructor'ının önce çağırılacağı biir sıra altında garanti edilmemiştir. Bu konunun çok önemli olmasının nedeni şudur: eğer ki bu global değişkenler birbirine bağlı iseler: örneğin aşağıda bulunan F sınıfı türünden fx'in hayata gelmesi için
+constructor'ı çağırılmalıdır ve bu constructor içinde bx değişkenini kullanıyorsak eğer ki böyle bir durumda bx değişkeni fx değişkeninden önce hayata gelmişse bir problem oluşmaz. Fakat eğer ki fx bx'ten daha önce hayata geliyor ise yani
+fx'in constructor2ı çağırıldıktan sonra bx'in constructor'ı çağırılıyorsa o zaman fx içinde kullanılan bx bir alana sahiptir ama indetermined value'dadır. O yüzden bu çok sık karşılaşılan bir çöküş nedenidir.
 
+faruk.cpp
+F fx;
+
+berin.cpp
+B bx;
+
+extern B bx;
+
+F::F()
+{
+   bx.xyz();
+}
+
+cinar.cpp
+C cx;
+
+murat.cpp
+M mx;
+
+
+Zaten farklı kaynak dosyalardaki global değişkenlerin hayata gelmesinde bu tarz bir bağımlılık söz konusu değilse o zaman nasıl olsa her nesne hayata gelicek sıranın bir önemi yoktur; dolayısıyla böyle bir sorun oluşmaz.
+
+Buna en güzel örnek genelde constructor içinde cout'u kullanmamız. cout'ta bir global değişkendir. Ve her örneklerde constructor içinde cout'u her kullandığımda static initialization fiasco denen durumu yaşamadım. İşte bunu
+önleyen bir idomatik yapı vardır; buna:
+//schwarz idiom veya nifty counter denir.
+
+b)static yerel değişkenler
+Fonksiyonların içinde static anahtar sözcüğü ile tanımlanan değişkenlerdir. 
+void func()
+{
+   static Nec mynec;//sınıf türünden bir static yerel değişken
+}
+Bunların tanımını içeren fonksiyon çağırılmadı sürece bu nesneler hayata gelmez. constructor içinde bulunduğu fonksiyon ilk kez çağırıldığında program akışı onun bildiriminin yapıldığı noktaya geldiğinde çağırılır. destructor ise main fonksiyonun kodunun çalışmasından 
+sonra çağırılır. Burada önemli olan şey fonksiyon çağrısının birden fazla kez olduğunda constructor'ın sadece 1 defa çağırılmasıdır. Çünkü her defasında yeni bir nesne hayata gelmez; adı üstünde statik bir değişkendir.
+
+#include <iostream>
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+void foo()
+{
+   static int call_count{};
+   std::cout << "foo islevine yapilan " << ++call_count << ". cagri\n";
+}
+
+
+int main()
+{
+   std::cout << "main basliyor\n";
+   foo();
+   foo();
+   foo();
+   foo();
+   std::cout <<"main sona eriyor\n";
+}
+
+
+c)automatic ömürlü değişkenler
+atomatik ömürlü değişkenler: fonksiyonların parametre değişkenleri; fonksiyonların ana bloğu içinde (static) keyword'u olmadan tanımlanan yerel değişkenler:
+
+void foo()
+{
+   //code
+   //code
+   if(true) {
+      Nec mynec;
+   }
+}
+Otomatik ömürlü nesneler için constructor programın akışı onların tanımlandığı yere gelince çağırılır. destructor ise otomatik ömürlü nesnenin kapsamını sonlandırlan closing brace geldiğinde; yani blok sonunda çağırılır.
+
+#include <iostream>
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+void foo()
+{
+    std::cout << "foo fonksiyonundaki statement1"\n;
+    std::cout << "foo fonksiyonundaki statement2"\n;
+    Nec mynec;
+    std::cout << "foo fonksiyonundaki statement3"\n;
+    std::cout << "foo fonksiyonundaki statement4"\n;
+
+}
+
+int main()
+{
+   std::cout << "main basliyor\n";
+   foo();
+   std::cout <<"main sona eriyor\n";
+}
+
+Otomatik ömürlü nesne; her fonksiyon çağrısında hayata geldiği için örneğin 5 defa fonksiyon çağrısı olursa 5 defa ctor ve dtor çağırılır:
+
+#include <iostream>
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+void foo()
+{
+   static int call_count{};
+   std::cout << "ben foo beni" << ++call_count << ". kez cagirdilar\n"
+    Nec mynec;
+
+}
+
+int main()
+{
+   std::cout << "main basliyor\n";
+   foo();
+   foo();
+   foo();
+   foo();
+   foo();
+   std::cout <<"main sona eriyor\n";
+}
+Ayrıca burada her seferinde çağırılan this pointer değeri aynı olmak zorunda değil bu tamamen stack'in durumu ile ilgilidir.
+
+Döngüde olsa ctor ve dtor her seferinde çağırılır; değişen bir şey olmaz çünkü değişkenimiz otomatik yerel değişken:
+
+int main()
+{
+   std::cout << "main basliyor\n";
+   for(int i = 0; i < 10; i++)
+   {
+      Nec mynec;
+   }
+   std::cout <<"main sona eriyor\n";
+}
+
+Çok sık kullanılmasada sınıf türünden arraylar alt düzey kodlarda karşımıza çıkabilmektedir:
+
+#include <iostream>
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+private:
+   unsigned char buffer[16]{};
+};
+
+int main()
+{
+
+   {//program akışı buraya geldiğinde 10 defa ctor çağırılır
+         Nec a[10];
+   }   //program akışı buraya geldiğinde 10 defa dtor çağırılır
+}
+Dizinin düşük indeksinden yüksek indeksine doğru ctor'ın çağırılması dilin kuralları ile garanti altına alınmıştır dtor ise en son hayata gelen için yani 9 elemanlı indis için önce gelir sonra en düşük indise doğru devam eder. O halde;
+Burada pointer aritmetiğine göre; her nesnenin this pointerı her  bir sonraki nesnenin adresinin 16 (unsigned türü 1 byte olduğu kabulü ile) byte fazlası olur.
+
+MEŞHUR PUZZLE SORUSU:
+Mülakatlarda çok sık sorulan bir soru var: 1'den 100'e kadar loop olmadan veya recurcise de olmadan ekrana sayıları yazdırma nasıl yapılabilir?
+1. yöntem: sınıfın ctor'ı yöntemi ile:
+
+struct Nec {
+   Nec()
+   {
+      static int x = 0;
+      std::cout << x++ << " ";
+   }
+};
+
+int main()
+{
+   Nec a[100];//bu dizi nedeni ile 100 defa ctor çağırılır ve ekrana 1'den 100 kadar olan sayılar yazdırılır.
+}
