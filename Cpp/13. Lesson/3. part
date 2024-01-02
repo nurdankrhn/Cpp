@@ -1,0 +1,228 @@
+
+Sınıfın special member functions grubunu tek tek inceleyip; derleyicinin:
+a)bu fonksiyonları nasıl default ettiğini,
+b)
+
+Sınıfın special member functionları:
+default constructor
+destructor
+
+copy members
+  copy ctor
+  copy assigment
+  
+move members(C++11 ile dile eklendi)
+  move ctor
+  move assigment
+
+  
+#include <iostream>
+
+class Myclass {
+public:
+Myclass(); //default ctor
+~Myclass();//destructor
+
+Myclass(const Myclass&); //copy ctor;
+Myclass(Myclass&&);//move ctor
+
+Myclass& operator=(const Myclass&);//copy assigment
+Myclass& operator=(Myclass&&);//move assigment
+};
+
+
+Sınıfın special member functionları bizim ya da derleyici tarafından bildirilebilir; dikkat edilirse copy ctor ve move ctor birbirlerinin overload'udur. Ayrıca copy assigment ve move assigment'ta birbirinin overload'udur.
+Aslında dikkatli bakılırsa copy ctor ve move ctor arasında olan overload öyle bir overlaod ki bir Myclass nesnesini bir L value expression ile argüman ile oluşturduğumda copy constructor; bir R value expression ile
+argüman oluşturursam move constuctor çağırılır. Aynı durum copy assigment ve move assigment için de geçerlidir. 
+
+Dikkat edilirse move constructor bir const referans parametreli yani buna hem L hem de R value expression bağlanabilir. O halde eğer bir sınıfın move constructor'ı yoksa sınıf nesnesini oluşturan ifadede R value expression
+oluşturan ifade kullanırsam yine copy constructor çağırılır.
+
+#include <iostream>
+
+class Myclass {
+public:
+Myclass(); //default ctor
+~Myclass();//destructor
+
+Myclass(const Myclass&); //copy ctor;
+
+
+};
+
+int main()
+{
+  Myclass m1(L value expression);//copy ctor çağırılır
+  Myclass m2(R value expression);//copy ctor çağırılır
+}
+
+Hem move hem copy ctor varsa L value expr.--->copy ctor
+                             R value expr.--->move ctor
+#include <iostream>
+
+class Myclass {
+public:
+Myclass(); //default ctor
+~Myclass();//destructor
+
+Myclass(const Myclass&); //copy ctor;
+Myclass(Myclass&&);//move ctor
+
+
+};
+
+int main()
+{
+  Myclass m1(L value expression);//copy ctor çağırılır
+  Myclass m2(R value expression);//move ctor çağırılır
+}
+
+
+copy constructor(kopyalayan kurucu işlev) nedir?
+
+copy constructor öyle bir fonksiyon ki bir sınıf nesnesi değerini aynı türden bir başka sınıf nesnesinden alarak hayata geldiğinde çağırılan fonksiyondur. Aşağıdaki örnekte yazılan kodda copy
+constructor derleyici tarafından yazılmıştır. 
+class Myclass {
+public:
+  Myclass()
+  {
+    std::cout <<"constructor this: " << this << '\n';
+  }
+  ~Myclass()
+  {
+    std::cout <<"destructor this: " << this << '\n';
+  }
+  
+};
+
+int main()
+{
+  Myclass m1;
+  Myclass m2(m1);
+  Myclass m3{m1};
+  Myclass m4 = m1; // m2, m3 ve m4 için copy constructor çağırılır.
+}
+
+Call by value biçiminde yapılan fonksiyon çağrısı varsa ve parametresi de bir sınıf türünden ise ve bu fonksiyon bir sınıf türünden L value expression olan bir nesne ile çağırılıyor ise
+fonksiyonun parametre değişkeni olan sınıf nesnesini hayata getirmek için sınıfın copy constructor'ı çağırılır.
+
+class Myclass {
+public:
+  Myclass()
+  {
+    std::cout <<"constructor this: " << this << '\n';
+  }
+  ~Myclass()
+  {
+    std::cout <<"destructor this: " << this << '\n';
+  }
+  
+};
+void foo(Myclass param)
+{
+  
+}
+int main()
+{
+  Myclass m;
+  foo(m);//copy constructor çağırılır.
+  std::cout <<"main devam ediyor\n";
+
+}
+
+Derleyicinin yazdığı
+a)default ctor
+b)copy ctor
+
+a)Derleyici bır sınıfa nasıl default constructor yazıyor?
+A, B, C birer tür olmak üzere:
+Eğer sınıfın bir özel üye fonksiyonu implicitly declared ise non-static member function, public ve inline olmak zorundadır!!
+Derleyicinin yazdığı default constructor sınıfın büyün veri elemanlarını default initialize eder. Yani veri elemanları değer olarak indetermined value'da olur.
+
+compiler default to default constructor:
+
+class Myclass {
+public:
+  void print()const
+  {
+      std::cout << "a = " << a << '\n';
+      std::cout << "b = " << b << '\n';
+      std::cout << "c = " << c << '\n';
+  }
+private:
+  int a, b, c;
+};
+
+int main()
+{
+  Myclass m; //sınıfın default constructor'ı derleyici tarafından örtülü olarak bildirildi ve bunun sonucunda da sınıfın bütün memberlarını default initialize etti;
+  m.print();//ub üyeler indetermined value'da
+}
+
+Bir sınıf türünden nesne default edildiğinde default constructor çağırılır.
+
+class Murat {
+ public:
+   Murat()
+   {
+     std::cout << "Murat default ctor\n";
+   }
+};
+
+class Myclass {
+public:
+
+private:
+  Murat mx;
+};
+
+int main()
+{
+  Myclass m; //Bir sınıf türünden nesne default edildiğinde default constructor çağırılır. Ve sınıfın özel üye veri elemanı olan Murat mx içinde default initizalize edilir ve onun içinde sınıfın default constructorı çağırılır
+}
+
+Derleyici bir special member function yazarken o fonksiyonu yazması gerektiği gibi yazarken bir sentaks hatası meydana gelirse bu durumda derleyici default etmesi gereken fonksiyonu delete eder. Bu da derleyici tarafından yazılan
+default constructor delete edilmiştir.
+
+class Myclass {
+public:
+
+private:
+  const int mx;
+};
+
+
+class Myclass {
+public:
+
+private:
+  int& r;
+};
+
+
+
+class Nec {
+  Nec();
+}
+
+class Myclass {
+public:
+
+private:
+  Nec mx;
+};
+
+class Nec {
+public:
+  Nec(int);
+}
+
+class Myclass {
+public:
+
+private:
+  Nec mx;
+};
+
+
+ 
