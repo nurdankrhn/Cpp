@@ -1,0 +1,136 @@
+13. Ders Günü
+08 Şubat 2023 - Çarşamba
+
+C++ 111 ve sonrasında toplam 6 tane special member function dilde vardı; bunlar şunlardı:
+default constructor
+destructor
+copy constructor
+copy assigment 
+move constructor
+move assigment
+
+
+sınıfın copy constructor ve copy assigment'tan grubundan bahsederken bunlara copy members deniliyor. Yani sınıfın copy memberları denildiğinde anlatılamak istenen:copy constructor ve copy assigment'tır.
+
+sınıfın move constructor ve move assigment'tan grubundan bahsederken bunlara move members deniliyor. Yani sınıfın move memberları denildiğinde anlatılamak istenen:move constructor ve move assigment'tır.
+
+
+bu fonksiyonları special yapan şey; derleyicinin (Belirli koşullar altında) bu fonksiyonları bizim için yazabilmesidir. Derleyicinin bu fonksiyonların  kodunu yazması anlamında kullanılan terim: derleyicinin
+bu fonksiyonları default etmesidir. :Örneğin derleyicinin default constructor'ın fonksiyonunu yazması için kullanılan terim: default to default constructor şeklindedir.
+
+C++20'den sonra karşılaştırma işlemini  yapan bazı operatör fonksiyonlarının derleyici yine kodunu yazabilir hale gelmiştir(space ship operator function ve  == operator function etc. these are 	special situations ).
+
+special member functions'lar şu şekilde bildirilebiliyordu:
+not declared 
+user declared
+   special member function için tanımı ve bildirimi kendisi yapar---> Myclass();
+   special member function için bildirimi kendisi yapar; tanımı derleyiciye bırakır---> Myclass() = default;
+   bildirimin deleted olarak bildirilmesi---> Myclass() = delete;
+implicitly declared: Dilin kuralları bazı durumlarda; derleyicinin durumdan vazife çıkarıp sınıfın special member function'ının birini  veya birden fazlasını örtülü olarak bildirmesi olayına denir.
+  a)default(ed) (derleyici bildirimle yetinmez; tanımını da yazar)
+  b)derleyici special member function'ı yazması gerektiği gibi yazar bir sentaks hatası oluşturan durumla karşılaşırsa sentaks hatası vermek yerine default etmesi gereken special member function'ını delete eder.
+
+user defined type olarak bildirilmiş ve seçenek olarakta deleted edilmiş bir special member function için delete edilmesi aslında eski C++'a göre bir iyileştirme çünkü eski C++'ta bir fonksiyonun çağırılmasını
+özellikle special member functions'ların bloke etmek için bu fonksiyonlar private bölümün bir üyesi olarak bildiriliyordu; böylece client kod erişemiyordu erişim kontrolünden dolayı sentaks hatası alıyorduk.
+Modern C++ ile bu araç seti sayesinde fonksiyon çağrısının dış koddan çağırılması sonucu sentaks hatası meydana gelmesini istiyorsak delete olarak bildirim yapmalıyız.
+
+
+Bir sınfın destructor'ı ve constructor'ı ne zaman çağırılır?
+Nesneleri ömürlerine göre (storage class) bazı kategorilere ayırırız; bir nesnenin storage class'ının ne olduğu o nesnenin hayatının hangi noktada başladığının; o nesnenin hayatının hangi noktada sonlandığını gösterir.
+C++'taki storage class'lar:
+static storage class
+automatic storage class
+dynmaic storage
+
+thread local-->multithread uygulamalarda karşımıza çıkar
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+int main()
+{
+    Nec mynec;
+    std::cout << "&mynec = " << &mynec << '\n'; // ekran çıktısı önce ctor olan fonksiyon içeriğini yazar ardından main'deki standart çıkış yazılır ve en sonda sınıfın destructor'ı çağırılır.
+                                                //hepsi için aynı adres yazar; zaten bu zamana kadar belirtilenlerde olması gerekende buydu
+}
+
+
+static storage class'a sahip nesneler için constructor ve destructor'ın incelenmesi
+a)global değikenler
+b)static yerel değişkenler
+
+a)global değişkenler
+global değişkenler static ömürlüdür ve bu değişkenlerin hayata gelmesi main fonksiyonun çağırılmasından öncedir. O halde ctor'un çağırılması main fonksiyonu çağırılmadan öncedir. dtor ise main fonskiyonunun kodunun çalışmasından sonra çağırılır.  
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+//ahmet.cpp
+Nec gnec;
+
+int main()
+{
+    std::cout << "main basladi\n";
+    std::cout << "main sona eriyor...\n"; //önce dtor sonra main basladi ardından meain sona eriyor ve en son dtor çağırılır.
+
+}
+
+Aynı kaynak dosyada birden fazla global değişken varsa bu global değişkenlerin hayata gelmesi yani bu global değişken için ctor'ların çağırılma sırası kaynak dosyadaki bildirim sırası ile aynıdır; 
+dtor'lar için ise tam tersidir yani hayata önce gelen hayata daha sonra veda ediyor; bu dilin garantisi altındadır. Yani önce hayata gelen hayata en son veda ediyor; ayni ctor ile dtor'un çağırılma
+sırası her zaman birbirine terstir(last in first out).
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+class Erg {
+public:
+  Nec()
+  {
+      std::cout << "Erg default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Erg destructor ... this: " << this << '\n';
+  }
+};
+
+
+Nec n;
+Erg e;
+
+int main()
+{
+    std::cout << "main basladi\n";
+    std::cout << "main sona eriyor...\n"; //önce dtor sonra main basladi ardından meain sona eriyor ve en son dtor çağırılır.
+
+}
+
+
+
