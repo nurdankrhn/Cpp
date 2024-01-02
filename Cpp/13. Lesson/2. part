@@ -1,0 +1,72 @@
+
+Dinamik ömürlü nesneler istediğim zaman  hayata getirdiğim istediğim zaman ise hayatını sonlandırdığım nesnelerdir. Dinamik ömürlü nesneler new ifadesi ile hayata gelirler ve delete expression ile hayatını sonlandırmış oluruz. new anahtar sözcüğü ile oluşturulan ifadeler
+1'den fazladır.  Bizim örneğimizde new anahtar sözcüğü ile oluşturulan ifade bir pointerdır. Program akışı new ifadesinin bulunduğu yere  geldiğinde nesne için ctor çağırılır ve ne zaman ki delete ifadesinin kullanıldığı yere gelirse program akışı
+o zaman dtor çağırılır; eğer program delete ifadesinin bulunduğu yere gelmez ise o zaman dtor çağırılmaz. Bu şekilde kullanılan new ve delete ifadelerine yalın new delete ifadeleri denir:
+
+#include <iostream>
+
+class Nec {
+public:
+  Nec()
+  {
+      std::cout << "Nec default ctor... this: " << this << '\n';
+  }
+  ~Nec()
+  {
+      std::cout << "Nec destructor ... this: " << this << '\n';
+  }
+};
+
+int main()
+{
+    std::cout << "main basladi \n";
+    auto p = new Nec;
+
+    std::cout << "main devam ediyor[1]\n";
+    //dinamik ömürlü nesnenin hayatı burada bitsin
+    delete p;
+    std::cout << "main devam ediyor[2]\n";
+}
+
+Biz new Myclass; gibi bir ifade yazdığımızda derleyici bunu şöyle bir pseudo code'a çeviriyor:
+C++'ta malloc benzeri operator new adında bir fonksiyon vardır.
+void * malloc(size_t n);
+void free(void *);
+C++'ta
+void * operator new(size_t n);
+void operator delete(void *);
+
+Yani new demekle operator new demek ayrı şeylerdir. Yani new operatörü(new expression) ile operator new isimli standart C++ fonksiyonunu birbiri ile karıştırmak çok tipik bir hatadır.
+malloc varken operator new'e ihtiyaç duyulmasının arka planda birkaç farklı nedeni vardır; onlardan biride malloc başarısız olunca null pointer döndürürken operator new exception döndürüyor. Bunun amacı da exception handling mekanizması ile bir ilişki
+kurulması sağlanıyor.
+
+#include <iostream>
+#include <new>
+#include <vector>
+
+int main()
+{
+  try {
+    for(int i = 0; i < 1'000'000; i++) {
+        void *p = operator new(1024u * 1024u);
+        vec.push_back(vp);
+        std::cout << i << "\n";
+    }
+  }
+
+  catch(const std::exception& ex) {
+      std::cout << "exception caught: " << ex.what() << '\n';
+  }
+  
+}
+
+
+auto p = new Fighter; şeklinde bir ifade yazdığım zaman tahsis edilen alan arka planda operator new fonksiyonu ile tahsis ediliyor. Yani derleyicinin sözde ürettiği kod şöyle:
+//pseudo code
+    void *vp = operator new(sizeof(Fighter));
+    Fighter *p = (static_cast<Fighter *>(vp))->Fighter();(Fighter() sınıfın ctor'ıdır.) buradan elde edilen adres doğrudan hayata gelen Fighter nesnesinin adresi yani bu ctor'da kullanılan this pointer'ının değeridir.
+
+delete p;
+//pseudo code
+    p->~Fighter(); //böylece delete ifadesinde kullanılan adres dinamik ömürlü nesnenin adresidir o adres this pointerı olarak kullanıldı ve sınıfın destructor'ı çağırıldı
+    operator delete(p); alınan alan geri verildi
