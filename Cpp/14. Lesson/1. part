@@ -1,0 +1,220 @@
+14. Ders Günü
+
+10 Şubat 2023 - Cuma
+
+constructor initializer list sentaksı
+Bir constructor'ın en önemli işlevlerinden biri hayata getireceği sınıf nesnesinin non-static veri elemanlarını initialize etmektir.
+Yani bir constructor'ın sınıfın veri elemanlarını nasıl initialize etmesi gerektiğini sadece constructorlara tanınan bir sentaks ile anlar.
+Bir diğer adı ise member initializer list(MIL)'dir. Öte yandan ise std::initializer_list ise C++'ın standart kütüphanesinin standart sınıflarından biridir.
+Yani initializer_list ile constructor initializer list aynı şey değildir.
+
+Bir Myclass nesnesinin hayata gelmesi demek mx, my nesnesinin de hayata gelmesi demektir. Tıpkı sınıf nesnesi gibi mx, my'de initialize edilir. Special member function olarak default constructor olduğu bir örnek olsun.
+Program akışı default constructor'ın bulunduğu yere geldiğinde sınıfın mx ve my değişkenleri zaten hayata gelmiş olurlar; yani o değişkenleri default constructor içinde kullanmam gayet normal ve yapılan atama
+assigment'tır initialization değildir; yani değer atamasıdır; bir ilk değer verme değildir. Durum şu şekilde açıklanabilir:
+Myclass nesnesi hayata gelirken önce mx ve my initialize edilir; ardından default constructor içinde atama yapılır.
+
+class Myclass {
+public:
+  Myclass()
+  {
+      mx = 10; //assigment not initialization
+      my = 5; //assigment not initialization
+  }
+private:
+  int mx, my;
+};
+ Bazı nesneler var ki bunlar default initalize edilemezler örneğin: const nesneler, referans nesneler
+işte mx ve my yerinde böyle nesneler olsaydı bunlar sınıf nesnesi hayata geldiğinde  default initialize edileceği için sentaks hatası meydana gelirdi:
+class Myclass {
+public:
+  Myclass()
+  {
+    
+  }
+private:
+  const int mx, my;
+};
+
+class Myclass {
+public:
+  Myclass()
+  {
+    
+  }
+private:
+   int& mx;
+};
+Yani eğer constructor initializer list oluşturmazsak veya oluşturur ancak sınıfın bir veri elamnını initialize etmezsek; derleyici bu durumlarda ilgili veri elamanının default initialize edileceği
+kodu ekler. Dolayısla default initialize edilemeyen nesneler için bu durum sentkas hatasına neden olur!!!
+
+
+Sınıfın elemanlarına ilk değer vermek için constructor initializer list sentaksını kullanırız:
+class Myclass {
+public:
+  Myclass() : mx(10), my(20) //constructor initializer list ile mx 10 my 20 değeriyle initialize edilir
+  {
+    
+  }
+private:
+  const int mx, my;
+};
+Böylece bir Myclass nesnesi hayata geldiğinde önce onun elemanları hayata gelicek; mx 10 my 20 değeri ili initialize edilecek. Burada constructor initializer list'i yazdıktan sonra fonksiyonun içine herhangi bir 
+kod yazma zorunluluğum yoktur! İster yazarım ister yazmam; yani constructor'ın ana bloğunda kod olması zorunluluğu yoktur ama blok yani açılan ve kapanan curly brace'ler kesinlikle olmalıdır. Hatta böyle bir kullanım oldukça yaygındır.
+
+Örneğin burada sentaks hatasının meydana gelme nedeni; Myclass sınıfının Nec sınıfı türünden bir elemanı var fakat constructor initializer list ile ona ilk değer vermediğim için derleyici bunu default initialize edicek kodu
+üretir. Sınıf türünden nesnenin default initialize edilmesi demek onun default constructor'ının çağırılması demektir. Fakat Nec sınıfının default constructor'ı olmadığından sentaks hatası meydana gelir. 
+
+class Nec {
+public:
+  Nec(int);
+};
+
+class Myclass {
+public:
+  Myclass()
+  {
+    
+  }
+private:
+   Nec mynec;
+};
+
+
+Eğer sınıfın çok fazla veri elemanı varsa bunun hepsini constructor initializer list ile ilk değer verme gibi bir zorunluluğumuz yok. Fakat genelde zaten sınfın veri elemanını ilk değer vermeden bildirmekte iyi değildir.
+Öte yandan çok fazka veri elemanı olan bir sınıf tanımı yapmakta genel anlamda iyi bir teknik değildir; fazla sayıda eleman olmasının nedenleri şunlar olabilir:
+1)yetersiz soyutlama yapılması
+2)sınıfa fazla sorumluluk yüklenmesi
+3)sınıfın cohesive olması
+
+iyi kodlama ilkesi
+Eğer aksi yönde karar almanıza neden olacak bir senaryo söz konusu değil ise sınıfın bütün veri elemanlarını C.I.L(constructor initializer list) ile initialize edin!!!
+
+constructor initializer list'te küme parentezinin kullanılması modern C++ ile dile eklendi (eski standartlarda yok) ve parantez'e göre farklılığı vardır; uniform initialize edildiği için artık narrowing conversing sentaks hatası olur.
+
+Veri elemanlarının hayata gelme sırası bildirimde yapılan sıraya göredir; constructor initializer list'te yapılan sıra bunu etkilemez bu dilin garantisi altındadır. Dolayısıyla aşağıdaki kod'da
+constructor initializer list'te ma için mb kullanılarak ilk değer verilmesi tanımsız davranışa neden olur çünkü mb daha hayata gelmediği için indetermined value'dadır:
+class Myclass {
+public:
+  Myclass(int a, int b) : mb{a + b}, ma{mb/5}//ub
+  {
+  
+  }
+private:
+int ma, mb;
+};
+
+DİKKAT
+Elemanlara C.I.L ile ilk değer verirken bildirim sırasının dışında farklı bir sıra oluşturursak bildirimdeki sıra esastır!!!Dolayısıyla C.I.L oluştururken bildirimdeki sıraya uyunuz.
+
+value initialize ({} ile değer verme sentaksı) ederken parantez içini boş bırakabiliriz. Bu durumda value initialize etmiş oluruz; eleman tam sayı gerçek sayı ise 0 boolean ise false pointer ise null pointer sınıf ise default constructor'ının
+çağırılması demektir.
+class Myclass {
+public:
+  Myclass(int a, int b) : ma{}//ma value initialize edildi ve 0 değerini aldı
+  {
+  
+  }
+private:
+int ma, mb;
+};
+
+veya veri elemanı bir array olabilir:
+class Myclass {
+public:
+  Myclass(int a, int b) : ra{}//ra value initialize edildi ve dizinin tüm elemanları 0 değerini aldı
+  {
+  
+  }
+private:
+int ra[10];
+}
+
+Genel manada constructor initializer list ile sınıfın veri elamanlarına ilk değer vermeyi tercih edip; constructor içinde sınıfın veri elemanlarına
+değer atamaktan kaçınmalıyım. Aşağıdaki örnekte constructor içinde elemanlara değer atama yaparsam hem bu veri elemanları için önce default constructor çağırılır;
+ardından kullanıldıkları constructor içinde değer ataması için bir fonksiyon çağırılır. Öte yandan eğer ki constructor initializer list ile bu elemanlara ilk değer
+verirsek sadece 2 parametreli constructor içinde değer ataması gerçekleşir ve bu sayede birçok işlem gereksiz yere yapılmamış olur:
+class Person {
+public:
+  /* Person(const char* p_name, const char* p_surname)
+  {
+      m_name = p_name;
+      m_surname = p_surname;
+  } */
+    Person(const char* p_name, const char* p_surname) : m_name(p_name), m_surname(p_surname)
+  {
+
+  }
+private:
+  std::string m_name;
+  std::string m_surname;
+};
+
+
+Eğer veri elemanına atanacak değer birkaç tane artimetik işlem sonucu elde edilecek bir değer ise o değeri elde etmek için
+direk o ifadeyi constructor initializer list ile initialize edemiyorsam  o değeri elde edecek bir fonksiyon yazıp; fonksiyonun
+geri dönüş değeri ile initialize edebilirim:
+class Nec {
+public:
+  Nec(int a, int b) : mx(foo())
+  {}
+private:
+int mx;
+};
+
+Tabii son çare sınıfın veri elemanına constructor'ın ana bloğu içinde değer atayabiliriz:
+class Nec {
+public:
+  Nec(int a, int b) 
+  {
+      //...
+      mx = 154;
+  }
+private:
+int mx;
+};
+
+derleyicinin default ettiği copy constructor
+Derleyicinin bir special member function'un kodunu default etmesi her zaman şu kurallara uyar:
+sınıfın non-static, public ve inline üye fonksiyonu olmasını garanti eder.
+copy constructor öyle bir constructor ki bir sınıf nesnesini aynı türden bir sınıf nesnesi ile hayata getirdiğimiz zaman devreye girer.
+
+class Myclass {};
+
+int main()
+{
+  Myclass m1;//m1'i default constructor hayata getirir
+  Myclass m2 = m1; //m2'yi copy constructor hayata getirir.
+  Myclass m3(m1);//m3'ü copy constructor hayata getirir.
+  Myclass m4{m1};//m4'ü copy constructor hayata getirir.
+  auto m5 = m1;//m5'i copy constructor hayata getirir.
+  auto m6(m1);//m6'yı copy constructor hayata getirir.
+  auto m7{m1};//m7'yi copy constructor hayata getirir.
+}
+
+call by value fonksiyon çağrılarında da copy constructor çağırılabilir:
+class Myclass{};
+
+void foo(Myclass);
+
+int main()
+{
+  Myclass m;
+  foo(m);
+}
+
+veya geri dönüş değeri de aynı sınıf türünden olan bir fonksiyonun döndürdüğü değerin aynı türden bir değişkene atanması içinde copy constructor çağırılabilir:
+class Myclass{};
+
+Myclass g;
+
+Myclass foo()
+{
+  //
+  return g;
+}
+
+int main()
+{
+  Myclass x = foo();
+}
+
