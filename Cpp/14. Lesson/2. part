@@ -1,0 +1,147 @@
+
+copy constructor'ı derleyici yazarsa yani implicitly declared defaulted olursa derleyici bizim için nasıl bir copy constructor yazar?
+Bu çok önemli bir sorudur; çünkü %98 biz derleyicinin bizim için yazdığı copy constructor'ı kullanıcağız. Dolayısıyla bunu anlamak 
+oldukça önemlidir.
+
+A, B, C birer tür olmak üzere; derleyicinin implicitly declared ettiği copy constructor'ın kodu şu şekildedir:
+
+class Myclass {
+public:
+  Myclass(const Myclass& other) :
+    m_a(other.m_a);
+    m_b(other.m_b);
+    m_c(other.m_c);
+    {
+    
+    }
+private:
+  A m_a;
+  B m_b;
+  C m_c;
+};
+Hayata getirdiğimiz nesnenin tüm elemanları onu hayata getirmekte kullanılan yani copy constructora argüman olarak gönderilen nesnenin karşılıklı elemanları ile  initialize edilir.
+Burada A, B, C türleri tam sayı/pointer ise aynı değerleri alırlar; fakat eğer sınıf ise m_a, m_b ve m_c nesneleri A, B ve C sınıfı türünden olur ve onlarında copy constructor'ları
+çağırılır. 
+Bu örnekte sınıfın copy constructor'ını derleyici yazmıştır(implicitly  declared defaulted ). O halde copy constructorı dy için çağırılır ve dy ve dx'in değerinin aynı olması gerekir.
+Yani print fonksiyon çağrısı sonucu standart çıkışa yazan değerler aynıdır!!!
+class Date {
+public:
+  Date(int day, int mon, int year) : m_day{day}, m_month{mon}, m_year{year} {}
+  void print()const
+  {
+      std::cout << m_day << '-' << m_month << '\n' << m_year << '\n';
+  }
+private:
+  int m_day;
+  int m_month;
+  int m_year;
+};
+
+int main()
+{
+  
+  Date dx{  10, 2, 2023};
+  Date dy{dx};
+  dx.print();
+  dy.print();
+
+}
+Görüldüğü gibi derleyicinin yazdığı copy constructor gayette istenilen şeyi yapmıştır.
+
+Eğer bu örnek için copy constructor'ı biz yazsaydık eğer:
+class Date {
+public:
+  Date(int day, int mon, int year) : m_day{day}, m_month{mon}, m_year{year} {}
+  Date(const Date& other) : m_day(other.m_day), m_month(other.m_month), m_year(other.m_year) 
+  {
+      std::cout << "copy ctor\n";
+  }
+  void print()const
+  {
+      std::cout << m_day << '-' << m_month << '\n' << m_year << '\n';
+  }
+private:
+  int m_day;
+  int m_month;
+  int m_year;
+};
+
+int main()
+{
+  
+  Date dx{  10, 2, 2023};
+  Date dy{dx};
+  dx.print();
+  dy.print();
+
+}
+
+Kendi yazdığım copy constructor içinde this pointer'ının değerini yazdırırsam bu dy'nin adresi olur; çünkü bu copy constructor dy nesnesini hayata getirir
+other referansı ise copy constructor'a argüman olarak gönderilen nesneye bağlanır. O halde other'ın adresi ise dx'in adresidir.:
+class Date {
+public:
+  Date(int day, int mon, int year) : m_day{day}, m_month{mon}, m_year{year} {}
+  Date(const Date& other) : m_day(other.m_day), m_month(other.m_month), m_year(other.m_year) 
+  {
+      std::cout << "copy ctor\n";
+      std::cout <<"this: " << this <<"n";
+      std::cout <<"&other: " << &other <<"n";
+  }
+  void print()const
+  {
+      std::cout << m_day << '-' << m_month << '\n' << m_year << '\n';
+  }
+private:
+  int m_day;
+  int m_month;
+  int m_year;
+};
+
+int main()
+{
+  
+  Date dx{  10, 2, 2023};
+  Date dy{dx};
+
+  std::cout << "&dy = " << &dy << '\n'; 
+  std::cout << "&dx = " << &dx << '\n'; 
+  dx.print();
+  dy.print();
+
+}
+
+Derleyicinin yazdığı copy constructor zaten istenilen işi yapıyor ise o zaman ideal olan işi derleyiciye bırakmaktır. Hatta bu sadece cop constructor için değil; move constructor, move assigment ve copy assigment
+içinde geçerlidir yani diğer special member function içinde geçerlidir; burada ki ilkeyi anlatan terime "rule of zero" denir. O halde ben bir special member function'u derleyicinin yazdığı constructor benim
+işimi görmüyorsa yazmalıyım. Zaten bu durum çok çok azınlıkta kalan bir senaryodur.
+
+value semantics(değer semantiği)
+value type
+her değişkenin değeri kendine 
+Bir nesneye başka bir nesneyi atadığım zaman bu initialization de olabilir assigment'da olabilir: 
+a)2 nesne değerce eişt kabul edilmeli
+b)Bu nesnelerin birbirine bir bağımlılığı olmamalı; yani 2 nesne ayrı ayrı nesnelerdir. 
+x = y;
+if(x == y)
+  ...
+++x; dediğimde y'yi etkilemem çünkü x ve y ayrı; bağımsız nesnelerdir. İşte bunlar value semantics'e sahiptir, denir.
+
+
+Bir sınıfın veri elemanı bir pointer olsaydı ve bu pointer'da constructor'ın oluşturduğu kod ile bir nesneyi gösterseydi;
+derleyicinin yazdığı copy constructor hayata getireceği sınıfın veri elemanı olan pointer'a diğer nesnenin pointerı ile
+ilk değer verir. Bu durumda hayata gelen nesne ile onu hayata getiren nesnenin pointer'ları aynı nesneyi gösterir. Yani
+burada value semantics olmaz. Burada tipik 2 tane problem olabilir:
+1)value semantics artık yoktur.
+2)Pointer veya referans olan veri elemanı(genellikle bunlara handle denir)'na sahip olan sınıf constructor ile edindiği 
+kaynağı pointera bağlayacaktı ve destructor'da o pointer'ı delete edecekti.  Bu da kaynağın geri verilmesi yani nesnenin
+hayatının bitmesi anlamına gelir. Burada aynı yeri gösteren diğer nesne artık çöp değerde olur(dangling pointer) ve bunun kullanılması 
+ub'ye neden olur. İşte bu tarz durumlarda derleyicinin yazdığı copy constructor bizim işimize gelmez!!
+
+Derleyicinin yazdığı copy constructor'a yapılan kopyalama işlevine popüler olarak şu 2 terim kullanılır:
+member wise copy(eleman eleman kopyalamak anlamında)
+shallow copy(shallow deep'in zıt anlamlısı yani sığ demek)
+
+Demek ki sınıfın veri elemanı pointer olduğunda derleyicinin yazdığı copy constructor pointer'ı kopyaladığı için sorunlara neden olur. Biz her nesnenin 
+değeri kendine olsun yani value semantics'e sahip olsun istersek yeni hayata gelecek nesne için kendi kaynağını edinerek diğer nesnenin kaynağından 
+kendi kaynağına kopyalama yapacak şekilde bir kopyalama yapılmalıdır. Yani pointerları değil de pointerların gösterdiği kaynakları kopyalamak gerekir.
+
+Durumu daha iyi anlamak için son derece primitive sözde string sınıfı yazalım:
