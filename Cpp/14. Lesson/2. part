@@ -145,3 +145,156 @@ değeri kendine olsun yani value semantics'e sahip olsun istersek yeni hayata ge
 kendi kaynağına kopyalama yapacak şekilde bir kopyalama yapılmalıdır. Yani pointerları değil de pointerların gösterdiği kaynakları kopyalamak gerekir.
 
 Durumu daha iyi anlamak için son derece primitive sözde string sınıfı yazalım:
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+
+class String {
+public:
+  String(const char *p) :
+  mlen{ std::strlen(p) },
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, p);
+}
+~String()
+{
+    std::free(mp);
+}
+void print()const
+{
+    std::cout << mp << '\n';
+}
+
+std::size_t length()const
+{
+    return mlen;
+}
+bool empty()const
+{
+    return mlen == 0;
+}
+private:
+  std::size_t mlen;
+  char *p;
+};
+
+int main()
+{
+    String str{ "deprem butun ulkeyi yasa bogdu" };
+    std::cout << "str.lenght() = " << str.length() << '\n';
+    if(str.empty())
+        std::cout << "evet bosum\n";
+    else
+        std::cout << "ben sana bos degilim\n";
+    str.print();
+}
+
+Burada copy constructor'ı çağıracak bir kod yazarsak; copy constructor derleyici tarafından yazıldığı için (shallow copy) copyalama sonucu pointer kopyalandığı için
+program run time'da çöker:
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+
+class String {
+public:
+  String(const char *p) :
+  mlen{ std::strlen(p) },
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, p);
+}
+~String()
+{
+    std::free(mp);
+}
+void print()const
+{
+    std::cout << mp << '\n';
+}
+
+std::size_t length()const
+{
+    return mlen;
+}
+bool empty()const
+{
+    return mlen == 0;
+}
+private:
+  std::size_t mlen;
+  char *p;
+};
+
+void func(String s)
+{
+    s.print();
+    //code
+}
+int main()
+{
+    String str{ "deprem butun ulkeyi yasa bogdu" };
+    str.print();
+
+    func(str);
+    (void)getchar();//buradan sonra program çöker çünkü fonksiyona gönderilen sınıf nesnesi için copy constructor çağırılır; bu derleyicinin yazdığı copy constructor'dır.
+                    // dolayısıyla main'deki sınıf nesnesi de func fonksiyonu içindeki sınıf nesnesi de aynı pointera sahiptir.
+                    //ve çağrı yapılan fonksiyon bloğu sonunda destructor çağırılır dolayısıyla nesne yok edilir fakat main'deki str hala hayatta olduğundan artık dangling pointer olur!!!!
+    str.print();
+}
+
+Derleyicinin yaptığı shallow copy bu soruna neden oldu. Bunu ortadan kaldırmak için kendimiz deep copy yaparak bu sorunu ortadan kaldırmak için copy constructor'ı kendimiz yazalım:
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+
+class String {
+public:
+  String(const char *p) :
+  mlen{ std::strlen(p) },
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, p);
+}
+
+String(const String& other) : mlen(other.mlen), mp{  static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, other.mp);
+}
+
+~String()
+{
+    std::free(mp);
+}
+void print()const
+{
+    std::cout << mp << '\n';
+}
+
+std::size_t length()const
+{
+    return mlen;
+}
+bool empty()const
+{
+    return mlen == 0;
+}
+private:
+  std::size_t mlen;
+  char *p;
+};
+
+void func(String s)
+{
+    s.print();
+    //code
+}
+int main()
+{
+    String str{ "deprem butun ulkeyi yasa bogdu" };
+    str.print();
+
+    func(str);
+    (void)getchar();//
+    str.print();
+}
