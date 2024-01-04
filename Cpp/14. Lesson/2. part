@@ -153,11 +153,11 @@ class String {
 public:
   String(const char *p) :
   mlen{ std::strlen(p) },
-  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }eğer önce mp'yi bildirimde bildirmiş olsaydık(sınıfın private bölümünde) mp içinde mlen'i kullanamazdık, tanımısz davranış olurdu
 {
     std::strcpy(mp, p);
 }
-~String()
+~String() //resource leak olmaması için destructor yazıldı-->RAII idomu (hayata gelen her nesne bir zamandan sonra hayatı destructor ile son bulması olayı)
 {
     std::free(mp);
 }
@@ -176,7 +176,7 @@ bool empty()const
 }
 private:
   std::size_t mlen;
-  char *p;
+  char *mp;//yazının tutulacağı dinamik bellek alanını gösteren pointer
 };
 
 int main()
@@ -226,8 +226,9 @@ private:
   char *p;
 };
 
-void func(String s)
-{
+void func(String s)//fonksiyonun parametre değişkeni için copy constructor çağırılır 
+{                  //s'in elemanı olan mp ve mlen değerlerini fonskiyon parametresine ilk değer veren fonksiyon çağrısındaki str'den alırlar.
+                  //s'in hayatı fonksiyon skobu sonunda biter bu da str için alınan kaynağın geri verilmesi anlamına gelir!!!
     s.print();
     //code
 }
@@ -298,3 +299,4 @@ int main()
     (void)getchar();//
     str.print();
 }
+ 
