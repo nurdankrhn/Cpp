@@ -1,0 +1,41 @@
+
+
+Eğer pointer veri elemanımız bir kaynağı gösteriyorsa; yapmamız gereken copy constructor'ı kendimiz yazmaktır. Böylece copy constructor shallow copy yani pointer'ın
+koypalaması yerine deep copy yani pointer'ı değil pointer'ın gösterdiği kaynağın kopyalanması.
+
+copy assigment special member function'ı
+Eskiden move assigmenet olmadığı haliyle de sadece bir tane assigment special member function olduğu için bu fonksiyona "assigment operator function" deniliyordu.
+copy assigment(kopyalayan atama fonksiyonu) bir sınıf nesnesine atama operatörü ile aynı türden bir sınıf nesnesi atandığı zaman çağırılır:
+x = y; x ve y aynı sınıf türünden nesneler ise atama operatörünün sol operandı bir sınıf türünden ise atama operatörünün sağ operandı da o
+sınıf türünden L value expression olan bir sınıf nesnesi ise bu durumda çağırılan fonksiyon copy assigment fonksiyonudur ve bu bir özel
+üye fonksiyonudur. 
+
+Eğer copy assigment fonksiyonunu derleyici implicitly declared edip; default ederse nasıl bir fonksiyon yazar?
+Her zaman söylediğimiz gibi derleyicinin örtülü olarak bildirdiği ve deafult ettiği fonksiyonlar non-static, public ve inline'dır.
+
+C++'ın en önemli araçlarından biri operator overloading'dir. Kısaca operator overloading bir sınıf nesnesini bir operator'ün operandı yapıyoruz fakat derleyici operatörün operandı
+olan sınıf nesnesi ifadesini bir fonksiyona yapılan çağrıya dönüştürmesidir. Bu şekilde çağırılan fonksiyonlara C++'ta operatör fonksiyonları denir. Ve bu operatör fonksiyonları
+denilen kategori keyfi olarak isimlendirilemiyor. İsimleri operator keyword'ünü içericek ve bu keyword'den sonra da hangi operatör'ü overload etmek istiyorsak; yani sınıf nesnesi
+hangi operatörün operandı olduğunda o fonksiyonun çağırılmasını istiyorsak o operatörün token'ı yazılır. Örneğin toplama operatörünü overload eden fonksiyonun adı: operator+ olur.
+Bu da bir special member function olmakla birlikte aynı zamanda bir operatör fonksiyon olduğu için copy assigment fonksiyonunun adı da operator= olur.
+
+Operator atama fonksiyonu bir constructor değildir; constructor sınıf nesnesini hayata getiren bir fonksiyondur. Oysa atama için nesnenin zaten hayata gelmiş olması gerekir.
+Constructor/destructor olmadığı için geri dönüş değeri kavramı vardır. 
+
+Derleyicinin yazdığı kopyalayan atama fonksiyonunun geri dönüş değeri sınıf türünden sol taraf referansıdır. Parametresi ise tıpkı copy constructor'da olduğu gibi sınıf türünden 
+sol taraf referansıdır. Örneğin x = y gibi bir atamada bu fonksiyon x nesnesi için çağırılır. Yani bu fonksiyon atama operatörünün sol operandı için çağırılır. O halde bu fonksiyon
+içinde this pointer'ının değeri x'in adresine  yani atama operatörünün sol operandının adresine eşit olur.
+
+Burada other ise bu fonksiyona argüman olarak gönderilen nesne; yani atama operatörünün sağ operandı yani y'dir.
+
+
+Bu fonksiyonu x = y biçimi dışında diğer özel üye fonksiyonları gibi kendi ismi ile çağırabilir miyim?
+Tabii ki; bu bütün operator fonksiyonlarının ortak özelliğidir. Dilin kuralları bir operatör fonksiyonu sınıf nesnesinin operatörün operandı olması yoluyla derleyici tarafından 
+örtülü olarak çağırılabilir ya da programcı doğrudan fonksiyonun ismi ile çağırabilir:
+x.operator=(y); şeklinde kendi ismi ile çağırabiliriz.
+
+
+m_a, m_b, m_c yani A, B, C türleri tam sayı ise değerleri aynı olucak, pointer ise adresleri aynı olucak fakat m_a, m_b ve m_c de sınıf türlerinden ise o zaman buradaki atama için
+ilgili sınıfların da atama operatör fonksiyonu çağırılır.
+
+
