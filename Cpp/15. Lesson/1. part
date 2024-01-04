@@ -1,0 +1,93 @@
+15. Ders Günü
+13 Şubat 2023 - Pazartesi 
+
+Bir sınıf türünden nesne &, sizeof, atama ve nokta operatörü dışında operatörlerin operandı olamaz bu hem C'de hem de C++'ta böyledir. Diğer operatörlerin operandı olabilmesi için ileride çok daha detaylı göreceğimiz
+operatör overloading dediğimiz araçtan faydalanmamız gerekir.
+
+class Nec {
+  
+};
+
+int main()
+{
+  Nec x, y;
+  auto b = x == y; //x == y karşılaştırma işlemini yapacak bir fonksiyon olmadığı için sentaks hatası meydana gelir. Bu karşılaştırma işleminin yapılabilmesi için derleyicinin çağırabileceği bir fonksiyonun olması gerekiyor.
+}
+Örneğin bu karşılaştırma işlemini yapacak fonksiyon bildirimi şu şekilde yapılabilir:
+class Nec {
+public:
+  bool operator==(const Nec&)const;
+};
+
+int main()
+{
+  Nec x, y;
+  auto b = x == y; 
+}
+
+Örneğin L value expression ifade kategorisinde olan bir ifade için sol taraf referans parametreli fonksiyon çağırılır; biz de bu fonksiyon yerine sağ taraf referans parametreli fonksiyon çağırılsın istiyorsak; type_cast
+operatörünü kullanabiliriz:
+Tür dönüştürme operatörü ile bir ifadeyi sağ taraf referans türüne cast edersek; tür dönüştürme operatörü ile oluşturulan bu ifadenin türü yine aynı türdür; fakat value categorisi artık L value expression olmaktan çıkar ve 
+X value expression haline gelir. (X value primary value category'di ve X value ve PR value'nun oluşturduğu küme R value expressiondu)
+
+void func(Myclass&&)
+{
+    std::cout << "func(Myclass&&)\n";
+}
+void func(const Myclass&)
+{
+    std::cout << "func(const Myclass&)\n";
+}
+int main()
+{
+  Myclass m;
+  func(m);//burada const Myclass& parametreli fonksiyon çağırılır
+  func(static_cast<Myclass&&>(m));//type cast operatörü sayesinde artık Myclass&& parametreli fonksiyon çağırılır.
+}
+
+Bunun daha kısa, daha basit bir yazım biçimi vardır:
+Bir constexpr fonksiyon var; bu fonksiyonun ismi std::move'dur. İsmi oldukça yanıltıcıdır(misnomer yani yanlış isimlendirilmiş varlık anlamında oldukça sık kullanılan bir terim)
+std::move için şunu diyor diyebiliriz: bana L value gelen benden R value olarak çıkar. Bana R value olarak gelen benden yine R value olarak çıkar:
+void func(Myclass&&)
+{
+    std::cout << "func(Myclass&&)\n";
+}
+void func(const Myclass&)
+{
+    std::cout << "func(const Myclass&)\n";
+}
+int main()
+{
+  Myclass m;
+  func(std::move(m));//derleyici std::move(m) şeklinde bir ifade görürse; derleyiciye göre bu ifadenin value category'si X value expression dolayısıyla R value expression'dır.
+  //yani static_cast<Myclass&&>(m) ifadesi ile  std::move(m) ifadesi aynı anlama gelir.
+}
+
+move doesn't move(Scott Meyers'ın kitabında geçen bir ifade)
+std::move'un doğrudan taşıma semantiği ile  ilişkisi yoktur. std::move sol taraf değer kategorisindeki bir ifadenin statik olarak değer kategorisinin compile time'da sol
+taraf değeri olmaktan çıkartıp; sağ taraf değer kategorisine çevirir.
+
+Sol taraf değeri olan bir ifadeyi sağ taraf değeri haline getirmemizin nedeni o ifadeyi taşımaya uygun hale getirmek. Daha önceden de söylenildiği gibi std::move bir misnomer'dır.
+Bunun yerine hocanın ben olsam isim olarak bunları verirdim dediği 2 tane seçenek var:
+move_cast
+rvalue_cast
+
+
+Taşıma semantiği nedir?
+Bizim yazdığımız primitive string sınıfında olduğu gibi, standart sınıfın birçok sınıfında olduğu gibi, 3. parti kütüphanelerin birçoğunda olduğu gibi bazı sınıflar; RAII idomuna göre
+implemente ediliyor; yani sınıf nesneleri kaynak veya kaynakları kontrol ediyorlar. Ve bunda da tipik olarak sınıf nesnesi için çağırılan destructor bizim primitive sınıf nesnesinde de
+olduğu gibi sınıf nesnesi hayatta iken onun kullandığı kaynağı geri verir.
+
+Resource deiğimiz her zaman memory olmaz resource herhangi bir kaynak olabilir; bazen bir dosya, bazen bir veri tabanı bağlantısı olabilir, bir mutex veya bir semaphore vb olabilir.
+
+Myclass y = Myclass türünden bir nesne ifadesi; veya
+y = Myclass türünden bir nesne ifadesi; yani copyalama veya atama ile değer ataması yaptığımız bu bidirimlerde atama operatörünün sağ operandı olan nesne atama'dan sonra herhangi bir 
+nesne tarafından kullanılmayacaksa; hayata gelen yeni nesne yani y ve onun içindeki pointer atama operatörünün sağ operandı olan nesnenin kaynağını gösterse ve atama operatörünün sağ 
+operandı olan nesneyi de öyle bir duruma getirelim ki o akıllı bir şekilde destructor'ı çağırıldığında o kaynağı geri vermesin. Compile time  buna yönelik bir kodu seçtirebilirsek
+derleyiciye böylece gereksiz deep copy işlemlerinden kurtulmuş oluruz. Aslında ortada yeniden hiçbir kaynak edinimi ya da kaynak kopyalaması olmaz adeta hayata gelen nesne diğer
+nesnenin kaynağını çalmış gibi olur(to steal the resource).  Eski C++'ta da vardı bu.
+
+Yani derleyici statik olarak koda bakıcak; hangi nesnenin hayatının artık birazdan biticeğini onu başka bir kodun kullanma ihtimalinin olmadığını koda bakarak anlayacak. Eğer
+o nesnenin kullanılma ihtimali olmadığını anlarsa öyle bir kodu çalıştıracak ki burada çalışan kod o hayatı birazdan bitecek nesnenin kaynağını çalıcak (yani deep cop yapmayacak) ama 
+o nesne kalıcı yani onun hala başka kodlar tarafından kullanılma ihtimali varsa bu durumda derleyicinin seçtiği kod onun kaynağını kopyalayan kod olucak.
+
