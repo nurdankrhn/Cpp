@@ -38,4 +38,30 @@ x.operator=(y); şeklinde kendi ismi ile çağırabiliriz.
 m_a, m_b, m_c yani A, B, C türleri tam sayı ise değerleri aynı olucak, pointer ise adresleri aynı olucak fakat m_a, m_b ve m_c de sınıf türlerinden ise o zaman buradaki atama için
 ilgili sınıfların da atama operatör fonksiyonu çağırılır.
 
+class Myclass {
+public:
+  Myclass(const Myclass& other) :
+    m_a(other.m_a);
+    m_b(other.m_b);
+    m_c(other.m_c);
+    {
+    
+    }
+  Myclass& operator=(const Myclass& other)
+  {
+      m_a = other.m_a;
+      m_b = other.m_b;
+      m_c = other.m_c;
 
+      return *this;
+  }
+private:
+  A m_a;
+  B m_b;
+  C m_c;
+};
+
+
+Derleyicinin yazdığı atama operatör fonksiyonu tıpkı derleyicinin yazdığı copy constructor'da olduğu gibi %99 bizim istediğimiz işi yapar. O halde derleyicinin yazdığı copy assigment function
+bizim işimizi görüyorsa derleyiciye yazımı bırakmalıyız(rule of zero). Fakat bazı özel durumlarda örneğin sınıfın veri elemanının bir pointer olması durumunda bu durumda derleyicinin yazdığı
+atama operatör fonksiyonu bir pointerı diğer pointer'a kopyalar ve value semantics bozulur. Aslında burada copy constructor'da olan problemden daha kötü bir durum vardır:
