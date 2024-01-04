@@ -61,7 +61,294 @@ private:
   C m_c;
 };
 
+Örneğin derleyicinin implicitly declared, default ettiği bir copy assigment ile aynı sınıf türünden bir nesneye o sınıf türünden bir başka nesnenin değerini atayalım:
+class Date {
+public:
+  Date(int day, int mon, int year) : m_day{day}, m_month{mon}, m_year{year} {}
+  void print()const
+  {
+      std::cout << m_day << '-' << m_month << '\n' << m_year << '\n';
+  }
+private:
+  int m_day;
+  int m_month;
+  int m_year;
+};
+
+int main()
+{
+  Date dx{10, 2, 2023};
+  Date dy{5, 5, 1955};
+
+  dx.print();
+  dy.print();
+
+  //implicitly declared, default fonksiyon çağırılır
+
+  //(dx = dy).print();
+  dx.operator=(dy).print();
+}
+
 
 Derleyicinin yazdığı atama operatör fonksiyonu tıpkı derleyicinin yazdığı copy constructor'da olduğu gibi %99 bizim istediğimiz işi yapar. O halde derleyicinin yazdığı copy assigment function
 bizim işimizi görüyorsa derleyiciye yazımı bırakmalıyız(rule of zero). Fakat bazı özel durumlarda örneğin sınıfın veri elemanının bir pointer olması durumunda bu durumda derleyicinin yazdığı
 atama operatör fonksiyonu bir pointerı diğer pointer'a kopyalar ve value semantics bozulur. Aslında burada copy constructor'da olan problemden daha kötü bir durum vardır:
+
+
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+
+class String {
+public:
+  String(const char *p) :
+  mlen{ std::strlen(p) },
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, p);
+}
+
+String(const String& other) : mlen(other.mlen), mp{  static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, other.mp);
+}
+
+~String()
+{
+    std::free(mp);
+}
+void print()const
+{
+    std::cout << mp << '\n';
+}
+
+std::size_t length()const
+{
+    return mlen;
+}
+bool empty()const
+{
+    return mlen == 0;
+}
+private:
+  std::size_t mlen;
+  char *p;
+};
+
+int main()
+{
+    String s1{ "Volkan Cicekdal" };
+    String s2{  "Murat Yilmaz" };
+
+    s1 = s2;//burada derleyicinin yazdığı atama operatör fonksiyonu s1'in içindeki pointer'a yani mp'ye s2'nin mp'sini atar. s1'in mlen'ine s2'nin mlen'ini atar. mlen'nin atanması sorun değildir;
+            //fakat mp'lerin birbirine atanması büyük sorun teşkil eder.
+    
+}
+
+Burada s1 çağırılmadan önce s1 için destructor çağırılsaydı s1'in tutulduğu bellek alanı free edilmiş olacaktı; fakat şimdi s1'e bu atamayı yapınca s1'in içindeki mp pointer'ının değeri
+değişti ve artık "Volkan Cicekdal" yazısının free edilme ihtimali yok; memory leak oluşur
+
+Bir başka sorunda şudur: Bu örnekte s2 otomatik ömürlü bir yerel değişken olduğu için destructor'ı çağırılacak; fakat s2=s1 ataması ile s2'nin mp'sine s1'in mp'si atanıyor. Dolayısıyla
+blok sonunda s2 için destructor çağırıldığında aslında s1 için ayrılan alan free edilir ve böylece s2'nin daha öbe tutuğu "Murat Yilmaz" bellek alanı memort leak oluşturur ayrıca getchar
+çağrısından sonra s1'i kullanırsam alanı free edilmiş yani danling pointer dolayısıyla ub olur!!!
+
+
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+
+class String {
+public:
+  String(const char *p) :
+  mlen{ std::strlen(p) },
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, p);
+}
+
+String(const String& other) : mlen(other.mlen), mp{  static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, other.mp);
+}
+
+~String()
+{
+    std::free(mp);
+}
+void print()const
+{
+    std::cout << mp << '\n';
+}
+
+std::size_t length()const
+{
+    return mlen;
+}
+bool empty()const
+{
+    return mlen == 0;
+}
+private:
+  std::size_t mlen;
+  char *p;
+};
+
+int main()
+{
+    String s1{ "Volkan Cicekdal" };
+    s1.print();
+
+    if(true) {
+        String s2{  "Murat Yilmaz" };
+        s2.print();
+        s2 = s1;
+        s2.print();
+        
+    }
+    (void)getchar();
+    s1.print();//ub!!!!!!!!!
+}  
+
+Peki burada:
+a)yukarıda belirtilen hatanın olmaması için
+b)value semantics'in korunması için 
+Sadece deep copy yapmam yeterli olmaz; deep copy yapmadan önce kendisine atama yapılan s2 kendi kaynağını release etmeliydi: Bunun için bizim yazdığımız atama operatör fonksiyonu hem bir kaynak
+sızıntısı yaratmaması lazım hem de value semantics'in bozmaması lazım. 
+
+
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+
+class String {
+public:
+  String(const char *p) :
+  mlen{ std::strlen(p) },
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, p);
+}
+
+String(const String& other) : mlen(other.mlen), mp{  static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, other.mp);
+}
+String& operator=(const String& other)
+{
+   mlen = other.mlen();
+   std::free(mp);
+   mp = static_cast<char *> (std::malloc(mlen + 1));
+   std::strcpy(mp, other.mp);
+    return *this;
+
+}
+~String()
+{
+    std::free(mp);
+}
+void print()const
+{
+    std::cout << mp << '\n';
+}
+
+std::size_t length()const
+{
+    return mlen;
+}
+bool empty()const
+{
+    return mlen == 0;
+}
+private:
+  std::size_t mlen;
+  char *p;
+};
+
+int main()
+{
+    String s1{ "Volkan Cicekdal" };
+    s1.print();
+
+    if(true) {
+        String s2{  "Murat Yilmaz" };
+        s2.print();
+        s2 = s1;
+        s2.print();
+        
+    }
+    (void)getchar();
+    s1.print();
+} 
+
+Bir problem daha var bu probleme ingilizce self assigment deniliyor. Self assigment demek bir nesneye kendisinin atanması demektir. --> x = x;
+Semantik olarak bir nesneye kendisinin değeri atansaydı nesnenin değerinin değişmemesi gerekirdi. Böyle bir atama yapmanın 2 nedeni vardır:
+1)yanlışlıkla olabilir
+2)pointerlar aynı nesneyi gösteriyor ise ve birbirine atanmış ise bunlar self assigment olabilir:
+Myclass *p1, *p2;
+//
+*p1 = *p2;
+*p1 = r; //r referans
+r1 = r2;
+
+Dolayısıyla self assigment olup olmadığını koda bakarak hemen anlamayabiliriz; özellikle pointerlar ve referanslar söz konusu ise.
+
+Bu durumu kontrol etmek için kendi yazdığımız atama kopya fonksiyonu içinde bunu kontrol edecek bir deyim yazmalıyız; aksi halde ilk haliyle
+ana kaynak verilp dangling pointer olan   bir yeri malloc'ta parametre olarak kullanıcaktık ve program çökecekti:
+
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+
+class String {
+public:
+  String(const char *p) :
+  mlen{ std::strlen(p) },
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, p);
+}
+
+String(const String& other) : mlen(other.mlen), mp{  static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, other.mp);
+}
+String& operator=(const String& other)
+{
+  if(this == &other)//if'e girerse self assigment var demektir!!
+    return *this;
+   mlen = other.mlen();
+   std::free(mp);
+   mp = static_cast<char *> (std::malloc(mlen + 1));
+   std::strcpy(mp, other.mp);
+    return *this;
+
+}
+~String()
+{
+    std::free(mp);
+}
+void print()const
+{
+    std::cout << mp << '\n';
+}
+
+std::size_t length()const
+{
+    return mlen;
+}
+bool empty()const
+{
+    return mlen == 0;
+}
+private:
+  std::size_t mlen;
+  char *p;
+};
+
+int main()
+{
+    String s1{ "Volkan Cicekdal" };
+    s1.print();
+    s1 = s1;
+    s1.print();
+}
