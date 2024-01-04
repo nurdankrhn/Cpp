@@ -107,6 +107,60 @@ ama öncesinde kendi kaynağını geri vermelidir.
 
 
 
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+
+class String {
+public:
+  String(const char *p) :
+  mlen{ std::strlen(p) },
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, p);
+}
+
+String(const String& other) : mlen(other.mlen), mp{  static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, other.mp);
+}
+
+~String()
+{
+    std::free(mp);
+}
+void print()const
+{
+    std::cout << mp << '\n';
+}
+
+std::size_t length()const
+{
+    return mlen;
+}
+bool empty()const
+{
+    return mlen == 0;
+}
+private:
+  std::size_t mlen;
+  char *p;
+};
+
+void func(String s)
+{
+    s.print();
+    //code
+}
+int main()
+{
+    String str{ "deprem butun ulkeyi yasa bogdu" };
+    str.print();
+
+    func(str);
+    (void)getchar();//
+    str.print();
+}1.21
 
 
 
