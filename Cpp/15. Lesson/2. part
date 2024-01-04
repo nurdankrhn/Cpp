@@ -1,0 +1,113 @@
+ Her special member functionda olduğu gibi derleyicinin yazdığı fonksiyon işimize yarıyor ise her zaman onu kullanmalıyız(rule of zero). O halde move ctor ve move assigment içinde 
+ aynı durum söz konusudur. İdeali copy ctor'unda move ctor'unda copy assigment'ında move assigment'ında derleyici tarafından yazılması.
+
+ Derleyicinin move ctor'u ve move assigment'ı nasıl yazdığını anlamadan önce önemli bir konuyu tekrar hatırlamakta fayda var:
+ 
+ data type ile value category'i karıştırmamamız gerekir. Örnekte r'nin declaration type'ı int&&'tir. Fakat r ifadesinin value category'si
+ L value expression'dur. r R value referans olduğuna göre func(r) içinde olan r ifadesi de R value expression olmaz!!! Çünkü değişken
+ ifadeleri yani bir değişkenin ismi biçiminde olan ifadeler her zaman L value expression'dır. 
+
+
+void func(const int&)
+{
+    std::cout << "const LVALUE REF\n";
+}
+
+void func(int&&)
+{
+    std::cout << "RVALUE REF\n";
+}
+
+int main()
+{
+  int&& r = 10;
+  func(r);//func(const int&) parametreli fonksiyon çağırılır
+}
+
+YANİ bir ifade bir değişken isminin oluşturduğu ifade ise değişkenin hangi türden olduğuna bakılmaksızın ister L value referans olsun ister R value referans olsun 
+bu değişkenin oluşturduğu ifadenin value category'si L value expression'dur. 
+
+Eğer yukarıda const int& parametreli fonksiyonun değilde int&& parametreli fonksiyonunun çağırılmasını istiyorsak r L value expression olduğundan onu R value expression
+olucak şekilde cast etmeliyiz:
+void func(const int&)
+{
+    std::cout << "const LVALUE REF\n";
+}
+
+void func(int&&)
+{
+    std::cout << "RVALUE REF\n";
+}
+
+int main()
+{
+  int&& r = 10;
+  func(std::move(r));//artık func(int&&) parametreli fonksiyon çağırılır çünkü value category değiştirme fonksiyonu sayesinde L val. expr. olan r ifadesi R val. expr'ye cast edildi
+}
+
+A, B, C birer tür olmak üzere: derleyicinin yazdığı move ctor şu şekilde olur:
+
+#include <iostream>
+#include <string>
+
+class Myclass {
+public:
+
+  Myclass(Myclass &&other) : m_a(std::move(other.m_a)), m_b(std::move(other.m_b)), m_c(std::move(other.m_c))
+  {                         //move fonksiyonunu kullanmadan C.I.L kullanılsaydı o zaman m_a, m_b  ve m_c sınıf türünden olsaydı bu durumda argüman olan ifade L
+                            // value expr. olduğundan sınıfın copy ctor'ı çağırılırdı move ctor çağırılması için işte move ile R val expr.'ye cast edilmelidir.
+      
+  }
+private:
+  A m_a;
+  B m_b;
+  C m_c;
+};
+
+int main()
+{
+  
+}
+
+
+Elemanları kaynak kullanan ve kendi kaynağını yöneten sınıflar olduğu zaman; move ctor'ın derleyici tarafından yazılması ideal durumu oluşturur.
+
+Derleyicinin yazdığı move assigment ise şu şekilde default edilir:
+#include <iostream>
+#include <string>
+
+class Myclass {
+public:
+  Myclass& operator=(Myclass &&other)
+  {
+      m_a = std::move(other.m_a);
+      m_b = std::move(other.m_b);
+      m_c = std::move(other.m_c);
+
+      return *this;
+  }
+private:
+  A m_a;
+  B m_b;
+  C m_c;
+};
+
+
+
+Peki hangi durumlarda ben sınıfın move ctor ve move assigment'ınını yazmalıyım?
+Eğer sınıfın veri elemanlarından biri veya birden fazlası pointer/referans ise taşınması veya kopyalanması arasında bir fark olmaz. Dolayısıyla sınıfın en az bir veri elemanı pointer veya
+refarans yani handle ise derleyicinin yazdığı taşıma operator fonksiyonu veya move ctor pointer'ı kopyalar. Dolayısıyla value semantics yine bozulur. move ctor'un kodunu biz yazarken
+diğer nesnenin kaynağını çalacağız ama diğer nesneyide destructor'ı çağırıldığında bu kaynağı geri vermeyecek şekilde bir duruma getirmemiz gerekiyor.
+
+Taşıyan atama operatör fonksiyonun kodunu yazdığımızda durum daha da farklıdır. Çünkü her 2 nesnede hayattadır. Örneğin Myclass y = x'de y'ye x'i atadığımızda y x'in kaynağını çalacak
+ama öncesinde kendi kaynağını geri vermelidir.
+
+
+
+
+
+
+
+
+
+
