@@ -91,3 +91,37 @@ Yani derleyici statik olarak koda bakıcak; hangi nesnenin hayatının artık bi
 o nesnenin kullanılma ihtimali olmadığını anlarsa öyle bir kodu çalıştıracak ki burada çalışan kod o hayatı birazdan bitecek nesnenin kaynağını çalıcak (yani deep cop yapmayacak) ama 
 o nesne kalıcı yani onun hala başka kodlar tarafından kullanılma ihtimali varsa bu durumda derleyicinin seçtiği kod onun kaynağını kopyalayan kod olucak.
 
+İşte bunu uygulamak için R value reference dile eklendi; esas olarak move semantic içindir. 
+
+x = expr; de eğer expr ifadesini başka kodların kullanma ihtimali olan bir sınıf nesnesi anlamına geliyorsa L value değer kategorisinde olur.  Fakata eğer expr ifadesini başka kodların kullanma ihtimali 
+olmayan  bir sınıf nesnesi anlamına geliyorsa R value (PR value veya X value demek) değer kategorisinde olur.
+
+O zaman ilk değer veya değer ataması yoluyla çağırılacak fonksiyonlar için overload yapılır; birinin parametresi const L value referans diğerinin parametresini ise R value referans yaparız.
+Böylelikle L value expression için parametresi const L value referans olan ; R value expression olan için ise parametresi R value referans olan fonksiyon çağırılır. Ve fonksiyonlardan biri 
+kaynağı kopyalar, diğeri kaynağı çalar.
+
+
+class Myclass {
+
+public:
+  Myclass(const Myclass&);//copy ctor
+  Myclass(Myclass&&);//move ctor
+
+  Myclass& operator=(const Myclass&);//copy assigment
+  Myclass& operator=(Myclass&&);//move assigment
+
+};
+
+Bu işlem maliyetini çok azaltır!!!
+
+Eğer bir sınıfa move ctor veya move assigment'ı yazma şansımız var biz veya derleyici bunu yazmazsa sentaks hatası meydana gelmez; çünkü normalde move ctor'ın çağırılacağı yerde copy ctor çağırılır. 
+move assigment'ın çağırılacağı yerde ise copy assigment çağırılır. Dolayısıyla sınıfların move constructor veya move assigment'ının olmaması o duruma göre eğer kopyalama yerine taşıma yaparak
+bir avantaj elde edebileceğimiz bir durum olduğunda o zaman o avantajdan faydalanmamamız anlamına gelir. Dolayısıyla bu zorunlu değildir; fakat öyle sınıflar var ki bu verim artışına olanak verir.
+
+class Date {
+private:
+  int m_day, m_month, m_year;
+};
+Böyle bir classta taşıma ve kopyalama semantiği arasında bir fark yoktur; bir kaynak vs yok. O zaman copy ctor olsa da  move ctor olsada kopyalama yapılırdı. Yani kopyalama semantiği yerine taşıma semantiğinden
+faydalanma temasının olması için ortada bir kaynak olması lazım; o kaynağı çalınca bir avantaj sağlayabilmemiz lazım. Ama sınıf nesnesinin kullandığı bir kaynak yoksa ya da sınıf nesnesinin elemanlarının kullandığı
+bir kaynak yok ise move ctor ile copy ctor aynı işi yapar, yani aynı anlama gelir.
