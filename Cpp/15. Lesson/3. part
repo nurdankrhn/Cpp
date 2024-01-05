@@ -1,0 +1,145 @@
+
+1)Bir sınıfa constructor bildirirsek eğer; ister default constructor ister copy constructor ister move constructor olsun, ister parametreli constructor olsun
+derleyici hiçbir zaman default constructor'ı implicitly declared etmez.
+
+2)Bir sınıfın destcructor'ı her zaman vardır. Ya programcı destructor'ı kendisi bildirir ya da derleyici tarafından default edilir.
+
+3)Eski büyük 3'lüden (destructor, copy ctor ve copy assigment ) birini dahi bildirirsek artık derleyici move member'lari bildirmez! Bu nedenler move ctor gereken yerde copy ctor;
+move assigment gereken yerde ise copy assigment kullanılır. Bir sınıfa destructor bildirimi yaparsam buna rağmen derleyici copy member'ları bildiriyor bu da istenen şeye uygun değildir!!
+Bir sınıfa copy ctor bildirirsem derleyici copy assigment'ı default eder bu da yine istenen şeye uygun değildir; felaket senaryosudur. Eğer bir sınıfa copy assigment bildirirsem derleyici
+copy ctor'ı default eder bu da yine felaket senaryosudur.
+
+4)Bir sınıfın move member'larından herhangi birini bildirirsek eğer derleyici copy member'ları delete eder. Ve diğer move member'ı not declared yapıyor.
+
+Gerek standart gerekse 3. parti kütüphanelere baktığımız zaman sınıları birkaç kategoriye ayırabiliriz:
+1)Sınıfın bütün member'ları var bu durumda move gereken yerlerde move'lar copy gereken yerler de copy'lar çağırılır. Böyle sınıflar copyable  && movable sınıf denir.
+Standart kütüphanede böyle sınıflara örnek verirsek: std::string(container dediğimiz sınıflar tipik olarak böyledir).
+
+2)Öyle sınıflar var ki kopyalaması da yok taşıması da yok. copy gereken yerde de move gereken yerde de sentaks hatası meydana gelir. Bunlara noncopyable  && nonmovable sınıf denir.
+
+3)Öyle sınıflar var ki kopyalamaya karşı kapalı fakat taşımaya açık. Bunlara noncopyable  && movable sınıf denir.
+
+cout ve cin nesneleri sırasıyla  ostream ve istream sınıflarına aittir. Ve bunlardan kalıtım yoluyla elde edilmiş ofstream ya da ifstream gibi sınıflar kopyalaması olmayan taşıması olan sınıflardır.
+
+concurrency konusunda göreceğimiz  thread başlık dosyasındaki std::thread isimli sınıfta  kopyalaması olmayan taşıması olan sınıftır. 
+
+smart pointer sınıflarından memory başlık dosyasında olan unique_ptr  sınıfı da kopyalaması olmayan taşıması olan sınıftır. 
+
+Neden bir sınıf kopyalamaya kapatılmış, taşımaya açılmış olabilir?
+Öyle sınıflar var ki kopyalamanın o sınıfın problem domanininde taşıdığı anlam açısından bir karşılığı yok. Örneğin doğrudan bir tread sınıfının kopyalanmasının bir anlamı yok.
+Bazı sınıflarda ise direk varlık nedeni öyleki kopyalama onun için anlamsızdır; örneğin unique_ptr öyle bir pointer ki eşsiz bunu kopyalamak anlamsızdır ya hayatının sonuna 
+kadar aynı kaynak onu hayata getiren nesne ile ya da taşıma semantiği ile o kaynak başka nesneye aktarılır yani aynı kaynaktan sadece 1 tane nesnede olur.
+
+
+Peki sınıfı biz yazarken kopyalamaya veya taşımaya açık olup olmayacağının  kararını nasıl vermeliyiz?
+Eğer herhangi bir şekilde bir sakınca yoksa derleyicinin bütün special member functionları bizim için yazmasına izin vermeliyiz. Böylece hem copyable hem de movable olur. Sınıfların büyük
+çoğunluğu böyledir.
+
+Eğer benim yazacağım sınıfta ne kopyalamanın ne de taşımanın problem domaininde bir karşılığı yoksa yani hem kopyalamaya hem de taşımaya karşı kapatmak istersem copy memver'ları delete etmem yeterlidir:
+Çünkü sınıfın copy member'larından birini declared ettiğim zaman move member'lar not declared oluyordu; o zaman taşıma gereken yerde taşıyan fonksiyon bildirilmediği için kopyalayan fonksiyon çağırılır
+fakat kopyalayan fonksiyonda delete edildiği için sentaks hatası meydana gelir bu da isteneni karşılar. Yani bu şekilde yazmakla move'ları ayrıca delete ederek yazmak arasında bir fark yoktur.
+class Myclass{
+public:
+Myclass() = default;
+Myclass(const Myclass&) = delete;
+Myclass& operator=(const Myclass&) = delete; 
+};
+
+Eğer kopyalamaya kapatıp taşımaya açmak istiyorsak o zaman: copy member'ları delete edip move member'ları bizim yani programcının bildirmesi gerekir:
+class Myclass{
+public:
+Myclass() = default;
+Myclass(const Myclass&) = delete;
+Myclass& operator=(const Myclass&) = delete; 
+Myclass(Myclass&&);
+Myclass& operator=(Myclass&&);
+};
+
+int main()
+{
+    Myclass m1;
+    Myclass m2 = m1;//sentaks hatası copy ctor delete edilmiş
+    Myclass m3{std::move(m1)};//legal move ctor user declared
+    Myclass m4,m5;
+    m4 = m5;//sentaks hatası copy assigment delete edilmiş
+    m4 = std::move(m5);//legal move assigment user declared
+}
+
+Sadece movablity'i delete etmenin çok anlamı yok çünkü bu durumda move'dan copy'e düşmez move gereken yerde sentaks hatası olur YANİ MOVE member'ları hiçbir zaman delete etmemeliyiz:
+Zaten copy olsun move olmasın istiyorsam copy member'lardan birini tanımlarsam zaten move member'lar not declared olur ve move için bir çağrı olduğunda move yerine copy çağırılabilir.
+class Myclass{
+public:
+Myclass() = default;
+Myclass(const Myclass&);
+Myclass& operator=(const Myclass&);
+Myclass(Myclass&&)= delete;
+Myclass& operator=(Myclass&&)= delete;
+};
+
+
+Önemli bir senaryo daha-->
+Standart kütüphanenin string sınıfı türünden str isimli bir nesnem var. Bu nesne 10.000 tane A karakteri yazısını taşıyor. Ben str'nin bir kopyasını çıkarmak istiyorum ama str'nin kopyası ile oluştruracağım
+nesne için kopyalama yapılmasın str'nin kaynağını çalmak istiyorum. Çünkü str nesnesi kullanılmayacak bir nesne işte kaynak çalabilmem için yeni nesne için copy ctor değil de move ctor çağırılmasını sağlamalıyım. 
+std::string s = str; şeklinde olsaydı copy ctor çağırılırdı o halde move ctor çağırılması için std::string s = std::move(str); şeklinde bir bildirim yapmam gerekir.
+Böylece artık str'nin kaynağını çalmış olurum. Böyle nesnelere kaynağı çalınmış nesne anlamında "moved-from state" denir. Yani hayatı devam ediyor; destructor'ı çağırıldığında kaynağı geri verme yapmayacak ama
+kaynağını yitirmiş durumda.
+
+#include <memory>
+#include <string>
+
+int main()
+{
+  std::string str(10'000, 'A');
+  std::string s = std::move(str);//str artık moved-from state durumunda ve s str'nin kaynağını çaldı
+}
+moved-from state C++'ın zor konularından biri:
+Standart kütüphanenin sınıfları moved-from state durumundaki nesneler için birtakım garantiler veriyor:
+1)moved-from state durumunda olan bir nesne  geçerli bir durumdadır fakat değerinin ne olduğu konusunda bir garanti olmak zorunda değildir yani örneğin uzunluğu 5 ise gerçekten tuttuğu string nesnesi de 5 karakterli olmalıdır.
+2)destructible bir durumda olur yani destructor'ının çağırılması herhangi bir tanımsız davranış oluşturmaz!
+3)moved-from state durumundaki bir nesneye ona tekrar yeni bir değer atayarak standart  kütüphanenin sınıfları söz konusu olduğunda hiçbir sorun yoktur. Yani ona yeni bir değer atarsam sanki yeni atanan değerle initialize
+edilmiş gibi kullanabiliriz.
+#include <memory>
+#include <string>
+
+int main()
+{
+  std::string str(10'000, 'A');
+  std::string s = std::move(str);//str artık moved-from state durumunda ve s str'nin kaynağını çaldı
+
+  str = "bugun gunlerden pazartesi"; // legal moved-from state durumunda olan nesneye atama yapabilirim
+}
+
+Bu garantileri oluşturmanın en garanti yolu ki standart kütüphane neredeyse her zaman bu yolu izler:
+nesneyi default constructor edilmiş bir state'e çekmek. Örneğin string nesneleri söz konusu olduğunda moved-from state durumundaki bir nesne kullandığımız zaman teknik olarak standartlar böyle demesede;
+uzunluğunun 0 olan bir yazı olması garanti altındadır.
+
+Bu neden önemli burayı dikkatli izlemeniz gerekiyor yine Arkadaşlar siz bir sınıf oluşturduğunuzda Sizin sınıfınız için de bu garantileri sizin sınıfınızın klike'ları bekler yani sınıfın bu konstrucker copy construcker bunları yazıyorsanız 
+O zaman şunu düşünerek yazın motrones'teki nesneyi geçerli bir durumda bırakacaksınız çağrılması durumunda bir komplikasyon olmayacak Ve ona yeni bir değer atarak kullanan kodlar sıkıntıya düşmeyecek sizden diğer sizin sınıfınızı kullanacak cland kodların 
+tipik olarak beklentisi bu olacak yani ideali şu bundan sapmamanız gerekiyor standart kütüphane most için kendi sınıfları adına hangi garantileri veriyorsa kendi oluşturduğunun sınıflar içinde o garantileri vermelisiniz iflas bas semanti Sizden bunu bekliyor
+Şimdi Bakın ben size bir kod yazacağım o da büyük ihtimalle size Henüz anlatmadığım bir sürü üyeyi kullandığım için kodu anlamakta yazıyorsa anlamakta zorluk çekeceksiniz ama anlamanız da gerekmiyor bu örnekte Yazacağım kotta Aslında Neyi göstereceğim mor from 
+Peki bir nesnenin verdiği garantiye güvenerek Eğer bu garanti verilmeseydi bu kod Örneğin tanımsız davranış olabilirdi başka problemlere yol açabilirdi ama garantili bir şekilde bu Koton çalışacağını söyleyebilirim şimdi seni bir kez da diyorsun ben gideceğiz t
+ekrar söylüyorum Hanım anlamadığınız noktaları hiç anlamaya çalışmayın Ben nereyi gösterirsem oraya bakın uygulama yazacaksın burada bir tek dosyası satır satır okuyor ve bunları bir konteynera koyacağız yani Örneğin filmlerden oluşan bir dinamit dizi Sizin sı
+nıfınız için de bu karantinaya sizin sınıfınızın klanpları bekler yani sınıfın bu kontraktır copy constructor bunları yazıyorsanız O zaman şunu düşünerek yazın mothrome state'deki nesneyi geçerli bir durumda bırakacaksınız destrack tırnağın çağrılması durumunda
+bir komplikasyon olmayacak Ve ona yeni bir değer atayarak kullanan kodlar sıkıntıya düşmeyecek sizden diğer sizin sınıfınızı kullanacak Clean kodların tipik olarak beklentisi bu olacak yani ideale şu bundan sapmamanız gerekiyor standart kütüphane most için 
+kendi sınıfları adına hangi garantileri veriyorsa kendi oluşturduğunun sınıflar için de o garantileri vermelisiniz Sizden bunu bekliyor Şimdi Bakın ben size bir kod yazacağım kodu büyük ihtimalle size Henüz anlatmadığım bir sürü öğeyi kullandığım için kodu 
+anlamakta yazıyorsa anlamakta zorluk çekeceksiniz ama anlamanız da gerekmiyor bu örnekte Yazacağım kotta Aslında Neyi göstereceğim nurhrome Peki bir nesnenin verdiği garantiye güvenerek Eğer bu garanti verilmeseydi bu kod Örneğin tanımsız davranış olabilir 
+de başka problemlere yol açabilirdi ama garantili bir şekilde bu kodunun çalışacağını söyleyebilirim şimdi seni arıyor şu an bakın bir kez da üstünden gideceğiz tekrar söylüyorum Hanım anlamadığınız noktaları hiç anlamaya çalışmayın Ben nereyi gösterirsem 
+oraya bakın nasıl bir uygulama yazacağız burada bir Tex dosyasını satır satır okuyor ve bunları bir konteynıra koyacağız yani Örneğin filmlerden oluşan bir dinamit dizi oluşturacağız oluşturduğumuz dinamit dizinin her bir elemanı üstünde işlem yapacağımız 
+tek dosyasının bir hatırını tutacak çok sık yapılan bir işe Aslında öğretimde Örneğin benim çalıştığım alanda onlar da yüzlerce binlerce kez bunu yapmam gerekmiştir izleyin şimdi tekrar söylüyorum anlamını Şimdilik bilmediğimiz noktalara hiç odaklanmayın 
+onları soyup deveye yaklaşacağız bazı başlık Dosyalarım dahil ediyorum o yüzden dinamik dizi konteynırması vektör vektör dosyasını inclockediyorum ve vektörde bin TL tutacağım dinamit dizide işte onun karşılığı şöyle bir kod arkadaşlar study vektörün kim 
+kaçırma vektör devresinin bittiğinde mail nokta CHP tek dosyasının satırlarını tutacak yani Örneğin Burada olsa elinde satırsa vektörde 50 tane link olacak Buraya kadar takip edebiliyor muyuz Tamam kodu anlamamız gerekmiyor dosyayı açıyorum ilgili sınıfları 
+kullanıyorum hipstil okuma amaçlı dosyaları Ben de işletmek için kontrol etmek için yönetmek için kullanılıyor ismini olsun ve efendim main.tbp dosyasını açayım dosyası açılamayabilir ama onun da kontrolünü yapayım anlamasanızda olur ya Şimdi çok dikkatli 
+izleyeyim kritik yer burası dosyadan satır satır okumayı okumanın Her satırın satıra yazıyı bir nesnesinde tutmanın bir yolu var burada Global bir fonksiyonu çağırıyoruz söz fonksiyonun ismi arkadaşlar izleyin ismi olan fonksiyonunu çağırıyorum Get lime 1 
+paramescesine geçtim ikinci parametresine String denklemini referans semavatıyla geçiyorumBuraları Hiç anlamasanız zordur siyere dosya açılamadı burada programı sonlandırayım şimdi çok dikkatli izleyeyim kritik yer burası dosyadan satır satır okumayı o
+kunan her satırı satıra ilişkin yazıyı bir String nesnesinde tutmanın didomatik bir yolu var burada Global bir fonksiyonu çağırıyoruz bu fonksiyonun ismi arkadaşlar Get lime izleyin 1 paramettim ikinci parametresine is String defterine referans semavatıyla 
+geçiyorum Çünkü STada Arkadaşlar bu döngüden dosyada okunacaktır kalmadığında çıkacak bunların hepsini ileride öğreneceğiz Ama şimdi çok dikkatli bir şey arkadaşlar çok deneyimsiz programcı gibi bu konu şöyle yazarsam vektöre Çünkü eklemek için vektör 
+sınıfının 3 belki isimle fonksiyonunu çağırıyorum o kadar çok görüyorum ki böyle kod yazanı burada 3 çocuk bir eksik Yazım kaynak kullanımı açısından verimlilik açısından milyonlarca kat fark edebilir Bakın şimdi burada Ne oldu Çok dikkatli izleyin bu r
+ektörüm hoşbeş fonksiyonu Bu stringin bir kopyasını çıkartıp vektörde o kopyayı oluşturdu yani puspack fonksiyonunu burada fonksiyona gönderdiğim argüman el vermiyor Expression olduğu için vektör de olur duracağız streç için Kofi constrattıra çağırdı ama bu
+rada ki ifade değerli değil Ağrı vergi olsaydı kuş pek fonksiyonunun ağır ve alıyor için oluşturulan harbi alıyor referans parametreli overloğu oldu vektörde oluşturacağız Çünkü için hobi konusunda yani bakın burada Es da aynı yazmamız da Kutbu resmen yazmanı 
+arasında şimdi düşünün dosyadaki satırların 20.000 karakterli 5.000 karakterlik Satırlar olduğunu düşünelim vektöre yapılan her eklemeyi için sınıfının kopyası çağıracak ve o yazısını kopyasını çıkartması demek 5.000 karakterlik 10.000 karakterlik bence 
+Arkadaşlar dip kopya ile kopyalanması demek ama böyle yazarsam buradaki stringin kaynağını çalışacağım ama bir dakika buradaki Singin kaynağını çaldım Okey kopyalama yapılmadı taşıma yapıldı Ama burada Esra'nın tekrar kullanıyorum Eğer burada döngünün bir 
+sonraki turuna geçtiğimizde ne yapıyor Ona yeni bir değer yerleştiriyor Dolayısıyla burada neden faydalanmış oluyorum mor frontistlikteki nesneye yeniden atama yapılabilir sağlıklı bir şekilde ondan faydalanmış oluyorum bakın burada bu kodu bu şekilde 
+yazabilmem döngünün her durumda kopyalama yerine kaynağını çaba vermem tamamen hangi güvenceye dayanıyor tekrar Ona yeni bir değer atarak kullanılabilmesine dayanıyor belki Örneğin %100 anlamadınız hiç önemli değil çarşamba günkü derse çok daha fazla 
+ilerleyeceğiz ve verdiğimiz örnekler tanımladığımız kuralları biraz daha yerine oturduğunu yerleştiğini göreceksiniz hep bugünkü derste bir hayli ilerledik ama lütfen kendinize kötü hissetmeyin Ben Şurayı anlamadım buraya tam anlamadım dediğiniz yerlerin
+olması son derece doğal Biraz kendinizi ne zaman tanıyın anlamadığınız yerleri odaklanan her sonraki derste Bir sonraki derste bunları tekrar tekrar konuşacağımız için bir iki hafta içinde Burada anlamadığımız hakim olmadığımız tek bir nokta kalmayacak 
+ben Necati Ergin 
