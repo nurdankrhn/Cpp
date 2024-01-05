@@ -102,65 +102,8 @@ diğer nesnenin kaynağını çalacağız ama diğer nesneyide destructor'ı ça
 Taşıyan atama operatör fonksiyonun kodunu yazdığımızda durum daha da farklıdır. Çünkü her 2 nesnede hayattadır. Örneğin Myclass y = x'de y'ye x'i atadığımızda y x'in kaynağını çalacak
 ama öncesinde kendi kaynağını geri vermelidir.
 
+Kendimiz bu şartları sağlayacak bir move ctor yazalım:
 
-
-
-
-
-#include <iostream>
-#include <cstring>
-#include <cstdlib>
-
-class String {
-public:
-  String(const char *p) :
-  mlen{ std::strlen(p) },
-  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
-{
-    std::strcpy(mp, p);
-}
-
-String(const String& other) : mlen(other.mlen), mp{  static_cast<char *> (std::malloc(mlen + 1)) }
-{
-    std::strcpy(mp, other.mp);
-}
-
-~String()
-{
-    std::free(mp);
-}
-void print()const
-{
-    std::cout << mp << '\n';
-}
-
-std::size_t length()const
-{
-    return mlen;
-}
-bool empty()const
-{
-    return mlen == 0;
-}
-private:
-  std::size_t mlen;
-  char *p;
-};
-
-void func(String s)
-{
-    s.print();
-    //code
-}
-int main()
-{
-    String str{ "deprem butun ulkeyi yasa bogdu" };
-    str.print();
-
-    func(str);
-    (void)getchar();//
-    str.print();
-}1.21
 
 
 
