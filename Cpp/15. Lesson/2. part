@@ -102,9 +102,221 @@ diğer nesnenin kaynağını çalacağız ama diğer nesneyide destructor'ı ça
 Taşıyan atama operatör fonksiyonun kodunu yazdığımızda durum daha da farklıdır. Çünkü her 2 nesnede hayattadır. Örneğin Myclass y = x'de y'ye x'i atadığımızda y x'in kaynağını çalacak
 ama öncesinde kendi kaynağını geri vermelidir.
 
-Kendimiz bu şartları sağlayacak bir move ctor yazalım:
+Kendimiz bu şartları sağlayacak bir move ctor ve move assigment  yazalım:
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
 
+class String {
+public:
+  String(const char *p) :
+  mlen{ std::strlen(p) },
+  mp{ static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, p);
+}
 
+String(const String& other) : mlen(other.mlen), mp{  static_cast<char *> (std::malloc(mlen + 1)) }
+{
+    std::strcpy(mp, other.mp);
+}
+String(String &&other): mlen(other.mlen), mp(other.mp)
+{
+   other.mlen = 0;
+   other.mp = nullptr;
+}
+String& operator=(String &&other)
+{
+   if(this == &other)
+     return *this;
 
+   std::free(mp);
+   mlen = other.mlen;
+   mp = other.mp;
 
+   other.mlen = 0;
+   other.mp = nullptr;
 
+   return *this;
+}
+String& operator=(const String& other)
+{
+  if(this == &other)//if'e girerse self assigment var demektir!!
+    return *this;
+   mlen = other.mlen();
+   std::free(mp);
+   mp = static_cast<char *> (std::malloc(mlen + 1));
+   std::strcpy(mp, other.mp);
+    return *this;
+
+}
+~String()
+{
+    if(mp)
+      std::free(mp);
+}
+void print()const
+{
+    std::cout << mp << '\n';
+}
+
+std::size_t length()const
+{
+    return mlen;
+}
+bool empty()const
+{
+    return mlen == 0;
+}
+private:
+  std::size_t mlen;
+  char *p;
+};
+
+Belirli özel koşullar sağlandığında derleyicinin sınıfın özel üye fonksiyonlarını default ettiğini söylemiştik. Fakat hangi durumlarda derleyici sınıfın hangi özel üye fonksiyonuna karşı nasıl bir yol izliyor? Onu ele alalım:
+
+1. Senaryo
+programcı bir sınıf için hiçbir özel üye fonksiyon bildirmemiş ve ayrıca hiçbir construtor'da(özel olmayan yani) bildirmemiş.
+
+Bu durumda derleyici 6 özel üye fonksiyonunuda implicitly declared edip default eder.  
+class Myclass {
+public:
+
+};
+
+yani bunun aşağıdaki sınıf tanımından hiçbir farkı yoktur:
+class Myclass{
+public:
+  Myclass() = default; //default constructor
+  ~Myclass() = default; //destructor
+  Myclass(const Myclass&) = default; //copy constructor
+  Myclass& operator=(const Myclass&) = default; //copy assigment
+  Myclass(Myclass&&) = default; //move constructor
+  Myclass& operator=(Myclass&&) = default; //move assigment
+};
+
+2. Senaryo
+programcı bir sınıf için default constructor olmayan ve special member function olmayan bir constructor bildirirse:
+class Myclass {
+public:
+  Myclass(int);
+};
+Burada genel kuralı hatırlamamız gerekir: bir tane bile constructor bildirirsek derleyici default constructor'ı implicitly declared etmez. Yani sınıfın default constructor'ı artık not declared.
+O zaman sınıfın karşılığı şu olur:
+class Myclass{
+public:
+  Myclass(int); //programcının tanımladığı constructor
+  ~Myclass() = default; //destructor
+  Myclass(const Myclass&) = default; //copy constructor
+  Myclass& operator=(const Myclass&) = default; //copy assigment
+  Myclass(Myclass&&) = default; //move constructor
+  Myclass& operator=(Myclass&&) = default; //move assigment
+};
+
+3. Senaryo
+programcı bir sınıf için default constructor bildirirse yani default constructor user declared olursa:
+class Myclass {
+public:
+  Myclass();
+};
+
+O zaman sınıfın karşılığı şu olur:
+class Myclass{
+public:
+  Myclass(); //default constructor user declared
+  ~Myclass() = default; //destructor
+  Myclass(const Myclass&) = default; //copy constructor
+  Myclass& operator=(const Myclass&) = default; //copy assigment
+  Myclass(Myclass&&) = default; //move constructor
+  Myclass& operator=(Myclass&&) = default; //move assigment
+};
+
+4. Senaryo
+Programcı sınıfa bir destructor bildirirse:
+class Myclass {
+public:
+  ~Myclass();
+};
+
+O zaman deleyici move member'ları default etmez ve sınıfın karşılığı şu olur:
+class Myclass{
+public:
+  Myclass() = default; //default constructor 
+  ~Myclass(); //destructor user declared
+  Myclass(const Myclass&) = default; //copy constructor!!
+  Myclass& operator=(const Myclass&) = default; //copy assigment!!
+};
+Eğer böyle bir sınıf oluşturursak derleyici default constructor'ını default ettiği gibi copy constructor'ınıda copy assigment'ınıda default eder. Bu bir felakete yol açar;
+çünkü destructor'ı kendimiz bildirdiğimize göre muhtemelen destructor içinde kaynak geri vericez; fakat copy ctor ve copy assigment derleyici tarafından yazılan fonksiyonlar
+olduğu için uygun şekilde yani pointer yerine kaynak koypalaması yapamaz hala shallow copy yapar!!! C++ komitesinin istediği copy ctor ve copy assigment'ında delete edilmesi
+fakat o zaman geçmiş kodların kırılmaması için bu kural hala geçerli; bu kırmızı alarm demek asla asla böyle bir duruma neden olacak kod yazmamalıyız!!!!
+Burada dikkat edilmesi gereken bir diğer şey; move ctor'ın veya move assigment'ın çağırılacağı yerde copy ctor ve copy assigment çağırılır.
+
+5. Senaryo
+programcı copy constructor bildirirse
+class Myclass {
+public:
+  Myclass(const Myclass&);
+};
+O zaman sınıfın karşılığı şu olur: programcı constructor bildirdiği için derleyici constructor default etmeyecek; genel kural
+class Myclass{
+public:
+  ~Myclass() = default; //destructor
+  Myclass(const Myclass&); //copy constructor user declared
+  Myclass& operator=(const Myclass&) = default; //copy assigment!!
+  Myclass(Myclass&&) = default; //move constructor
+  Myclass& operator=(Myclass&&) = default; //move assigment
+};
+Derleyicinin copy assigment'ıda default etmesi felakete neden olur çünkü copy ctor'ı biz yazıyorsak copy assigment'ıda bizim yazmamız gerekir.
+
+6. Senaryo
+programcı copy assigment bildirirse
+class Myclass {
+public:
+  Myclass& operator=(const Myclass&);
+};
+
+O zaman sınıfın karşılığı şu olur:
+class Myclass{
+public:
+  Myclass() = default; //default constructor 
+  ~Myclass() = default; //destructor
+  Myclass(const Myclass&) = default; //copy constructor!!
+  Myclass& operator=(const Myclass&); //copy assigment user declared
+};
+
+7. Senaryo
+programcı move constructor  bildirirse
+class Myclass {
+public:
+  Myclass (Myclass&&);
+
+};
+
+O zaman sınıfın karşılığı şu olur:
+class Myclass{
+public:
+  ~Myclass() = default; //destructor
+  Myclass(const Myclass&) = delete; //copy constructor deleted
+  Myclass& operator=(const Myclass&) = delete; //copy assigment deleted
+  Myclass(Myclass&&); //move constructor user declared
+};
+
+8. Senaryo
+programcı move assigment  bildirirse
+class Myclass {
+public:
+  Myclass& operator=(Myclass&&);
+
+};
+
+O zaman sınıfın karşılığı şu olur:
+class Myclass{
+public:
+  Myclass() = default; //constructor  
+  ~Myclass() = default; //destructor
+  Myclass(const Myclass&) = delete; //copy constructor deleted
+  Myclass& operator=(const Myclass&) = delete; //copy assigment deleted
+  Myclass(Myclass&&); //move constructor user declared
+   Myclass& operator=(Myclass&&);//move assigment user declared
+};
