@@ -1,0 +1,30 @@
+sınıfın veri elemanının string olması durumunda derleyicinin yazdığı copy constructor ile move constructor arasında bir fark olur çünkü bu kaynak kullanan bir nesne
+class Person { 
+public:
+  Person(const char *p_name, const char *p_surname) : m_name(p_name), m_surname(p_surname) {}
+  void print()const
+  {
+      std::cout << "isim : [" << m_name << "] soy isim = [ " << m_surname << " ]\n";
+  }
+private:
+  std::string m_name;
+  std::string m_surname;  
+};
+
+Bu sınıfın copy ctor'ı move ctor'ı move assigment'ı copy assigment'ı destructor'ı derleyici tarafından impicitly declared edilmiştir. Constructor ise user declared yani programcı tarafından
+bildirilip tanımlanmıştır. Aşağıda ki örnekte px nesnesi için derleyicinin yazdığı copy ctor çağırılır. Ve print sonucu ekrana atanan stringler ile beraber değerler ekrana yazılır:
+int main()
+{
+    Person per {"melike", "ata"};
+
+    Person px = per;
+    per.print();
+}
+Fakat main içinde move ctor ile çağırılacak bir kod satırı yazarsak:
+int main()
+{
+    Person per {"melike", "ata"};
+
+    Person px = std::move(per);
+    per.print();
+}
