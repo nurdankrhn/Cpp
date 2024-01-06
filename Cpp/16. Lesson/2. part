@@ -1,4 +1,5 @@
-sınıfın veri elemanının string olması durumunda derleyicinin yazdığı copy constructor ile move constructor arasında bir fark olur çünkü bu kaynak kullanan bir nesne
+sınıfın veri elemanının string olması durumunda derleyicinin yazdığı copy constructor ile move constructor arasında bir fark olur çünkü bu kaynak kullanan bir nesne:
+
 class Person { 
 public:
   Person(const char *p_name, const char *p_surname) : m_name(p_name), m_surname(p_surname) {}
@@ -21,6 +22,7 @@ int main()
     per.print();
 }
 Fakat main içinde move ctor ile çağırılacak bir kod satırı yazarsak:
+Aşağıda ki örnekte px nesnesi için derleyicinin yazdığı move ctor çağırılır. Ve print sonucu ekrana atanan stringler artık boş olduğu için ekranda onlar için ayrılan alanada bir şey olamayacak şekilde değerler ekrana yazılır:
 int main()
 {
     Person per {"melike", "ata"};
@@ -28,3 +30,139 @@ int main()
     Person px = std::move(per);
     per.print();
 }
+
+
+Ders sırasında sorulan bir soruya karşılık verilen bir cevap:
+Örneğin int x = 10; için bildirimden sonra öyle bir kod yazın ki x'in adresi değişşin: vermemiz gereken cevap şudur: öyle bir şey olmaz
+
+int main()
+{
+  int x = 10;
+
+  std::cout << "&x = " << &x << '\n';
+  //buraya öyle bir kod yazın ki x'in adresi değişsin -->cevap öyle bir şey yok!!
+  std::cout << "&x = " << &x << '\n';
+}
+Yani her yeni otomatik ömrülü değişken ondan bir önce hayata gelen otomatik ömürlü değişkenden sonraki bellek alanında yer alır ve stack pointer'ı artık onu gösterir hale gelir.
+Otomatik yerel değişkenin ömrü bittiğinde ise stack pointer bir önceki değişkeni gösterecek hale gelir; bu hep böyle ilerler. Yani bir değişkenin hayatı devam ederken adresinin 
+değişmei diye bir şey söz konusu değildir!!!
+
+Birkaç önemli terim daha var ele almamız gereken:
+
+default memner initializer / in-class initializer
+delegated constructor
+temprorary objects
+copy elision
+  mandatory copy elision
+conversion ctor
+
+
+1)default memner initializer / in-class initializer
+C++11 ile dile eklenen bir araçtır!! Derleyicinin default ettiği default ctor sınıfın non-static data member'larını default initialize eder.
+Öte yandan biz bir sınıf için bir ctor yazarsak ancak yazdığımız ctor'da sınıfın bir ya da birden fazla veri elemanını C.I.L ile init
+etmezsek, derleyici koda bunları default init eden kodu ekler.
+
+Örneğin derleyicinin default initialize ettiği nesne bir sınıf türündense derleyici empy olarak initialize eder:
+class Myclass {
+public:
+  Myclass()
+  {
+    //
+  }
+private:
+  std::string mname; //mname default initialize edilir yani string sınıfının default initializer'ı çağırılır o halde sınıf empy string olarak initialize edilir.
+};
+
+default memner initializer
+sentaks olarak sınıfın veri elemanı tanımlanırken ya eşittirin sağına ya da küme parantezi içine bir ifade yazmalıyız.
+class Myclass{
+public:
+private:
+  int mx = 10;
+  int my{20};
+
+};
+Bu sentaks biçimi modern C++ öncesinde sentaks hatasıdır. default memner initializer'ı () ile kullanabilir miyim-->hayır sentaks hatası!!
+
+Bunun anlamı: biz böylece derleyiciye default constructor yazdığında normalde bu elemanları default initialize edecektin; şimdi default değil bu değerlerle initialize et demek!
+
+#include <iostream>
+#include <string>
+
+class Myclass{
+
+public:
+  void print()const
+  {
+      std::cout << "mx = " << mx << '\n';
+      std::cout << "my = " << my << '\n';
+
+  }
+
+private:
+  //default member initializer
+  int mx = 56;
+  int my{ 435 };
+};
+
+int main()
+{
+    Myclass m;
+    m.print();
+}
+
+Eğer default member initializer kullanmama rağmen constructor initializer veya atama ile farklı değerler vermem gayet normaldir:
+
+#include <iostream>
+#include <string>
+
+class Myclass{
+  
+public:
+  Myclass() :   mx{7771}, my{435523} {}
+  void print()const
+  {
+      std::cout << "mx = " << mx << '\n';
+      std::cout << "my = " << my << '\n';
+
+  }
+
+private:
+  //default member initializer
+  int mx = 56;
+  int my{ 435 };
+};
+
+int main()
+{
+    Myclass m;
+    m.print();
+}
+
+Aşağıda örnekte sınıfın default constructor'ı not declared olduğundan(herhangi bir constructor bildirildiğinde default ctor not declared oluyordu) 
+default member initializer ile değer bildirmenin pek bir önemi yoktur:
+
+class Date {
+public:
+  Date(const char *p);
+private:
+  int m_day{1};
+  int m_month{1};
+  int m_year{1900};
+};
+Fakat bu sınıfın default ctor'unu default olarak bildirirsek özellikle o zaman default değerler değişkenlere atanmış olur:
+class Date {ctor'ın 
+public:
+  Date(const char *p);
+  Date() = default;//user declared defaulted
+private:
+  int m_day{1};
+  int m_month{1};
+  int m_year{1900};
+};
+
+Ne zaman default memeber initializer kullanmalıyız?
+Eğer dinamik olarak belirlenmiyorsa ctor'ın yapacağı iş zaten veri elemanlarını bu değerle initialize etmekse ctor'ı yazıp bunu açıkça 
+göstermek yerine default member initializer kullanmak kodun okunmasını kolaylaştırır. Birden fazla ctor aynı değer(leri) kullanıyorsa
+bu durumda aynı zamanda ortak bir kodu bir yerde de toplamış oluruz. 
+
