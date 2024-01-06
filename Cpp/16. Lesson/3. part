@@ -1,0 +1,269 @@
+delegated constructor
+yine modern C++ ile dile eklenen bir özelliktir. Çok tipik senaryolardan biri bir sınıfın birden fazla constructor'nın olması ve constructor'ların ortak bir koda sahip olması
+Biliyorsunuz Hocamız'ın şöyle bir sözü var: Kod tekrarı felakettir kod tekrarı demek koddan koku gelmesi demektir. Dolayısıyla programcılar; kod tekranından kaçınırlar ve kaçınmalıdırlar.
+
+
+Eski C++'ta constructor'ların  ortak kodunun tekrar etmesinden kaçınmak için kullanılan tipik yöntem sınıfa 1 private fonksiyon yazmak
+ve o private fonksiyonun o constructor'ların ortak kodunu taşıması şeklindeyi bu fonksiyonun private bölümde bildirilmesinin nedeni;
+client kodun bunu çağırmasını istemiyor bu aslında adeta  constructor'ların bir bileşeni gibi bir parçası gibi yani constructor tarafından çağrılacak 
+ama biz bunu public üye fonksiyon yapsaydık a slında nesneyi hayata getirme sürecinin bir bileşeni olmasına rağmen bir hayata gelmiş nesne içinde 
+client kodlar tarafından çağrılacaktır bu da anlamsız bir kod olacaktı. Ya da belki tanımsız davranışa olacaktı yani nesne hayata gelmişse onu neden
+tekrar initialize ederiz ki
+class Neco{
+public:
+  Neco();
+  Neco(int)
+  {
+      init();
+  }
+  Neco(int, int)
+  {
+    //code 
+    init();
+  }
+  Neco(int, int, int);
+  Neco(const char *p);
+};
+
+Delegated constructor bir kere kesinlikle buna göre çok ciddi bir iyileştirmeye sahip çünkü init fonksiyonun kodu constructor ortak kodu bu kod tipik olarak veri elemanlarını initialize edecek;
+Ama baştan yalancı durumunda çünkü zaten programın akışı contructor'ın içine  geldiğinde veri elemanları zaten initialize edilmiş oluyordu.
+İkinci bir problem daha var; init fonksiyonunu biz private yaptık böylece client kodlar bunu çağıramaz çünkü hayatta olan bir nesnenin init edilmesi lojik açıdan zaten yanlış 
+ama aynı zamanda birçok durumda tanımsız davranış olacak. Öte yandan sınıfın üye fonksiyonları sınıfın private bölümüne erişebilir örneğin bir üye fonksiyonu içinde 
+init'in çağrılmasını engel bir durum yok.
+
+
+Şimdi buna alternatif çok daha iyi bir yapı var; her zaman alternatif değil ama çoğu zaman alternatif:  
+
+Bir constructor constructor initializer list ile veri elemanlarını initialize  etme görevini bir başka constructor'a delege edebiliyor ve halen bu initialization 
+bir atama değil. 
+
+class Neco{
+public:
+  Neco(int a, int b, int c): ma(a), mb(b), mc(c) {}
+  Neco() : Neco(0, 0, 0) {}//delegeting constructor
+private:
+  int ma, mb, mc;
+};
+Böylece şöyle bir avantaj elde etmiş oluyoruz artık ortak kodu içerenin  Neco(0, 0, 0) constructor olduğunu düşünelim diğer constructor'ların tamamı ya da bir kısmı bu constructor'ı çağırır.
+Ama atama yapılmıyor halen nesnenin elemanları initialize  edilmiş oluyor sadece constructor'lardan biri görevi bir başkasına delege etmiş durumda.
+
+Ağağıdaki örnekte 2 parametreli constructor görevi bir parametreli constructor delege etti o da görevi 3 parametreli costructor'a delege etti.
+
+E peki 3 parametre ctor tekrar 2 parametreli ctor'a delege etse o zaman derleyici compile time'da bunu detect ederse sentaks hatası verecek
+eğer compile time'da bunu detect edemezse tanımsız davranış olacak; yani burada recursive bir yapı oluşmamasından programcı sorumludur.
+Yani bir constructor bir ctor'a  delege edilmiş ise o tekrar başka bir ctor'a delege edebilir ama burada recursive bir yapı oluşmamasından biz sorumluyuz.
+
+Bir sınıfın tanımını C++'ta bir blok içinde bir fonksiyonun tanımı içinde yapabilirsiniz böyle sınıflara ingilizcede local class deniyor.
+
+void func()
+{
+  class Neco{
+    //  
+  };
+  //..
+}
+
+int main()
+{
+    class Myclass{
+      //...
+    };
+}
+
+deleget edilmiş bir ctor'ın bloğunda olan ifadeler çağırılır:
+class Neco {
+public:
+   Neco(): Neco(0, 0, 0)
+   {
+   
+   }
+   Neco(int a, int b, int c) : ma(a), mb(b), mc(c)
+   {
+      std::cout << "Neco(int, int, int)\n";
+   }
+   Neco(int x) : Neco(x, x, x)
+   {
+     std::cout<< "Neco(int)\n";
+   }
+   Neco(int x, int y): Neco(x + y)
+   {
+       std::cout << "Neco(int, int)\n";
+   }
+private:
+  int ma, mb, mc;
+};
+
+int main()
+{
+    Neco n3(1,4);
+}
+Aslında biz ctor'umuzu çalıştırdığımızda tek parametreli 2 parametreye o da  o tek parametreli ctor'a delege etti
+delegating delege eden demek-->Neco()
+Delegated delegate edilen demek--> Neco(0, 0, 0)
+
+Delegated constructor da programcıların yanlış anladığı bir özellik var oda şudur: 
+Yani bir constructor hem görevi başka bir ctor'a delege edip hem de veri elemanlarının bir kısmını da kendisi initialize edebilir mi?
+Cevap hayır böyle bir kodunu legal olma ihtimali yok:
+class Neco{
+public:
+  Neco(int a, int b) : ma(a), mb(b) {}
+  Neco() : Neco(0, 0), mc(45) {} //sentaks hatası
+private:
+  int ma, mb, mc;
+};
+
+Delege edilen ctor'ın initialize etmediği veri elemanı eğer default initialize edilmişse o zaman tüm veri elemanları initialize edilmiş olur:
+class Neco {
+
+public:
+  Neco(int a, int b) : ma(a), mb(b) {}
+  Neco() : Neco(100, 2000) {}
+
+  void print()const
+  {
+      std::cout << "ma = " << ma << '\n';
+      std::cout << "mb = " << mb << '\n';
+      std::cout << "mc = " << mc << '\n';
+  }
+public:
+  int ma, mb, mc{98};
+};
+
+int main()
+{
+  Neco myneco;
+  myneco.print();
+}
+geçici nesneler(temporary objects)
+
+Örneğin swap fonksiyonunu en temel düzeyde yazalım:
+void swap(T &r1, T&r2)
+{
+  T temp(r1);
+  r1 = r2;
+  r2= temp;
+}
+
+Burada 2 temel sorun vardır:
+1)T herhangi bir sınıf türü olmak üzere; T string olsa eğer bu tam bir efficiency felaketi olur çünkü temp'i oluştururken temp için copy ctor çağırılır:
+gereksiz yere kopyalama yapılacak; ardından r1 = r2 ifadesinde de r2 = temp ifadesinde de copy assigment çağırılır ve yine kopyalama olur. Oysa taşıma söz konusu olsaydı
+gereksiz yazı oradan oraya kopyalanmayacaktı. Yani move ctor ve move assigment çağırılsaydı string sınıf nesnelerinin pointerlarının gösterdiği bellek alanlarındaki
+yazılar değişmeyecekti yani taşıma semantiği ile pointer'lar manipüle edilecekti.
+2)T'nin move only bir type olması. Yani bu sınıfın copy memberlarının olmaması demektir. Bu durumda yukarıda ki kodda sentaks hatası meydana gelirdi;
+bu sorunları aşmak için bu şekilde fonksiyonu redefine edelim:
+void swap(T &r1, T&r2)
+{
+  T temp(std::move(r1));
+  r1 = std::move(r2);
+  r2= std::move(temp);
+}
+
+standart kütüphanede bulunan swap'ın kodu da bu şekildedir:
+#include <iostream>
+
+void swap(T x, T y)
+{
+  T temp(std::move(x));
+  x = std::move(y);
+  y= std::move(temp);
+}
+yani geçici nesne diye kastedilen işte ismi Temp olan nesneler değildir geçici nesne C++'ta ayrı nesne statüsü; geçişi nesneler öyle nesneler ki adı üstünde nesneler
+ama kaynak kod açısından baktığımız zaman o nesnelere işaret eden o nesneleri betimleyen bir isim yok yani kodda bir değişken ismi olmamasına rağmen
+derleyicinin ürettiği kodda fiilen oluşturulan bir nesne var.
+Özellikle geçici nesne bir sınıf türünden ise her sınıf nesnesi hayata geldiğinde o sınıf nesnesine hayata getiren bir ctor çalışıyorsa
+sınıf nesnesinin  hayatını da bitiren destructor ise  biz  ortada bir değişken ismi görmesek dahi derleyiciler ürettiği kodda bir nesne vardır.
+
+Kaynak kodla doğrudan bir isimle ilişkilendirilmemiş bir değişken ismiyle ama derleyici için ürettiği kodda fiilen var olan hayata gelen belirli bir süre hayatta kalan
+belirli bir noktada hayatı biten değişkenlerden bahsediyoruz. Geçici nesneleri oluşturmanın adeta iki yolu var:
+
+1)Biz özellikle geçişin nesne oluşturacağımızı söylemeyeceğiz yazdığımız kod geçici nesne oluşumuna neden olacak yani derleyicinin için ürettiği kodun
+bir parçası olacak 
+Örneğin bu örnek de bir temporary object oluşumuna neden olur yani biz böyle bir kod yazmışız ki niyetiniz doğrudan bu ya da değil derleyicinin bir geçici nesne oluşturmasına neden olduk:
+
+class Myclas {
+public:
+  Myclass()
+  {
+      std::cout << "default ctor this: " << this << '\n';
+  }
+  ~Myclass()
+  {
+      std::cout << "destructor this: " << this << '\n';
+  }
+  Myclass(int x)
+  {
+      std::cout << "Myclass(int x) x = : " << x << "this: " << this << '\n';
+  }
+};
+
+int main()
+{
+    Myclass mx;
+    mx = 16;//  Myclass(int x) ctro çağırılır   
+}
+Referans sementi ile ilk öğrendiğimizde de normalde sol taraf referansını sağ tarafta değerine bağlanamayacağını bunun sentaks hatası olduğunu ama const sol taraf referansının
+R value  expr.'e bağlanabileceğini söylemiştik  bunu da şöyle açıklamıştık  L referansına böyle bir ifadenin  bağlanması derleyicinin burada aslında bir geçici nesne oluşturyor
+zaten referans bu sabite bağlanmıyor referans derleyicinin oluşturduğu geçici nesneye bağlanıyor işte çok güzel bir örnek:
+inr main()
+{
+    const int& r = 45;
+}
+Geçici nesneleri ikinci bir oluşturma biçimi daha var fakat bu kez kodu yazdığımız context'ten değil de adeta fiilen biz derleyici talimat veriyoruz; derleyici benim için bir geçici 
+nesne oluştur anlamındadır; bunu yapmak için  geçici nesne oluşturma sentaksı şöyle:
+yani eğer bilerek isteyerek geçiyor nesne oluşturuyorsak sınıfın ismini yazıyorsunuz ondan sonra  bir isim kullanmadan parantez atomunu kullanarak
+ya da modern C++'ta küme parantezi kullanarak constructor'a  gönderilen argümanları yazarak bunu belirtmiş oluruz.
+Geçici nesne için default constructor çağrılmış olacak:
+Myclass(10, 20)-->geçici nesne direk initialize edilir
+Myclass{}-->geçici nesne value initialize edilir
+
+Bu durum primitive türler için de geçerlidir:
+int{}
+int()
+int(23)
+int{34}
+
+
+Geçici nesne fonksiyon pointeri bir sınıf türünden olabilir pointer olabilir.
+
+
+Bizi daha çok ilgilendiren bu konuda bilerek isteyerek oluşturduğumuz geçici nesneler; burada 2 tane soru var
+1)Geçici nesne oluşturma ifadelerinin value kategorisi nedir?
+2)Geçici nesne oluşturma ifadelerine konu geçici nesneler ne zaman hayata gelirler, bunların hayatları ne zaman biter?
+3)Geçici nesne oluşturma ifadeleri ile neler yapabiliriz?
+4)Neden geçici nesne oluşturalım?
+En son soruya çok kısa bir cevap verirsek eğer geçici nesne işini görüyorsa geçici nesne kullan gidip de isimlendirilmiş bir değişken kullanma demek ki bunların kullanılmasında birtakım avantajlar
+olduğu için belirli kodları yazarken isimlendirilmiş değişkenler tanımlamak yerine geçici nesne oluşturma ifadelerini tercih ediyoruz. 
+
+İlk sorunun cevabını da verelim; geçici nesne oluşturma ifadelerini value kategorisi PR value expr.'dir.
+Şimdi buradan çok önemli bir sonuç çıkar örneğin:
+class Myclass {
+public:
+
+};
+
+int main()
+{
+    Myclass{};//this a temporary object--->PR value expr.
+    Myclass& r = Myclass{};//sentaks hatası L value referans R value expr'ye bağlanamaz
+    Myclass&& r = Myclass{}; //legal R value referans R value expr'ye bağlanabilir
+    const Myclass& r = Myclass{}//legal const L value referans R value expr'ye bağlanabilir
+}
+Bu da aynı zamanda şu demek bunu bir fonksiyona parametre olarak geçecek isem parametresi PR value expr kabul eden fonskiyonları çağırmam legal olur:
+class Myclass {
+public:
+
+};
+
+void foo(Myclass);
+void bar(Myclass&&);
+void baz(const Myclass&);
+void func(Myclass&)
+
+int main()
+{
+    foo(Myclass{});//legal
+    bar(Myclass{});//legal
+    baz(Myclass{});//legal
+    func(Myclass{});//sentaks hatası
+}
+
