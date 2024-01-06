@@ -1,0 +1,247 @@
+15 Şubat 2023 Çarşamba günü saat 19.30 16 ders
+
+Yeni bir alt başlığımız vardı Moved-from State
+Moved-from State demek bir nesnenin kaynağı çalınmış o nesne bir başka nesneye a)ilk değer verirken b)atanırken move constructor hayata gelmiş onun kaynağını çalmışa yada move assigment nesneye atanma yapmış böylece diğer nesnenin
+bizim nesnemizin kaynağını çalma durumuna deniyordu.
+
+Bununla ilgili dedik C++'ın standart Kütüphanesi belirli garantiler veriyor (It is in a valid state: o geçerli bir durumda) geçerli durumda o lması ne demek değerinin ne olduğu konusunda güvence verilmese de
+invarient'ları(ilerde ele alacağız) değişmezleri sağlam bir durumda tutuyor bu da şu anlama geliyor; ona tekrar değer atayıp kullanabilirsiniz ve destructor'ı çağırıldığında bir komplikasyona neden olmaz anlamına gelir.
+Yani Ben hem onun kaynağını çalayım ama ya kaynağını çaldığım nesne geri çağrıldığında destructor'ı çağırıldığında bu kaynağı geri verirse ben ne yapacağım diye bir kaygımız yok.
+
+Dedik ki sonra her ne kadar standart kütüphane kendi sınıfları için açıkça garantiye şu şekilde vermese de örneğin String sınıfı türünden bir nesnenin kaynağını çalarsanız tuttuğu yazı boş yazı olur.
+Normalde böyle bir garanti yok ama en kolayı
+Arkadaki kodlar için nesneyi bu state getirmek olduğundan bunun  pratik hayatta bir garanti olduğunu düşünebiliriz.
+
+Burada asıl önemli olan şu biz kendi sınıflarımız için taşıma semantiğini kendinimiz implemente ediyor isek diğer nesneye yani kaynağını çaldığımız nesneyi bizim de kararlı bir durumda (valid state'te) geçerli bir durumda 
+ve destructible yani destructor'ı çağrılabilir bir durumda bırakmamız gerekiyor yine burada en kolayı onu sanki default initialize edilmiş duruma sokmak.
+
+
+Eğer bir sınıfın  veri elemanları pointer değilse bir tane sınıf 20.000 tane ünlem karakterinden oluşan bir yazıyı tutuyor olsun. Burada aşağıda ki örnekte func(std::move(str)); çağrısı sonucu str'nin kaynağı çalınmamıştır!!!
+Bu çok karıştırılan bir durumdur çünkü move doesn't move yani move'un move etmekle doğrudan bir ilişkisi yoktur!! Burada yapılan sadece str::move ile L value expr.'yi bir sağ taraf referansına bağlar hale getirbilmek:
+
+void func(std:string &&r)
+{
+  //fonksiyon gerçekten bu şekilde define edilmiş
+}
+
+int main()
+{
+  std::string str(20'000, '!');
+  func(std::move(str));
+  //fonksiyon çağrısında semnatik olarak yapılan str::move ile L value expr.'yi bir sağ taraf referansına bağlar hale getirbilmek örneğin aşağıda olan kod satırıda aynı semantik anlama sahiptir:
+  std::string &&r = std::move(str);
+}
+
+Kaynak çalıntısı olmadığını gösterebiliriz çünkü standart string sınıfı nesnesinin kaynağı çalındığında pratik olarak biliyoruz uzunluğu 0 olacak:
+void func(std:string &&r)
+{
+  //fonksiyon gerçekten bu şekilde define edilmiş
+}
+
+int main()
+{
+  std::string str(20'000, '!');
+  func(std::move(str));
+  //fonksiyon çağrısında semnatik olarak yapılan str::move ile L value expr.'yi bir sağ taraf referansına bağlar hale getirbilmek örneğin aşağıda olan kod satırıda aynı semantik anlama sahiptir:
+  //std::string &&r = std::move(str);
+
+  std::cout << "str.size() = " << str.size() << '\n';//size 20.000 olur çünkü kaynağı çalınmadı
+}
+
+peki nasıl olacak da ben bunun kaynağını çalacağım? 
+
+Kaynağa çalınmasını sağlayan böyle bir fonksiyonu çağırmamız değil tabii ki kaynağın çalınmasını sağlayan func fonksiyonun kodu içinde ya bir string nesnesi oluşturmak ya da bir string nesnesine atama yapmak:
+Bu örnekte r L val expr. olduğu için atama için copy ctor çağırılır yani kaynak çalınmaz!
+void func(std:string &&r)
+{
+  std::string s = r;// r is an L value expr. for s copy ctor is called 
+}
+
+int main()
+{
+  std::string str(20'000, '!');
+  func(std::move(str));
+
+  std::cout << "str.size() = " << str.size() << '\n';//size 20.000 olur çünkü kaynağı çalınmadı
+}
+Kaynağını çalmam için fonksiyon içinde oluşturduğum nesneniyi oluştururken copy ctor değilde move ctor veya move assigment'ın çağırılmasını sağlamalıyım:
+void func(std:string &&r)
+{
+  std::string s = std::move(r);// for s move ctor is called 
+}
+
+int main()
+{
+  std::string str(20'000, '!');
+  func(std::move(str));
+
+  std::cout << "str.size() = " << str.size() << '\n';//size 20.000 olur çünkü kaynağı çalınmadı
+}
+
+
+neden bir fonksiyonun parametresi sağ taraf referans olabilir son derece basit böyle bir fonksiyonun çoğunlukla tek başına bulunmadığını göreceğiz yani böyle bir fonksiyonu tek görürsem neden şüphelenmeliyiz;
+ya çok özel bir durum var ya da programcı bazı şeyleri anlamış çünkü eğer böyle bir func fonksiyonu başka bir overload olmadan tek başına olsaydı:
+void func(std::string &&r);//1. fonksiyon
+sadece R value expression olan sınıf nesneleri için çağrılır değil mi? L value expr. olan  bir sınıf nesnesi ile böyle bir fonksiyonu çağırsaydın sentaks hatası olurdu. Çünkü sağ taraf referansı sol taraf değeri ifadesine bağlanmaz
+O zaman sadece sağ taraf değeri olan nesneler için bir fonksiyon çağırmanın fazlaca bir esprisi olmadığını söyleyebiliriz. Şöyle bir overload daha olsaydı:
+void func(const std::string &r);//2. fonksiyon
+sağ taraf değeri olan string nesneleri için void func(std::string &&r);  sol taraf değeri olan string nesneleri için void func(const std::string &r); fonksiyon çağrılacak. Böyle bir overload yapılmasının nedeni son derece basit
+sol taraf değeri bana gelsin ben onun kaynağını kopyalayayım; sağ taraf değeri bana gelsin ben onun kaynağını çalayım işte bu temel varlık nedeni bu zaten  sol taraf değeri ve sağ taraf diğerine ayrı muamele yapmak. 
+Sol taraf değerinin kaynağını çalsam problem olur ama sağ tarafta değerinin  kaynağını çalmak akıllıca olur dolayısıyla 2 tane overload yazıyorum ki sol taraf değeri olanlar için 1 çağrılacak ama sağ taraf değeri olanlar için 2 çağıralacak.
+
+Peki ne yaparsam sol taraf değeri olanlar için kaynağını kopyalayıp sağ taraf değeri için olanın kaynağını çalarım ya son derece basit iki
+void func(const std::string &r)
+{
+  std::string s = r;
+}
+ burada hayata getirdiğimiz nesneyi görüyorsunuz
+copy constructor ile hayata getirmiş oluyoruz copy constructor demek diğer nesnenin kaynağını kopyalamak demek
+
+void func(std::string &&r)
+{
+  std::string s = std::move(r);
+}
+
+burada sağ tarafta değeri için çağırıyoruz sağ tarafta değeri buraya gelecek
+buradaki nesne için move constructor çağrılacak; burada yapılabilecek en tipik hatalardan biri ne olurdu burada std::move'un çağrılması gerektiğini programcı anlamamış olabilirdi
+sanki böyle yazdığında   std::string s = r;   r bir sağ taraf referansı değişken olduğu için s için sanki move ctor çağırıldığını düşünmek; veri tipi ile  bir ifadenin value kategorisini karıştırma sendromu demiştik geçen derste
+oysa bu r bir  ifade isimlerin oluşturduğu ifadeler her zaman L value expr. olduğu için yine copy ctor çağırılırdı kaynak çalınmaz kopylanırdı bu da istenen şey olmazdı.ma biz sağ taraf diğerine bağlandığını biliyoruz
+
+
+Bu sadece bir nesneyi hayata getirmek şeklinde olmak zorunda değil atama da yapılabilir: 
+void func(const std::string &r)
+{
+  std::string s;
+  //...
+  s = r;//copy assigment çağırılır
+  
+}
+
+void func(std::string &&r)
+{
+  std::string s;
+  s = move(r);//move assigment çağırılır
+}
+
+geçen dersin sonunda yazdığımız kodda geçen push_back fonksiyonuna bir bakalım
+bu fonksiyonun 2 tane overload'u var ve birinin parametresi string&& iken diğerinin cont string& tıpkı az önce bahsini ettiğimiz 2 tane oveload vardır.
+
+#include <string>
+#include <fstream>
+#include <iostream>
+#include <vector>
+
+int main()
+{
+    using namspace std;
+    std::vector<std::string> svec;
+    svec.push_back();//parantez içine R value expr. yazarsam const std::string& parametereli L value expr. yazarsam std::string&& parametreli fonksiyon çağırılır.
+}
+
+şimdi demek ki taşıma semtine şu eskilerin şöyle bir lafı var duydunuz mu eski kitaplarda falan da geçer taşıma semantiğinin  tezahür etme biçimi ya da biçimlerinden biri tipik olarak bu
+yani programcı aslında şunu sağlamak ister bir fonksiyon yazıyorum fonksiyona L value expr gelirse kaynağını kopyalayıp R value expr  gelirse kaynağını çalayım.
+
+
+Acaba her sınıf için move ctor bir fayda sağlar mı?
+Örneğin bu örnekte x = y ile x = std::move(y); arasında bir fark var mıdır?
+int main()
+{
+  int x = 190;
+  int y = x;
+  int y = std::move(x);
+}
+2 kod için  derleyicinin oluşturduğu kod arasında bir farklılık yok int'in  taşınması ile kopyalanması diye bir şey yok ki int'in kopyalanması demek taşınması demek
+ya da şöyle diyelim sağ tarafta değeri olan int'ten  bir nesneye atama ya da kopyalama yapmakla sol tarafta sol taraf değeri olan int'ten nensneye
+kopyalama ya da taşıma yapmak arasında bir fark yoktur.
+
+Bir diğer senaryo pointer'a pointer atama yaparken de kopyalama ve taşıma arasında bir fark yoktur:
+pointer'ın  sağ taraf değeri olmasıyla sol taraf değeri olması fark yaratmaz; bu bir sınıf türü değil ki sonuçta
+#include <iostream>
+
+int main()
+{
+  int x = 10;
+  int *p{&x};
+  int *ptr = p;
+  int *ptr = std::move(p); //üstteki ve alttaki kod satırı arasında bir fark yoktur!
+}
+yani ortada bir sınıf yoksa bir tam sayı türü bir gerçek ya da bir pointer türü varsa   sağ taraf değerini kaynak olarak kullanmakla bir atamada tam'da örnekte olduğu gibi sol taraf değerini bir kaynak olarak kullanmak arasında  hiçbir fark yoktur
+
+Örneğin:
+class Myclass{
+public:
+
+private:
+  int mx, my, mz;
+  int a[10];
+  int *p1;
+  int *p2;
+};
+burada  hem copy constructor'ı derleyici default etti hem de move constructor'ı default etti ve  derleyicinin yazdığı copy constructor'ın çalışmasıyla derleyicinin yazdığı move constructor'ın çalışması arasında bir fark olmaz 
+çünkü derleyiciler yazdığı copy  constructor ile move constructor'ın yapacağı işlem bu veri elemanları için aynı anlama gelir çünkü pointer taşınması ile  ya da int türden bir değişkenin taşınması ile kopyalanması arasında bir fark yok:
+  class Myclass{
+  public:
+    Myclass(const Myclass&other) : mx(other.mx), ve diğer tüm elemanlar
+    Myclass(Myclass &&other) : mx(std::move(other.mx)), ve diğer tüm elemanlar
+  private:
+    int mx, my, mz;
+    int a[10];
+    int *p1;
+    int *p2;
+  };
+dolayısıyla eğer sınıfınızın veri eleman başka sınıflar türünden değilse derleyicisi yazdığı copy constructor ve derleyici nin yazdığı move constructor arasında zaten bir fark yoktur.
+
+
+ama  burada bir tane bile bir sınıf türünden nesne olsaydı bu sınıfın copy  constructor ile move  constructor'ı bir fark kesinlikle yaratır:
+artık copy ctor ile kaynak kopyalanırken move ctor ile kaynak çalınır:
+Örneğin:
+class Myclass{
+public:
+
+private:
+  std::string mstr;
+  int mx, my, mz;
+  int a[10];
+  int *p1;
+  int *p2;
+};
+
+yani her sınıf için copy constructor ile move constructor arasında  bir fark olabilmesi için sınıfınızın elemanlarından
+en az birinin kopyalanması ile taşınması arasında bir fark olması lazım bu arada yanlış anlaşılma olmasın elemanları sadece sınıf türünden olması da yeterli değil mesela
+class Myclass{
+public:
+
+private:
+  int mx, my, mz;
+  int a[10];
+  int *p1;
+  int *p2;
+};
+
+class Bircan{
+
+private:
+  Myclass mx;
+};
+derleyicilerin yazdığı copy constructor ile move constructor'ın çalışması arasında bir fark yok.
+
+bir kritik durum daha var bazı sınıflar move only type yani kopyalaması yasak taşıması serbest
+#include <iostream>
+
+class MoveOnly{
+public:
+  MoveOnly(const MoveOnly&) = delete; //copy ctor deleted
+  MoveOnly& operator=(const MoveOnly&) = delete;//copy assigment deleted
+  MoveOnly(MoveOnly&&); 
+  MoveOnly& operator=(MoveOnly&&);
+};
+
+class Myclass{
+private:
+  MoveOnly mx;
+};
+eğer derleyici sınıfın bir special member fonksiyonlu
+default ederken sentaks hatası oluşuyorsa default  ettiği special member function'u delete  ediyordu; copy constructor da my class için
+sentaks hatası oluşacak çünkü *this'in mx'ine  diğer nesnenin mxi ile hayata getirecek bu durumda MoveOnly sınıfının copy constructor çağrılması gerekiyor ama copy ctor delete edildiği için sentaks hatası olacak böylece derleyici default etmesi gereken
+special member funciitonu delete eder; aynı şey copy assigment içinde geçerlidir. Özetle böyle bir sınıf yazdığınızda copy işlemlerinin bloke edildiğini unutmamalıyız.
+
