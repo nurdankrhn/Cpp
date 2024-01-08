@@ -1,0 +1,365 @@
+ explicit consructor
+Modern C++ ile dile eklenen bir araç değildir. Yani eski C++'ta da bulunan bir yapıdır. explicit bir anahtar sözcüktür.
+Bir ctor'u özellikle de tek parametreli bir ctor'u explicit anahtar sözcüğü ile bidirebiliriz.
+
+class Nec
+{
+private:
+    /* data */
+public:
+    Nec();
+    explicit Nec(int);
+    ~Nec();
+};
+
+int main()
+{
+    Nec mynec;
+    mynec = 12;//sentaks hatası
+}
+
+anahtar sözcüğün explicit değilde explicit only gibi düşünebiliriz. Bu ctor tür dönüşümü gerçekleştirmesi için tür dönüştürme operatörü kullanılması gereklidir; anlamına gelmektedir. 
+Bu şu anlama gelir bu ctor int türden Nec sınıfı türüne implicit tür dönüşümü gerçekleştirmez. İmplicit dönüşüm gereken yerde sentaks hatası meydana gelir.
+
+O halde özellikle sınıfın tek parametreli ctor'larını aksi yönde karar vermemizi gerektiricek makul bir neden olmadıkça explicit yapmalıyız.
+Yani genel olarak tek paremetreli ctor için explicit eklememiz gerekir; örneğin vektör sınıfında bu sebepten dolayı sentaks hatası meydana gelir:
+
+#include <iostream>
+#include <vector>
+#include <string>
+
+void foo(std::vector<int>);
+
+int main()
+{
+    int ival{244'569};
+    foo(ival);//sentaks hatası çünkü vector sınıfının size_t parametreli ctor'ı explicit ctor.
+}
+Dikkat edilirse ctor explicit olduğunda örtülü dönüşümlerin hepsi sentaks hatası olur.
+
+class Nec{
+public:
+    Nec();
+    explicit Nec(int);
+};
+
+void foo(Nec);
+void bar(const Nec&);
+void baz(Nec&&);
+
+Nec func()
+{
+    //code
+    return 19;//sentaks hatası
+}
+int main()
+{
+    Nec mynec;
+    ival{2456};
+
+    mynec = static_cast<Nec>(ival);//legal explicit tür dönüşümü ile
+    mynec = (Nec)ival;//c style type cast legal hale geldi
+    mynec = Nec(ival);//geçici nesne sentaksı ile legal hale geldi
+    mynec = 12;//sentaks hatası
+    foo(12);//sentaks hatası
+    bar(13);//sentaks hatası
+    baz(14);//sentaks hatası
+}
+
+Bazı durumlarda/sınıflarda örtülü dönüşüm özellikle isteniyor:
+Örneğin string sınıfı türünden bir nesneyi cstring ile initialize edebiliyoruz yani const char * parametreli olarak; bu istenerek explicit olmaktan çıkarılmış. string sınıfının
+ctring yani bizden null terminated by stream isteyen bir ctor'ı var; o halde string nesnesini bir cstring ile hayata getirmek veya bir cstring'in string'e atamanın doğal olduğu
+düşüncesi içerisi içindeysek bu ctor'ı explicit yapmamalıyız. Çünkü string sınıfının zaten varlık nedenlerinden biri bir yazı tutmak ve yazınında en kolay atanma oluşturma 
+biçimi cstring formudur. Dolayısıyla cstring parametreli ctor'ı explicit değildir. Yani öyle durumlar var ki bu örnekte olduğu gibi bilerek isteyerek ctor'ı explicit yapmıyoruz;
+implicit dönüşüme özellikle izin veriyoruz. Fakat bu senaryo explicit yapmaya göre oldukça azınlıkta olan bir senaryodur.
+
+
+ctor explicit ise copy initialization sentaksı artık geçersiz olur ve sentaks hatası meydana gelir:
+
+class Myclass{
+public:
+    explicit Myclass(int);
+};
+
+int main()
+{
+    Myclass m1(12);
+    Myclass m2{15};
+    Myclass m3 = 19;//copy initialization sentaks hatası
+}
+
+
+O halde bir sınıfın ctor'ını kullanacağız ve explicit olup olmadığını bilmiyoruz; dökümana bakmadan test etmek için copy initialization  edip; sentaks hatası meydana gelme durumuna
+göre bunun explicit olup olmadığını anlarız:
+
+
+#include <iostream>
+#include <vector>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string str = "necati ergin";//copy initialization sentaks hatası olmadı demek ki sınıfın cstring parametreli fonksiyonu explicit değilmiş
+    vector<int> ivec = 123;//copy initialization sentaks hatası çünkü vector sınıfının size_t parametreli fonksiyonu explicit ctor
+
+
+}
+
+#include <iostream>
+#include <vector>
+#include <string>
+#include <stdexpect>
+
+int main()
+{
+    runtime_error ex = "hata hata"; //sentaks hatası bu fonksiyon için çağırılan ctor explicit 
+    runtime_error ex("hata hata");//legal explicit ctor'da direct initialization legaldi
+}
+
+#include <iostream>
+#include <memory>
+
+int main()
+{
+    using namespace std;
+    unique_ptr<int> uptr = new int; //sentaks hatası ctor explicit ctor
+}
+
+Fonksiyonların bildiriminde kullanılan bazı niteliyiciler örneğin explicit bildirimde var iken tanımda olması mı gerekir?
+Bu sorunun genel bir cevabı yok maalesef; bazıları bildirimde olmaları gerekir tanımda olması da gerekir, bazılarında ise 
+tanımda olsa da olur olmasa da olur, veya tanımda da olması sentaks hatasına yol açar:bu sorunun genel bir cevabı yoktur!!
+anahtar sözcüğün ne olduğuna bağlı olarak farklı kurallar vardır.
+
+explicit anahtar sözcüğü için bu tanımda da olması sentaks hatasıdır şeklindedir; sadece bildirimde olmalı.
+
+sınıfın üye fonksi olan static üye fonksiynları içinde static anahtar sözcüğünün tanımda kullanılması sentaks hatasında yol açar; sadece bildirimde olmalı.
+
+Bu şekilde bir nesne tanımladığımız zaman explicit ctor overload sete hiç girmez ve double parametreli ctor çağırılır:
+class Myclass{
+public:
+    explicit Myclass(int)
+    {
+        std::cout << "Myclass(int)\n";
+    }
+    Myclass(double)
+    {
+        std::cout << "Myclass(double)\n";
+    }
+};
+
+
+int main()
+{
+    Myclass x = 5;
+}
+
+
+Sadece tek parametreli fonksiyon mu explicit olabilir?
+Hayır, birden fazla parametreli fonksiyon da explicit olabilir, fakat burada nasıl bir fark oluşur: böyle bir kullanımda yanlışlıkla dönüşüme neden olma
+senaryosunun epeyce dışındadır.
+
+class Myclass{
+public:
+    explicit Myclass(int, int)
+    {
+        std::cout << "Myclass(int, int)\n";
+    }
+};
+
+int main()
+{
+    Myclass m = {2, 8};//sentaks hatası
+}
+Yani 2 parametreli ctor'ları özel bir neden olmadıkça explicit yapmamalıyız. Çünkü yanlışlıkla olma ihtimalinin az olduğu bu senaryoda bunu uygularsak 
+bu durumda copt list initialization sentaksı ile değer verme kullanımı disable etmiş oluruz.
+
+class Myclass{
+public:
+     Myclass(int, int)
+    {
+        std::cout << "Myclass(int, int)\n";
+    }
+};
+
+Myclass bar()
+{
+    return {1,6};//legal
+}
+
+void foo(Myclass);
+int main()
+{
+    foo({2, 6}); //legal
+}
+
+!!!!!!default ctor'ı bile explicit yapabiliriz!!!!!
+class Myclass{
+public:
+    Myclass();
+};
+
+void func(Myclass);
+
+Myclass foo()
+{
+    return {};
+}
+
+int main()
+{
+    Myclass m1 = {};
+    func({});
+}
+eğer default ctor explicit yapılırsa yukarıda birçok yerde sentaks hatası meydana gelir:
+class Myclass{
+public:
+    explicit Myclass();
+};
+
+void func(Myclass);
+
+Myclass foo()
+{
+    return {};//sentaks hatası
+}
+
+int main()
+{
+    Myclass m1 = {};//sentaks hatası
+    func({});//sentaks hatası
+}
+
+C++17 standartları ile dile eklenen sınıflardan biri olan  optional sınıfı'nın int açılımı türünden geri dönüş değeri olan foo fonksiyonu:
+std::optional<int> foo()
+{
+    ////
+    return {};
+}
+foo fonksiyonu default ctor ile initialize edilmiş bir optional nesnesi döndürür.
+
+veya parametre olarak:
+void foo(std::optional<int>);
+
+int main()
+{
+    foo({});
+}
+
+ctor'ının parametresi bir başka sınıf türü olan ctor:
+class A{
+public:
+    A();
+};
+
+class B{
+public:
+    B();
+    B(A);//parametresi A türünden olan aynı zamanda bir conversion ctor
+    void func();
+};
+
+class C{
+public:
+    C();
+};
+
+int main()
+{
+    B bx;
+    A ax;
+
+    bx = ax;//UDC 
+
+    B bx(A()); //B türünden bx nesnesine geçici nesne yoluyla A türünden bir nesne gönderdim niyetim
+    //most vexing parse girdi aslında ben ismi bx olan geri dönüş değeri türü B olan parametresi A(int*)()'dir yani geri dönüş türü
+    //A türünden olan parametresi olmayan bir fonksiyon adresi isteyen pointer anlamına gelir çünkü A() decay olur ve A (int*)() 
+    //ile aynı anlama gelir
+    bx.func(); //sentaks hatasıı
+
+}
+B bx(A()); -->eğer sentaks yapısı hem bir nesne oluşturma hem de bir function declaration anlamına gelirse; derleyici bunu function declaration olarak algılar,
+yani function declaration'ın nesne bildirimine önceliği vardır.
+
+most vexing parse olmaması için 
+1)Modern C++ olmasaydı yani küme parantezi ile ilk değer verme sentaksının olmadığı zamanlarda bunu fonksiyon bildirimi olmaktan çıkarmak için
+ilave parantez eklerdik:
+B bx((A())); 
+2)Modern C++ ile direct list initialization veya value initialization ile bunun ihtimali zaten ortadan kalkar:
+B bx(A{}); veya
+B bx{A()};  veya
+B bx{A{}};
+
+
+C'nin de B sınıfı türünden parametresi olan bir ctor'u olsun:
+
+class A{
+public:
+    A();
+};
+
+class B{
+public:
+    B();
+    B(A);//parametresi A türünden olan aynı zamanda bir conversion ctor
+    void func();
+};
+
+class C{
+public:
+    C();
+    C(B);//conversion ctor
+};
+
+int main()
+{
+    A ax;
+    C cx;
+    B bx;
+
+    cx = bx;//UDC
+
+    cx = ax;//A C'nin ctor'ı ile B'ye dönüştürülebilir(UDC) B'de kendi ctor'ı ile A'ya dönüştürür(UDC) ve arka arkaya UDC sentaks hatası!!!
+
+    cx = static_cast<B>(ax);//artık geçerli A'dan B'ye explicit dönüşüm B'den C'ye implicit dönüşüm yaptım legal!!
+
+}
+
+Bu ctor'lar explicit olsaydı farklı türler arasında implicit dönüşüm yapma yine sentaks hatası olurdu:
+class A{
+public:
+    A();
+};
+
+class B{
+public:
+    B();
+    explicit B(A);
+};
+
+int main()
+{
+    A ax;
+    B bx;
+
+    bx = ax; //sentaks hatası
+}
+
+
+copy elision 
+elision terimi aslında elise fiilinin isim halidir. elision bir şeyin yapılmaması ya da söylenmemesi anlamına gelir. O zaman copy elision 
+kopyalamanın yapılmaması yani atlanması anlamına gelir.  Öyle yerler var ki baktığımız zaman kağıt üstünde bir kopyalama söz konusu fakat derleyicinin
+ürettiği kodda bir kopyalama yapılmaması olayıdır. DErleyici kopyalama kodunu özellikle oluşturmuyor; C++17 standartlarına kadar kopyalamanın yapılmaması
+yani copy elision bir compiler optimization faaliyetindeydi. Fakat C++17'den sonra bazı copy elision durumları mandatory hale getirildi; o yüzden buna 
+mandatory copy elision deniliyor.
+
+Mandatory olup olmaması çok önemlidir; çünkü eğer copy elision compiler optimization statüsünde ise yani mandatory copy elision değilse o zaman tipik programcı
+için bunun tipik 2 tane sonucu vardır:
+1)copy ctor'ı delete edersek eğer copy elision mandatory değilse sentaks hatası oluşur. Yani derleyici şöyle bir kod üretemez:diilin kuralı gereği burada copy
+ctor'ı çağırmam gerekirdi ama daha verimli bir kod olsun cıpy ctor'ı çağırmayayım diyemez!
+Fakat mandatory copy elision ise orada fiilen bir kopyalama terimi yoktur artık!!! Dolayısıyla orada copy ctor'ın delete edilmesi copy elision'ı engellemez!!
+2)Bu sonuç biraz derleyiciye bağlı bir sonuçtur; derleyicilerin switchlerinde tipik olarak debug modunda derlediğimiz zaman  tipik olarak optimizasyon yapmaz.
+Ya da switchler ile bunu ayarlayabiliyoruz. a) hiç optimizasyon yapma b) belirli optimizasyonları yapma gibi. Dolayısıyla copy elision mandatory değilse tipik
+olarak böyle bir switch kullanıldığında copy elision'ı yapmaz fakat mandatory ise bunun artık derleyicinin switch'i ile bir ilgisi yoktur; orada debug switch'inde
+de olsa yine copy elision yapar çünkü dilin kuralıdır.
