@@ -1,0 +1,290 @@
+17 şubat 2023 Cuma Günü 
+
+
+Bir geçici nesne onu içeren ifadenin yürütülmesi ile hayata geliyor ama onu içeren ifadenin sonlanması ile ingilizce karşılığı ile full expressionın
+evaluate edilmesiyle geçici nesnenin hayatı bitiyor .
+
+Örneğin aşağıdaki örnekte: içinde geçici nesne bulunan bir ifade var-->    baz(Myclass{}); bu geçici nesne bir sınıf türünden ise statement 1 yürütüldüğünde henüz sınıfın constructor'ı çağrılmış değil destructor'ı zaten çağrılmış değil.
+
+ama 2. statement  yürütüldüğünü artık bu nesnenin hayatı bitmiş durumda yani burada destructor çağırıldıktan sonra statement 2 yürütülür. Yani bir  geçici nesne ifadesi sedece o ifadenin yürütülmesi süresince hayatta kalır.
+
+class Myclass
+{
+private:
+  
+public:
+
+};
+
+void baz(const Myclass&);
+
+int main()
+{
+    //statement 1
+    baz(Myclass{});
+    //statement2
+}
+
+Bu şundan dolayı önemlidir; çünkü eğer bu şekilde geçici nesne oluşturulamasaydı; az önceki örnekte olduğu gibi sadece bir fonksiyona argüman olarak gönderilicek ise bu durumda geçici nesne oluşturamasaydık mecburen bir değişken tanımlamamız gerekirdi bu da şu sorunlara neden olurdu:
+1)scope leakage
+-->değişkenin ismi ile beraber artık bir skobu olur bu da scope leakage'a neden olur.
+-->kodu okuyana sanki fonksiyon çağrısından sonra bu değişkenin kullanılacağı algısı vermiş oluruz; yani kodu okuyanı yanlış yönlendirmiş oluruz.
+2)Nesnelerin çoğu kaynak tutar; büyük bellek alanı tutanlar için gereksiz tutulmasına neden olur.
+bunu yaşamamk için eski C++'ta da suni bloklar oluşturuyorduk:
+int main()
+{
+    {
+        std::string str(10'000, 'A');
+    }
+}
+3)Değişken isimleri L value expr. oluşturduğundan yanlışlıkla bir fonksiyon'a argüman olarak gönderilirse o zaman fonksiyonun sol taraf referans  parametreli overload'u çağırılır; fakat geçici nesne yoluyla oluşturulan bir nesne olsaydı PR value expr. olurdu ve sağ taraf referans parametreli fonksiyon çağırılırdı.
+
+
+O halde geçici nesnelerin işimizi gördüğü yerde geçici nesne kullanmalıyız! Bu konu ile alakalı özel bir durum var:
+#include <iostream>
+#include <string>
+class Myclass
+{
+private:
+    /* data */
+public:
+    Myclass(int x)
+    {
+        std::cout << "Myclass(int x) x = " << x << '\n';
+    }
+    ~Myclass()
+    {
+         std::cout << "destructor\n";
+    }
+};
+
+int main()
+{
+    std::cout << "main basladi\n";
+    {
+        std::cout << "main devam ediyor[1]\n";
+        const Myclass &r = Myclass{12};
+        std::cout << "main devam ediyor[2]\n";
+
+    }
+     std::cout << "main devam ediyor[3]\n";
+}
+
+Normalde geçici nesnelerin hayatı onları barındıran ifadenin yürütülmesi ile bitiyordu.  Fakat geçici nesne bir referansa bağlanıdğında ilginç bir süreç oluşuyor; bu sürece ingilizce "life extension" deniliyor. Bu geçici nesnenin hayatının bitmesinin artık ilk bulunduğu ifade ile ilgili olmadığı anlamına gelir. Artık hayatının referans olduğu nesneye bağlı olmasıdır.
+
+life extension kuralı  referansın  sağ taraf veya sol taraf referansı olduğuna bağlı olarak değişmez(  Myclass &&r = Myclass{12};); önemli olan geçici nesneyi bir refaransa bağlamaktır.
+
+#include <iostream>
+#include <string>
+class Myclass
+{
+private:
+    /* data */
+public:
+    Myclass(int x)
+    {
+        std::cout << "Myclass(int x) x = " << x << '\n';
+    }
+    Myclass(const Myclass&)
+    {
+        std::cout << "Myclass(copy ctor)\n";
+    }
+    ~Myclass()
+    {
+         std::cout << "destructor\n";
+    }
+};
+
+Myclass foo()
+{
+    Myclass m(45);
+    //code
+    return m;
+}
+int main()
+{
+    const Myclass& mr = foo();
+    std::cout << "main devam ediyor\n";
+    (void)getchar();
+}
+
+conversion constructor(dönüştüren kurucu işlev)
+
+Bu bir special member fundtion değildir. Öyle bir ctor ki temel varlık nedeninin yanı sıra sınıf türünden olmayan bir ifadenin implicitly sınıf türüne dönüştürülmesini sağlıyor. Böyle ctor'lar bir nesneyi hayata getirme görevinin yanı sıra int türden bir ifadenin Myclass sınıfına örtülü olarak dönüşümü sağlar.
+class Myclass{
+
+};
+
+int main()
+{
+    Myclass m;
+    m = 35; //sentaks hatası
+}
+
+class Myclass{
+public:
+    Myclass() = default;
+    Myclass(int);//conversion ctor
+};
+
+int main()
+{
+    Myclass m;
+    m = 35; // legal
+}
+Bunu legal yapan, arka planda olan nedir? Bunu aşağıdaki kod parçası ile gözlemleyebiliriz:
+
+class Myclass{
+public:
+    Myclass()
+    {
+        std::cout << "Myclass default ctor, this: " << this << '\n';
+    }
+    ~Myclass()
+    {
+        std::cout << "Myclass destructor, this: " << this << '\n';
+    }
+
+    Myclass(int x)
+    {
+        std::cout << "Myclass(int x) x = : " << x << "this: " << this << '\n';
+    }
+    Myclass &operator=(const Myclass& other)
+    {
+        std::cout << "Myclass copy assigment this: " << this << '\n';
+         std::cout << "&other: " << &other << '\n';
+        
+    }
+};
+
+int main()
+{
+    Myclass m;
+    std::cout << "&m = " << &m << '\n'; 
+    m = 35;//buradz geçici nesne için move assigment olmadığı için copy assigment çağırıldı
+    (void)getchar();
+
+}
+
+Eğer sınıfın move assigment'ını tanımlarsak bu geçici nesne için move assigment çağırılır:
+
+
+class Myclass{
+public:
+    Myclass()
+    {
+        std::cout << "Myclass default ctor, this: " << this << '\n';
+    }
+    ~Myclass()
+    {
+        std::cout << "Myclass destructor, this: " << this << '\n';
+    }
+
+    Myclass(int x)
+    {
+        std::cout << "Myclass(int x) x = : " << x << "this: " << this << '\n';
+    }
+    Myclass &operator=(const Myclass& other)
+    {
+        std::cout << "Myclass copy assigment this: " << this << '\n';
+         std::cout << "&other: " << &other << '\n';
+        
+    }
+     Myclass &operator=( Myclass&& other)
+    {
+        std::cout << "Myclass move assigment this: " << this << '\n';
+         std::cout << "&other: " << &other << '\n';
+        
+    }
+};
+
+int main()
+{
+    Myclass m;
+    std::cout << "&m = " << &m << '\n'; 
+    m = 35;//buradz geçici nesne için move assigment çağırıldı
+    (void)getchar();
+
+}
+
+Bu  senaryo dikkatli olunmaz ise son derece tehlikelidir. Çünkü en çok hata tür dönüşümleri ile ilgili yapılan hatalardır:
+yani conversion ctor'un örtülü olarak int türüne dönüşümü son derece risklidir!!
+class Myclass{
+public:
+    Myclass();
+    Myclass(int);
+
+}
+
+void func(Myclass);
+void foo(const Myclass&);
+
+Myclass bar()
+{
+    int ival{45};
+
+    //
+    return ival;//örtülü int dönüşümü yüzünden legal oldu çok tehlikeli
+}
+
+int main()
+{
+    int ival{};
+    func(ival);//örtülü int dönüşümü yüzünden legal oldu çok tehlikeli
+    foo(ival);//örtülü int dönüşümü yüzünden legal oldu çok tehlikeli
+
+}
+
+Burada int türden değil de double türden bir değişkeni de fonksiyona argüman olarak geçebiliriz maalesef;
+function overload resulotion'da belirttiğimiz gibi variadic conversiondan daha iyi kalitede olan user defined converison demiştik; 
+user defined converison-->bir dönüşüm stantard değilse yani dilin kuralları gereği doğrudan yapılmayıp fakat programcının bildirdiği bir fonksiyonun çağırılması ile gerçekleştiriliyorsa böyle dönüşümlere denir. int'ten sınıf türüne veya sınıf türünden int'e. Bunu sağlayan  2 tane ayrı kategori var:
+a)conversion ctor
+b)type-cast operator function
+
+sınıf türünden int türüne conversion sağlayan örnek:
+class Myclass {
+public:
+    operator int()const;
+};
+
+int main()
+{
+    Myclass m;
+    int ival{};
+    ival = m;
+}
+
+Dilin örtülü dönüşüm konusunda çok önemli bir kuralı vardır; eğer bir örtülü dönüşüm önce standart conversion ondan sonra da user defined conversion (UDC) uygulaması ile gerçekleşebiliyorsa derleyici bunu yapar. Ya da tam tersi önce user defined  conversion ondan sonra da  standart conversion (UDC) uygulaması ile gerçekleşebiliyorsa derleyici bunu yapar. Eğer önce user defined  conversion ondan sonra da user defined conversion (UDC) uygulaması ile gerçekleşebiliyorsa derleyici bunu yapmamak zorundadır.
+
+arka arkaya birden fazla dönüşüm yapmak için kullanılan terim -->conversion __cpp_lib_integer_sequence
+
+class Myclass {
+public:
+    Myclass();
+    Myclass(int);
+};
+
+int main()
+{
+    Myclass m;
+    double dval{3.4};
+    //double'den int'e standart conversion int'ten Myclass sınıfı türüne UDC
+    m = dval;
+}
+yani int'e standart conversion ile dönüşen her şey Myclass sınıfına atanabilir, çok tehlikelidir!!!
+class Myclass {
+public:
+    Myclass();
+    Myclass(double);
+};
+
+int main()
+{
+    Myclass m;
+    double dval{3.4};
+    
+    auto pd = &dval;
+    m = pd;
+}
+
+C++'ın en çok kullanılan sınıflarından biri vector sınıfıdır; böyle sınıflara container classes deniliyor. Bu sınıf dinamik dizi veri yapısını implemente eden bir sınıftır.
