@@ -1,0 +1,333 @@
+
+copy elision için 3 tane tipik senaryo vardır:
+
+1)Bir fonksiyonun parametre değişkeni bir sınıf türünden ise  ve bu fonksiyonu bir PR value expr. ile örneğin bir geçici nesne ifadesi ile 
+çağırırsam bu durumda mandatory copy elision olur. Yani artık C++17 itibarıyla bu artık bir optimizasyon değil emirdir.
+Derleyici fonksiyona argüman olarak gönderilen ifadeyi; doğrudan parametre olan sınıf nesnesinin  bir initializer ifadesi olarak 
+görüyor. Yani geçici nesneyi materialize etmiyor(temporary materialization: ayni geçici nesnenin oluşturulması anlamında)
+
+Yani geçici nesne oluşturmak için bir ctor çağrısı yapılmıyor. Bu C++17'ye kadar bir optimizasyon etkinliği iken C++17'den
+sonra mandatory hale geldi:
+
+class Myclass
+{
+private:
+    /* data */
+public:
+    Myclass()
+    {
+        std::cout << "Myclass default ctor\n";
+    }
+    Myclass(int)
+    {
+        std::cout << "Myclass(int)\n";
+    }
+    Myclass(const Myclass&) = delete;
+};
+
+void foo(Myclass)
+{
+
+}
+int main()
+{
+    foo(Myclass{12});//C++17 ve sonrasında legal copy elision mandatory
+}
+
+2)Bu duruma karşılık gelen bir terimde vardır buna return value optimization deniyor. Bunun için söylenilen akronim de RVO(return value optimization)
+Bu da yine C++17'ye kadar derleyici optimizasyonuydu, C++17 standartı ile bu da mandatory hale geldi. Yani derleyici bunu artık yapmak zorunda ister debug 
+modunda ister release modunda olsun; derleyici burada copy ctor'u çağırmamak zorunda!!. Yine aynı şekilde copy ctor'ı delete edersem yukarıda söylenen her 
+şey burası içinde geçerlidir. C++17 standartı öncesinde sentaks hatası meydana gelirken C++17 ile sentaks hatası ortadan kalkar çünkü burada aslında copy
+ctor'ın çağırılacağı artık bir senaryo yok--->copy ctor çağırmama mandatory! bu sadece bir initializer ifadesi olarak kullanılıyor yani temporary object
+materialize edilmiyor!
+
+class Myclass
+{
+private:
+    /* data */
+public:
+    Myclass()
+    {
+        std::cout << "Myclass default ctor\n";
+    }
+    Myclass(int)
+    {
+        std::cout << "Myclass(int)\n";
+    }
+    Myclass(const Myclass&) = delete;
+};
+
+Myclass foo()
+{
+    //...
+    return Myclass{}; //veya aşağıdaki kod satırı vb.
+    //return Myclass{12};
+
+}
+
+int main()
+{
+    Myclass m = foo();
+}
+
+Sizce copy elision maliyeti düşüren yani efficiency'i arttıran bir durum mu?
+Hem de nasıl, olabilecek en önemli etkilerden biridir. Örneğin aşağıdakilerden hangisinin çağırılması daha iyidir diye sorulsa?
+copy ctor
+move ctor
+copy elision
+Tabii ki move ctor'un copy ctor'a göre çağırılması iyidir ama en iyisi copy elision'un çağırılmasıdır. 
+Örneğin aşağıdaki sınıf için çağırılması en fayda sağlayacak copy elision'dır çünkü copy elision demek 
+aynı nesnenin kullanımı demek, yani ortada oluşan yeni bir nesne yok fakat bu sınıf örneğinde hem copy
+hem de move ctor çağırılması aynı işi yapacaktı ve nesnelerin kopyalanması ile taşınması arasında bir fark 
+oluşmayacaktı; yani copy elision'da olduğu gibi aynı nesne kullanımı olmayacaktı:
+
+class Nec{
+public:
+    int a[100];
+    double x, y, z;
+};
+
+Fakat sınıfın bir veri elemanı string olsaydı o zaman move ctor ve copy ctor arasında tabii ki fark olurdu; örneğin sınıfın veri
+elamanı 10.000 karakterlik bir string olsun copy ctor çağırıldığında bu 10.000 karakter kopyalanacak iken move ctor'da ise taşınır.
+class Nec{
+public:
+    int a[100];
+    double x, y, z;
+    std::string mstr;
+};
+
+burada copy elision ile move ctor arasında da fark vardır. move  ctor'da sadece pointer kopyalanıyor ama kopyalama yine var; 
+yani copy elision is the king :) her zaman genelde en avantajlısı budur; 0 maliyet aynı nesneyi kullanmaya devam ediyoruz.
+
+Yani bu şu demek copy elision her zaman birinci tercihimiz olmalı. İşte şimdi geçici nesnelerin neden önemli olduğu konusunda bir argümanımız
+daha var: geçici nesneler belirli durumlarda a)fonksiyona parametre olarak geçildiklerinde b)fonksiyonun geri dönüş değeri olan ifade olduklarında
+copy elision sağlarlar ve bu da verimi inanılmaz derece de arttıran bir olaydır!!!
+bundan dolayı geçici nesnenin işimizi gördüğü yerde bunu kullanmalıyız dedik.
+class Myclass{};
+
+void foo(Myclass);
+
+int main()
+{
+    Myclass m;
+    foo(m);//burada m için artık copy ctor çağırılmak zorunda copy elision söz konusu olmaz!
+    //fakat fonksiyona gönderilen ifade geçici nesne yoluyla oluşturulsa copy elision olur
+    foo(Myclass{});//bu durumda önce default ctor sonra move ctor çağırılmaz sadece bir defa default ctor çağıırlır, copy elision sayesinde
+                    //burada çağırılan default ctor geçici nesne olan Myclass{}; için çağırıldı
+}
+
+3)copy elision'nın yeni biçimine denk gelen yeni bir akronomimiz var-->NRVO(named return value optimization)
+Derleyici  optimizasyonudur bu C++17 standartı da dahil olmak bunu her zaman yapmak zorunda değildir. Yani bu halen derleyici optimizasyonu.
+Fakat genelde yapılan bir optimizasyondur, ama dilin sentaksı değildir. Bu optimizasyon ile fonksiyon çağrısında argüman olan nesne ile
+veya geri dönüş değeri olarak gelen nesnenin başka nesneye atanması olayında geri dönüş değeri olan nesne aynıdır.
+
+bu yazılan gibi fonksiyonlar C++'ta en çok karşılaşacağımız fonksiyon çeşitlerinden biridir:
+std::string get_str()
+{
+    std::string str;
+    //code
+    str = "hasan";
+    str += "can";
+
+    return str;
+}
+
+int main()
+{
+    std::string retval = get_str();
+}
+
+class Myclass
+{
+private:
+    int mx;
+public:
+    Myclass()
+    {
+        std::cout << "Myclass default ctor\n";
+    }
+    Myclass(int x) : mx(x);
+    {
+        std::cout << "Myclass(int)\n";
+    }
+    Myclass(const Myclass& other) : mx(other.mx)
+    {
+        std::cout << "copy ctor\n";
+
+    }
+    void print()const
+    {
+        std::cout << "mx: " << mx << '\n';
+    }
+    void set(int ival)
+    {
+        mx = ival;
+    }
+};
+
+Myclass foo()
+{
+    Myclass m{12};
+
+    m.set(12);
+
+    //code
+    m.set(95);
+
+    return m;
+}
+
+int main()
+{
+    auto m = foo();
+
+    m.print();
+}
+bunun mandatory olmadığını copy ctor'ı delete olarak bildirdiğimizde meydana gelecek sentaks hatasından anlayabiliriz:
+çünkü burada copy ctor kağıt üstünde çağırılıyor:
+
+class Myclass
+{
+private:
+    int mx;
+public:
+    Myclass()
+    {
+        std::cout << "Myclass default ctor\n";
+    }
+    Myclass(int x) : mx(x);
+    {
+        std::cout << "Myclass(int)\n";
+    }
+    Myclass(const Myclass& other) = delete;
+    void print()const
+    {
+        std::cout << "mx: " << mx << '\n';
+    }
+    void set(int ival)
+    {
+        mx = ival;
+    }
+};
+
+Myclass foo()
+{
+    Myclass m{12};
+
+    m.set(12);
+
+    //code
+    m.set(95);
+
+    return m;
+}
+
+int main()
+{
+    auto m = foo();//sentaks hatası copy ctor delete edilmiş
+
+    m.print();
+}
+Ayrıca bu tarz durumlarda derleyiciyi release modundan debug moduna alırsak bu optimizasyonu yapmadaığını ve copy ctor'ı 
+çağırıdığını da görürüz; çünkü mandatory bir durum değil zaten.
+
+Ayrıca birden fazla nesne tanımlanırsa her nesne için de copy elision çağırılır:
+
+
+class Myclass
+{
+private:
+    int mx;
+public:
+    Myclass()
+    {
+        std::cout << "Myclass default ctor\n";
+    }
+    Myclass(int x) : mx(x);
+    {
+        std::cout << "Myclass(int)\n";
+    }
+    Myclass(const Myclass& other) : mx(other.mx)
+    {
+        std::cout << "copy ctor\n";
+
+    }
+    void print()const
+    {
+        std::cout << "mx: " << mx << '\n';
+    }
+    void set(int ival)
+    {
+        mx = ival;
+    }
+};
+
+Myclass foo()
+{
+    Myclass m{12};
+
+    m.set(12);
+
+    //code
+    m.set(95);
+
+    return m;
+}
+
+int main()
+{
+    Myclass mx = foo();
+    Myclass my = foo();
+    Myclass mz = foo();
+    Myclass mt = foo();
+}
+
+Tipik bir C++ derleyicisi hangi durumlarda NRVO yapabilir? veya yapamaz?
+Tipik bir derleyicide copy elision'nın bloke olduğu durumlara bakmalıyız, ileri C++ kursunda ele alınıyor.
+Örneğin otomatik ömürlü bir nesne değilde geri döndürülen nesne static ömürlü ise burada NRVO yapma imkanı olmaz!
+class Myclass
+{
+private:
+    int mx;
+public:
+    Myclass()
+    {
+        std::cout << "Myclass default ctor\n";
+    }
+    Myclass(int x) : mx(x);
+    {
+        std::cout << "Myclass(int)\n";
+    }
+    Myclass(const Myclass& other) : mx(other.mx)
+    {
+        std::cout << "copy ctor\n";
+
+    }
+    void print()const
+    {
+        std::cout << "mx: " << mx << '\n';
+    }
+    void set(int ival)
+    {
+        mx = ival;
+    }
+};
+
+Myclass foo(int x)
+{
+    static Myclass m(x);
+    return m;
+}
+
+int main()
+{
+    Myclass m = foo();//copy elision fonksiyonun geri dönüş değeri statik ömürlü olduğundan yapılamaz;
+                      //ve copy ctor çağırılır  
+}
+
+C++'ta kullanılan idiomslar için kaynak site önerisi: https://en.wikibooks.org/wiki/More_C%2B%2B_Idioms bu tip kaynaklar eski
+Dolayısıyla bazıları artık kullanılmasa da sitede yer alıyor buna dikkat edilmelidir(örn Erase-Remove tekniği C++20 ile 
+kaldırıldı bunu yapan bir fonksiyon var artık).
+
+pattern (örn singleton pattern)dilden bağımsız çağrısı oluştururken idom dile bağlı bir yapıdır. 
+Teknikler de idiom'ların daha kapsamlo yapısı gibi düşünülebilir.
