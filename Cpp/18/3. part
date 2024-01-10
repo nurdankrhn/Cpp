@@ -162,5 +162,6 @@ operator=
  =
  tür dönüştürme operatörleri
 
- Biri hariç hiçbir operatör fonksiyonu varsayılan argüman(default arguman) alamaz!!!
+Biri hariç hiçbir operatör fonksiyonu varsayılan argüman(default arguman) alamaz!!!
+function call
 
