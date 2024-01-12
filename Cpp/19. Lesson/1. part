@@ -1,0 +1,428 @@
+22 Şubat 2023 Çarşamba 19. ders günü
+
+Bu mekanizma ile operatörlerin arity'sini değiştiremiyoruz; arity operatör'ün unary mi binary mi özelliğine ilişkin olan bir terimdir.
+Tek operand alan unary operatörü ona uygun iki operand alan binary operatörü de ona göre overload etmeliyiz; eğer buna uymazsak derleyici durumu sentaks hatası olarak değerlendirir.
+
+Eğer unary operatör üye operatör fonksiyonu olarak overload edilecekse derleyici bu fonksiyona herhangi bir şekilde argüman göndermez 
+çünkü zaten fonksiyon nesnenin kendisi için çağrılıyor yani bu fonksiyonun ismi ile çağırsaydık örneğin değil operatörü için bu şekilde çağıracaktık:
+x.operator!();
+Yani unary operatörler member operator function olarak overload edildiğinde zaten operand olan sınıf nesnesi *this olacak yani fonksiyon bu nesnenin adresini 
+this pointer'ı olarak alınıp çağırılacak dolayısıyla ismi ile bu şekilde çağrılır.
+
+Bütün operatör fonksiyonları isimleri ile çağrılabilir bunu engelleyen bir mekanizma yoktur. Normalde tabii ki biz operatör notasyonu ile çağırmak istiyoruz 
+ama öyle durumlar var ki gerçekten de bilerek isteyerek fonksiyonun ismi ile çağırıyoruz.
+
+class Myclass{
+public:
+    bool operator!(Myclass)cınst;//sentaks hatası unary operator func. parametre alamaz!!
+};
+
+global unary operator function
+unary operator func. global olduğunda artık this pointer'ı diye bir kavram olmadığından buna parametre vermek zorunlu bir hale gelecekti;
+dolayısıyla global bir unary operator function için parametre tanımlamak sentaks hatası değildir hatta olması gereken bir şeydir:
+operator!(x);
+
+class Myclass{
+public:
+    
+};
+
+bool operator!(const Myclass&);//legal
+bool operator!();//sentaks hatası
+bool operator!(const Myclass&, const Myclass&);//sentaks hatası
+
+binary operator function
+
+Member üye operatör fonksiyonlarında her zaman sol operand olan nesne için fonksiyon çağrılır yani *this sol operanın kendisi olur.
+a < b; ifadesi aslında şu şekildedir: a.operator<(b); yani derleyici a < b ifadesini a nesnesini operator< fonksiyonuna a'yı *this olarak kullanacak
+ yani this pointer'ı a'nın adresi olacak şekilde çağrıya dönüştürecek b'yi de fonksiyonu argüman olarak gönderecek bu durumda fonksiyonun bir tane parametre değişkeni olması gerekir!!
+
+ class Myclass {
+public:
+    bool operator<(const Myclass&)const;
+ }; 
+
+ int main()
+ {
+    Myclass a, b;
+    //auto ret = a < b; //normalde fonksiyon çağrısını bu şekilde yaparız aşağıdaki açıkca göstermek için yazdık o da legal ama bunu kullanırız
+                        //çünkü zaten operator overloading'in amacı operatörlerin sınıf türünden nesnelere uygulanıp, primitif türlerde sağladığı anlamlı görüntüyü yakalamaktı
+    auto ret  = a.operator<(b);
+ }
+ class Myclass {
+public:
+    bool operator<(const Myclass &other)const
+    {
+        std::cout << "this = " << this << '\n';
+        std::cout << "other = " << other << '\n';
+
+        return true;
+    }
+ }; 
+
+ int main()
+ {
+    Myclass a, b;
+    //auto ret = a < b;
+
+     std::cout << "a = " << a << '\n';   
+      td::cout << "b = " << b << '\n';
+    auto ret  = a.operator<(b);
+ }
+
+ binary operatör fonksiyonu global olarak overload edilmişse eğer bu durumda her iki operand da fonksiyonun parametresi haline gelir sol operand 1. parametreye 
+ sağ operand 2 .parametreye gönderilir.
+
+ class Myclass{
+public:
+
+ };
+
+ bool operator(const Myclass&, const Myclass&);
+
+ int main()
+ {
+    Myclass m1, m2;
+
+    auto b1 = m1 < m2;
+    auto b2 = operator<(m1, m2);
+ }
+
+ class Myclass{
+public:
+
+ };
+
+ bool operator(const Myclass&lhs, const Myclass&rhs)
+ {
+    std::cout << "&lhs: " << &lhs << '\n';
+    std::cout << "&rhs: " << &rhs << '\n';
+
+    return true;
+ }
+
+ int main()
+ {
+    Myclass m1, m2;
+
+    std::cout << "&m1: " << &m1 << '\n';
+    std::cout << "&m2: " << &m2 << '\n';
+    
+    auto b1 = m1 < m2;
+    //auto b2 = operator<(m1, m2);
+ }
+
+
+ Bu operatör fonksiyonuna iki parametre göndermemiz gerektiği için eğer fonksiyon çağrısında tek argüman kullanırsak veya 
+ argüman kullanmazsak sentaks hatası meydana gelir.
+
+Operatör overloading ve function overloading her ne kadar farklı konular olsalarda bu ikisinin beraber kullanılamayacağı anlamına gelmez!
+
+Örneğin aşağıda 3 tane fonksiyon toplama operatörünü overload ettiği için operatör overloading aynı zamanda aynı isimli birden fazla 
+fonksiyon olduğu için function overloading var aslında biz bunu special member function incelerken de yaşadık örneğin 2 tane special member function 
+düşünelim ikisinin adı da operatör eşit ama birinin parametresi const Myclass& diğerinin Myclass&& copy assigment'da move assigment'ta benzer şekilde
+hem operator overloading hem de function overloading oluyor.
+
+class Myclass{
+public:
+    Myclass operator+(int)const;
+    Myclass operator+(double)const;
+    Myclass operator+(long)const;
+
+};
+
+int main()
+{
+    Myclass m;
+
+    auto m1 = m + 5;
+
+    auto m2 = m + 1.5;
+
+    auto m3 = m + 12L;
+
+}
+
+
+special member function, C++20 standartı ile dile eklenen spaceship ve operato== fonksiyonları dışında hiçbir fonksiyonun kodunun derleyici tarafından yazılamaz!!
+
+class Myclass{
+public:
+    Myclass operator+()const
+    {
+        std::cout << "sign operator\n";
+        return *this;
+    }
+    Myclass operator+(const Myclass&)const
+    {
+        std::cout << "addition operator\n";
+        return *this;
+    }
+};
+
+int main()
+{
+    Myclass mx;
+
+    auto val1 = +mx;
+    auto val2 = mx.operator+();
+
+    auto val3 = mx + mx;
+    auto val4 = mx.operator+(mx);
+}
+
+associativitiy: left  associativitiy/right associativitiy yani aynı öncelik seviyesindeki operatorlerin birden fazlasının aynı ifade
+içinde bulunması durumunda soldan sağa ya da sağdan sola operandların paylaşılması yani operatörün ürettiği değer hangi operandın olucağı
+soldan sağa mı sağdan sola mı olacağı
+
+operator overloading mekanizmasında operatörlerin dildeki önceliğini(precedence/priority) ve associativitiy'sinide değiştiremezsiniz!!
+
+class Matrix {
+public:
+    Matrix operator*(const Matrix&)const;
+    Matrix operator+(const Matrix&)const;
+    Matrix operator!()const;
+
+};
+
+int main()
+{
+    Matrix m1, m2, m3, m4, m5;
+
+    m5 = m1 * m2 + m3 * !m4;
+
+    m1.operator*(m2).operator+(m3.operator*(m4.operator!()));//operator önceliği değiştirilemez
+
+    //operator önceliği olarak bunlar şu anlama gelir:
+
+    //m5 = (m1*m2) + (m3*(!m4));
+}
+
+Bu fonksiyonlar global olursa:
+class Matrix {
+public:
+
+};
+Matrix operator*(const Matrix&, const Matrix&);
+Matrix operator+(const Matrix&, const Matrix&);
+Matrix operator!(const Matrix&);
+
+
+
+int main()
+{
+    Matrix m1, m2, m3, m4, m5;
+
+    m5 = m1 * m2 + m3 * !m4;
+
+    m5.operator= (operator+(operator*(m1, m2),  operator*(m3, operator!(m4))));
+    //operator önceliği olarak bunlar şu anlama gelir:
+
+    //m5 = (m1*m2) + (m3*(!m4));
+}
+
+Bu örnekte yine yeni başlayanların çok sık yaptığı bir hata:
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    int x = 10;
+
+    cout << x > 5; //SENTAKS HATASI
+
+}
+Dilimizde bitsel sola kaydırma operatörünün önceliği büyüktür operatörünün önceliğinden daha yüksektir; cout << x > 5; ifadesi derleyici açısından şöyle
+değerlendirilir: cout<<operator(x) > 5; cout<<operator(x) fonksiyonun  geri dönüş değeri olarak cout'a eişt olur ve ccout ostream türünden bir nesnedir
+ostream bir nesne ile int'i büyüklük karşılaştırmasına sokucak bir fonksiyon olmadığı için sentaks hatası meydana gelir.
+
+Fakat eğer ki öncelik parantezine alınsaydı:
+int main()
+{
+    using namespace std;
+
+    int x = 10;
+
+    cout << (x > 5); // bu artık legal 
+    //cout.operator<<(x > 5);
+}
+
+bir diğer örnek bitset sınıfı türünden, bu sınıf embedded alanda çokca kullanılan bir sınıftır:
+#include <iostream>
+#include <bitset>
+
+int main()
+{
+    using namespace std;
+
+    bitset<8> bs(5);
+
+    cout << bs <<'\n';
+
+    operator<<(cout, bs);
+
+
+}
+şimdi ifadeyi biraz değiştirelim; bitsel sola kaydırma operatörü left to right associativitiy'ye yani soldan sağa önceliğe sahipti:abort 
+
+#include <iostream>
+#include <bitset>
+
+int main()
+{
+    using namespace std;
+
+    bitset<8> bs(5);
+
+    cout << bs << 5;
+    //kodun karşılığı
+    operator<<(cout, bs).operator<<(5);
+
+}
+
+öncelik parantezine alırsak;
+
+#include <iostream>
+#include <bitset>
+
+int main()
+{
+    using namespace std;
+
+    bitset<8> bs(5);
+
+    cout << (bs << 5);
+    //kodun karşılığı
+    operator<<(cout, bs.operator<<(5));
+
+}
+
+koşul operatörünün ürettiği değeri yazdrımak istediğim bir senaryoda da genelde hata yapılıyor:
+burada operator önceliğinden dolayı sentaks hatası meydana gelir:
+int main()
+{
+    using namespace std;
+
+    int x = 10;
+    int  y = 20;
+
+    cout << x > y ? x : y;//sentaks hatası
+}
+bu sentaks hatasını kaldırma için koşul ifadesi öncelik parantezine alınıp ilk önce yapılacak hale getirilmelidir:
+int main()
+{
+    using namespace std;
+
+    int x = 10;
+    int  y = 20;
+
+    cout << (x > y ? x : y);//legal
+}
+
+Neden global operator fonksiyonları var?
+global  operator fonksiyonu olmasaydı bütün operator fonksiyonları member operator fonksiyon olsaydı:
+1)member operator function'da fonksiyona argüman olarak geçilen perametre operatorün her zaman sağ operandı oluyor fakat örneğin toplama operatörü için 
+düşünürsek değişme özelliği olduğunu görürüz yani m + ival ile ival + m birbirine eşittir fakat member function ile bunu yapmak imkansız; fakat bu global
+operatör fonksiyonu olunca her iki operandı da fonksiyona argüman olarak geçebildiğimiiz için böyle bir sorun meydana gelmez:
+
+class BigInteger {
+
+};
+
+BigInteger biggie{"13234856255510336481"};
+int ival{785};
+
+biggie + ival; 
+
+ival + biggie;
+
+2)Birden fazla class nesnesin birbiri ile ilişki kurması için:
+Örneğin date isimli kendi tanımladığımız bir sınıfı ostream sınıf nesnesi türünden olan cout ile standart çıkışa yazdırabilmemiz de yine global operatör fonksiyonu
+sayesinde olur:
+
+#include <iostream>
+
+class Date {
+public:
+    Date(int, int, int);
+}
+
+std::ostream& operator<<(std::ostream&, const Date&);
+
+int main()
+{
+    using namespace std;
+
+    Date mydate{3, 5, 1998};
+
+    //
+
+    cout << mydate;
+
+    //operator<<(cout, mydate);
+
+}
+
+
+operator overloading'in bir fayda sağlaması için kullanılan ifadenin intuitive olması gerekir. Yani kullandığımız zaman orada ne olduğu anlaşılmalı.
+Kafa karıştırıcı ise zaten oprator overloading'in kullanımına uygun bir şey değil; kullanmamak gerekir(genel anlamda).
+
+operator fonksiyonlarının geri dönüş türleri
+Dilin kuralları  hiçbir operatör fonksiyonu için geri dönüş değeri türü bu olacak diye bir saptama yapmıyor.
+Örneğin aşağıdaki örnekte toplama operatör fonksiyonun geri dönüş değeri void yani yok olarak bildirilmiş fakat her ne kadar semantik olarak bu anlamsız olsa da
+sentaks hatası meydana gelmez.
+
+class Myclass{
+public:
+    void operator+(const Myclass&)const;
+}; 
+
+int main()
+{
+    Myclass m1, m2;
+
+    m1 + m2//ifadesinin değeri yok ki bunu kullanalım
+}
+
+dolayısıyla operatör fonksiyonların geri dönüş değerinin türü ne olucak sorusunun cevabı 
+1)problem domaininde o sınıfın anlamı
+2)primitif türlerdeki operatörlerde olduğu gibi genel semantik yapının sınıf türleri içinde korunması 
+tıpkı a + b ifadesinin değer kategorisi R value expr. olduğu gibi eğer ki marjinal bir senaryo yoksa a ve b sınıf türünden nesneler olduğunda
+toplama operator fonksiyonunun ifadesinin değer kategorisi de R value category olmalıdır. Yani bunun ksrşılığı a.operator+(b) olur ve operator+()
+fonksiyonu call edilir, fonskiyonun geri dönüş değeri de ifade yerine geçeceğinden geri dönüş değeri R value expr. olmalı o halde fonksiyonun geri 
+dönüş değer sınıf türünün kendisi olur, sınıf türünden referans olmaz:
+class Matrix{
+public:
+    Matrix operator+(const Matrix&)const;
+};
+
+DİKKAT: L value oluşturan operatörleri L value olucak şekilde overload etmemiz gerekir!!!
+atama operatörü ile oluşturulan ifadeler L value dolayısıyla atama operatörünü overload eden fonksiyonlar çok özel bir durum yoksa geri dönüş değerleri
+kesinlikle sınıf türünden referans olmalıdır.
+++y-->L value
+x++-->PR value
+
+Örneğin belirli bir tarih değeri'ne 100 ekleyip 100 gün sonrası için tarihin ne olduğunu bulmak istediğimiz bir senaryo olsun,
+veya 2 tarih arasıdnaki gün varkını versin:
+
+class Date{
+public:
+    Date(int, int, int);
+    Date operator+(int)const;
+    int operator-(const Date&)const;
+};
+
+int main()
+{
+    Date mydate{12, 5, 1987};
+    int n = 100;
+
+    auto future_date = mydate + n;
+
+    Date otherdate{1, 1, 1967};
+
+    //mydate - otherdate;//2 tarih arasındaki fark
+}
+
+
