@@ -1,0 +1,232 @@
+operator overloading mekanizmasına const correctness açısından bakılması
+
+ Eğer bir fonksiyon bir nesneye referans veya pointer semantiği ile erişip o nesneyi değiştirmeye yönelik değil de 
+ salt okuma amaçlı erişim talebi varsa cons olmalı. Cosnt olamsı gereken her şeyi const yapıyoruz.
+
+ Örneğin toplama operatorü için yazılacak operator fonksiyonunu ele alalım: a + b işlemi için ne a ne de b 
+ yan etkiye uğramaz dolayısıyla hem üye hem de global operator fonksiyonları const olmalı:
+
+class Matrix{
+public:
+    Matrix operator+(const Matrix&)const;
+ };
+ üye operator fonksiyonu için birinci operarand sınıf nesnesinin kendisi 2.si ise diğer sınıf nesnesi olur;
+ dolayısıyla *this'in const olduğunu ve gelen argümanın const parametreye gönderileceğini bu şekilde bildirdik
+
+ global olsaydı:
+ operator+(const Matrix&, const Matrix);
+
+ aynı şeyi + operatorü için yapalım:
+ +x --> R value o halde geri dönüş değeri sınıfın kendisi ve parametereyi değiştirmeyeceği için const:
+class Matrix{
+public:
+    Matrix operator+()const;
+ };
+
+ aynı şeyi += operatorü için yapalım:
+m1 += m2 olarak düşünelim m1 değişicek const olmamalı m2 değişmeyecek const olmalı += operator sonucu m2 döndürülmeli
+o halde geri dönüş değeri sınıf türünden referans
+class Matrix{
+public:
+    Matrix& operator+(const Matrix&)
+    {
+        //
+        return *this;
+    }
+ };
+
+ += operator fonksiyonu tanımlı değilken + operator fonksiyonu tanımlı olan bir sınıf için derleyici m1 += m2 ifadesini m1 + m2'ye 
+ çevirmez!!  çyle bir beklentimiz varsa olmamalı
+
+
+endl is a function:
+int main()
+{
+    using namespace std;
+
+    cout << endl;
+}
+ostream sınfının function pointer parametreli bir operator left shift fonksiyonu sayesinde:
+class Ostream{
+public:
+    Ostream& operator<<(int);
+    Ostream& operator<<(double);
+    Ostream& operator<<(float);
+    ///
+
+    Ostream& operator<<(void *);
+    Ostream& operator<<(Ostream& (*fp)(Ostream&))
+    {
+        return fp(*this);
+    }
+};
+Örneğin string'i standart çıkış akımına yazdırmak için çağırılan fonksiyon bir global fonksiyondur:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    cout << "alican\n";
+
+    operator<<(cout, "alican\n"); //ile aynı şey
+
+    //fakat eğer bu şekilde çağrı yapsaydı bu sefer stream sınıfının üye operator fonksiyonu olan 
+    //Ostream& operator<<(void *); fonksiyon çağırılır, ve çıkısa bu nesnenin adresi yazılır:
+    cout.operator<<("alican\n");
+ 
+}
+stringi çıkışa yazdıran global operator fonksiyonu:
+ostream& operator<<(ostream&, const char*);
+
+benzer durum char için de geçerlidir:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    char c = 'A';
+
+    cout<<c;
+    operator<<(cout, c);//ile aynı şey
+
+    //member operator fonksiyon çağırılır interger promotion ile int parametreli fonksiyon seçilir ve c'nin karşılık geldiği
+    //int değer çıkışa yazılır
+    cour.operator<<(c);
+
+}
+endl ise stream sınıfının fonksiyon adresi alan operator fonksiyonuna argüman olarak gönderilir ve başlangıç düzeyinde 
+olan programcının sandığının aksine sadece new line verme amacı ile değil aynı zamanda standart çıkıs akımının bufferını flush 
+etmek için de kullanılır, sadece new line amacı ile bunu kullanmak doğru bir tutum değildir:
+std::ostream& Enl(std::ostream& os)
+{
+    os.put('\n');
+    os.flush();
+
+    return os;
+}
+
+int main()
+{
+    using namespace std;
+
+    cout<<Endl;
+    cout.operator<<(Endl);
+    //örneğin aşağıda cout<<ival sonucu ival çıkışa yazdırılır ve sonuc yine cout döndürür yani 
+    //cout<<Endl<<"necati" olur o da aşağı satıra inip flus edilip necati yazar
+    int ival{ 24 };
+
+    cout << ival << Endl << "necati";
+
+}
+
+Yani cout << 1234 << endl ile cout << 1234 << '\n' aynı şey değildir!!
+
+enl gibi fonksiyonlara ostream manipülator denir--> "enl is an ostream manipulator"
+
+biz de enl benzeri kendim bir fonksiyon yazabilirim:
+we write our own manipulator
+
+std::ostream& dashline(std::ostream& os)
+{
+    return os <<"\n--------------------------------------------------------------------\n";
+}
+
+int main()
+{
+    using namespace std;
+
+    int ival{ 345 };
+    double dval{524. 2345};
+    long lval{ 2454L };
+
+    cout << ival << dashline << dval << dashline << lval << dashline;
+}
+
+o halde enl şu şekilde de çağırılabilir:
+endl(cout);
+
+//ADL
+//Argument Dependent Lookup
+
+int main()
+{
+    enl(std::cout);//endl'nin std namespace'nin içinde olduğu belirtilmediği halde 
+                    //sentaks hatası meydana gelmez bunu sağlayan ADL'dir ilerde göreceğiz
+}
+burada enl isminin std namespace ismi ile nitelenmemiş olmasına rağmen std namespace içinde aranmasını sağlayan 
+dilin çok önemli bir kuralı Argument Dependent Lookup akronimi ise ADL'dir.
+
+int gibi davranan bir wrapper sınıf türü yazalım, burada amaç zero-cost absraction sağlamak çünkü
+bu sayede hiçbir ilave maliyet olmadan o sınıfı sanki int türü gibi kullanıyoruz yani assembly düzeyinde
+bu da int'tir; buna örnek vermiştik: chorone kütüphanesindeki duration sınıfları int kullanmak yerine
+ismi milisecond olan sınıflar kullanıyor bunun nedeni daha iyi bir soyutlama sağlaması ve çeşitli 
+kontrolleri ekleme şansını bize vermesi yani belirli tür dönüşümlerini yasaklayabiliriz, taşma durumunda veya
+0'a bölme durumunda exepciton throw etmesini sağlayabiliriz, örneğin tanımsız davranış olan bazı durumları
+tanımsız davrnaış olmkatan çıkartıp exepcition hangling'e konu edebiliriz.
+
+böyle türlere strong type denir.
+
+#pragma once
+önişlemci komutu standart değildir, bu multiple inclusion guard'dır birçok programcı bu standart olmadığı için bunu   yerine
+eski usul include guard kullanır:
+
+#ifndef MINT_H
+#define MINT_H
+
+class Mint{
+
+};
+
+#endif
+
+Genelde operator fonksiyonu yazarken programcıların fonksiyonu global mi yoksa üye fonksiyon olarak yazma kararı verirken
+bu kararı kolaylaştıracak bazı yardımcı ilkeler vardır:
+1)aynı işi yapan hem global operator function hem de member operator function yazmayın!!(ambiguity'e çanak tutmuş oluruz)
+2)sınıf nesnesini    değiştiren operatörlere kesinlikle bazıları için zaten global operator fonksiyonu olarak yazmamız 
+mümkün değil; üye operator fonksiyonu yapın(set fonksiyonları her zaman üye operator fonk. olsun)
+3)simetrik operatörleri global operator fonksiyonu olarak yazın. Simetrik operatörün anlamı şudur: a + b hangi anlamda ise
+b + a da aynı anlamdadır. Yani a ile b a + b şeklinde de b + a şeklinde de toplanabiliyorsa bunu global operator
+fonksiyonu yapmak daha iyidir. Tipik olarak karşılaştırma fonksiyonları, toplama, çıkarma, çapma vb.
+
+Hocamızın kodlama ilkeleri konusunda kişisel görüşü c++ core guidelines'a uymamız. Jason turner'ın kodlama ilkesini
+ve Google'ın kodlama ilkesini hocamız hiç beğenmiyor!!
+
+formatlı giriş çıkış isşlemleri için operator fonksiyon yazılması
+
+örnekte int için bir wrapper class yazıyoruz:
+
+
+
+#ifndef MINT_H
+#define MINT_H
+                  //eğer operator fonksiyonu inline olarak tanımlayacaksak derleyici ostream'in kodunu görmesi gerekir bunun için;
+#include <iosfwd>//eğer operator fonksiyonun implementasyonunuda başlık dosyasında yapacaksak bunu include etmek zorundayız
+                  //fakat eğer başka .cpp dosyasında fonksiyonun impl. yapacaksak dahil etmeye gerek kalmaz!
+                  //ostream'i include etmek yerine giriş çıkış sınıflarının forward declarationslarının include edildiiği
+                  //ayrı bir başlık dosyası var light header-->iosfwd'yi include ederiz bu isteram için de geçerlidir.
+
+class Mint{
+public:
+    explicit Mint(int x = 0);
+    friend  std::stream& operator<<(std::ostream&, const Mint&);
+    friend  std::istream& operator>>(std::istream&, Mint&);
+private:
+    int mx;
+};
+
+#endif
+
+aksi yönde makul bir gerekçemiz yoksa formatlı giriş çıkış fonksiyonlarını operator << ve >>'i overload eden fonksiyonlar
+yazın çünkü ortak bir arayüz sağlanmış olur özellikle generic programlama tarafında son derece önemli avantajlar elde ederiz.
+Yani bizim sınıfımız türünden nesnelerin örneğin standart output'a verilmesi standart input'tan gelen değerlerle set edilmesi
+bir dosyaya yazılması belleğe yazılması bellekten alınan karakterlerin bizim sınfımız türünden nesneleri set etmek için
+kullanılması kesinlikle 1. tercih olarak operator << ve >>'i overload etmek.
+
+DİKKAT!!!
+Sınıf tasarımı her zaman dışarıdan içeriye doğru yapılmalı yani önce veri elemanları belirtilip sonra fonksiyonlar belirtilmemeli!!!
+Tasarım her zaman dışarıdan içeriye yapılmalı yani sınıf tasarlarken ben bunu nasıl implemente edeceğim diye değil de client bu 
+sınıfı nasıl kullanacak? client o sınıfan hangi hizmetleri nasıl alacak?
