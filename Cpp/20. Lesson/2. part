@@ -1,0 +1,458 @@
+
+Modern C++'ta attribute dediğimiz sentaks öğeleri var, attributelar 2 tane köşeli parantez içine yazılan sözcükler ve birtakım sentaks özelliği var.
+
+Tipik olarak attribute'ler derleyici'in davranışını yönlendir derleyici'nin uyarı mesajı vermeye veya vermemeye teşvik ediyor fakat bir mecburiyet içermez!
+En önemli attribute'lardan biri:
+[[nodiscard]] bu şu anlama gelir: bu fonksiyona yapılan çağrıdan elde edilen geri dönüş değeri bir ifade içinde kullanılmazsa
+yani discard edilirse derleyiciyi durum için uyarı mesajı vermeye teşvik ediyor.
+
+[[nodiscard]] int square(int x)
+{
+    return x * x;
+}
+
+int main()
+{
+    int ival{ 33 };
+
+    square(ival);
+}
+
+Pure function: sadece bir hesaplama yapan herhangi bir durum değişikliğine neden olmayan fonksiyonlardır; square() fonksiyonu da bir Pure function'dır.
+Özellikle bizim kendi yazdığımız aritmetik operatörlerde de overload edilmesi durumunda geri dönüş değerinin kullanılmamsı karşılaştırma operatörlerinin 
+geri dönüş değerlerinin kullanılmaması kabul edilebilir bir durum değildir. O yüzden karşılaştırma operatörlerinin ve aritmetik operatörlerinin (ama işlemli atama operatörlerinin
+değil +, - vb.) nodiscard attribute ile bildirilmesinde oldukça fayda vardır.
+Yani kesinlikle ve kesinlikle geri dönüş değerinin discard edilmesi lojik bir hataya karşılık geliyorsa böyle fonksiyonlar nodiscard olarak bildirmeliyiz!!!
+Standart kütüphane sınıfdan vektör sınıfının empty ve size fonksiyonları da nodiscard olarak bildirilmiştir.
+
+subscript operatorü
+
+int main()
+{
+    int a[] = {36, 6, 7, 12, 4, 6, 8 };
+
+    std::cout << "a = " << a << '\n';
+    
+    std::cout << "a + 1 = " << a + 1 << '\n';
+    
+    std::cout << "&a + 1 = " << &a + 1 << '\n';//a+1 ile &a + 1 aynı şey değildir; çünkü &a demek 7  elemanlı dizi adresi demek burada a da olduğu gibi aray decay uygulanmaz!!
+
+}
+yani a[3] ile *(&a + 3) aynı şey değildir *(&a + 3) ile erişilen 7 elemanlı bir dizi olur ve ub olur
+
+int main()
+{
+    int a[7] = { 32, 6, 7, 12, 4, 6, 8 };
+
+    for(int i = 0; i < 7; ++i) {
+        std::cout << i[a] << " " << a[i] << '\n';
+        std::cout << *(i + a) << " " << *(a + i) << '\n';
+    }
+}
+ 
+subscript operatorünün overload edilmesi
+x[3] ifadesinde köşeli parantezin dışındaki x bir sınıf nesnesidir içindeyse bir tam sayı ifadesi vardır. Bu durumda derleyici eğer e bir sınıf nesnesi ise 
+bu sınıfın köşeli parantez operatör fonksiyonu overload edilmişse zaten köşeli parantez operatör fonksiyonunun global olarak overload etme imkanı yok bunu şuna dönüştür:
+x.operator[](3);
+Bu fonksiyonun üye operatör fonksiyon olması durumunda doğal olarak tek bir parametreye sahip olması ve parametresinin tam sayı türünden olması gerekiyor.
+Primitif türler söz konusu olduğunda köşeli parantez ile oluşturulan ifadeler L value expression olurlar, o halde derleyici bunu bir fonksiyon çağrısına dönüştürdüğüne göre 
+yine doğal olarak bu fonksiyon geri dönüş değerinin sınıf türünden bir referans olması gerekir.
+
+bu operaü neden overload edeyim?
+burada önemli olan intuitive olması yani sezgi ile ne olduğunun anlaşılabilmesi yani  doğal türlerdeki çağrışımın sınıf türleri içinde doğal türlerin verdiği gibi çağrışımdan yararlanmak.
+Dolayısıyla köşeli parantez  operatörünün verdiği doğal çağrışım bir dizinin ya da bir veri yapısının herhangi bir elemanına erişmek; dolayısıyla bunun aynı çağrışımı yapabilmesi 
+için burada köşeli parantez operatörünün operandı olan sınıf nesnesinin ilişkin olduğu sınıfın array like ya da pointer like bir sınıf olması lazım 
+yani bu şu demek zaten bu sınıfın kendisi problem domain'inde ya bir array'i temsil ediyor ya da array benzeri bir yapıyı temsil ediyor.
+Örneğin bir dinamik dizi, bir deque konteynerı bir string gibi.
+std::vector
+std::deque
+std::array
+std::string
+
+ Standart kütüphanede bu operatörü overload edildiği örneklere  bakalım:
+#include <vector>
+
+int main()
+{
+    vector ivec{ 1, 4, 6, 7, 9 };
+
+    for(size_t i{}; i < ivec.size(); ++i)
+    {
+        using namespace std;
+        //ivec[i] = i;
+        ivec.operator[](i) = i;
+        //++ivec.operator[](i);
+        ++ivec[i];
+    }
+}
+
+
+#include <array>
+
+int main()
+{
+    using namespace std;
+
+    array ar{ 1, 4, 6, 7, 9 };
+
+    ar[3] = 345;
+}
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string name{ "FARUK ISIKER" };
+
+    for(size_t i{}; i<name.length(); ++i ) {
+        cout << name[i] << ' ';
+    }
+}
+
+pointer like sınıflar aslında pointer değil ama pointer gibi kullanılıyor. Bunun smart pointer ile karıştırmamalıyız; smart pointer sınıfları da pointer like sınıflar
+ama smart sınıfları derken kastedilen dinamik ömürlü nesnelerin ya da kaynakların yaam döngülerini life extensionlarını kontrol etmek için kullanılan sınıflar demektir.
+Fakat pointer like denildiği zaman özellikle smart sözcüğü kullanılmıyorsa daha çok belirli amaçlarla kullanılan pointer interface'i sunan sınıflar anlamalıyız.
+Bunların en tipik örneği iteratör sınıflarıdır. İterator pointerlardan daha yüksek bir soyutlama sağlar pointer bir dizide tutulan elemanların adreslerini tutabilir
+ama iteratör bir veri yapısında tutulan öğelerin konumlarını tutan nesnelerdir yani dizi olması gerekmiyor.
+
+Örneğin bir bağlı listede link list'te tutulan öğelerin konumlarını tutan bir sınıf düşünelim; bunlar da pointer gibi kullanılabilir. Örneğin bir örnek verelim:
+Burada vektördeki ilk öğenin konumunu tutan bir iteratör değişkeni oluşturuyoruz. İşte bu iteratör denilen türü ileride göreceğiz vektörün bir nested type'ı
+varlık nedeni vektörde tutulan öğelerin konum bilgilerini tutmaktır.
+
+#include <iostream>
+#include <vector>
+
+int main()
+{
+    vector ivec{ 1, 4, 6, 7, 9 };
+
+    auto iter = ivec.begin();
+
+    cout << *iter << '\n';
+
+    cout << iter[3];
+}
+
+bu anlama pek uymayan sıradışı kabul edilen bir örnek de bu verilebilir:
+#include <map>
+
+int main()
+{
+
+    using namespace std;
+
+    map<string, int> name_id_map;
+
+    name_id_map["utku"] = 464325;
+}
+
+Programlarda kullanılan sınıf nesnelerinin const yani immutable olabileceğini unutmayınız!!!
+
+const nesne söz konusu olduğu zaman dizinin sözde elemanına erişme ifadesi salt okuma amaçlı kullanıldığında sentaks hatası olmamalı fakat değiştirme amaçlı
+olursa sentaks hatası meydana gelmeli zaten const olmayan nesne için değişim amaçlı da okuma amaçlı erişim de sentaks hatasına neden olmamalı; bu sağlayan:
+const overloading:
+
+class ivector{
+public:
+    ivector();
+    ivector(std::size_t size);
+    int& operator[](std::size_t);//const olmayan nesneler için
+    int& operator[](std::size_t)const;// const olan nesneler için
+};
+
+int main()
+{
+    const ivector vec(100);
+    vec[3] = 12;//sentaks hatası const nesne
+    auto val = vec[45];
+}
+
+int dizisini sarmalayan wrapper bir sınıf yazalım:
+
+template <std::size_t size>
+
+class Array{
+
+public:
+    //..
+    int& operator[](std::size_t idx)
+    {
+        return ar_[idx];
+    }
+    const int& operator[](std::size_t idx)const
+    {
+        return ar_[idx];
+    }
+
+    std::size_t get_size()const
+    {
+        return size;
+    }
+private:
+    int ar_[size];
+};
+
+
+int main()
+{
+    Array<10> ar;
+
+
+    //code
+
+    for(size_t i = 0; i < ar.get_size(); ++i) {
+        ++ar[i];
+    }
+
+}
+
+multi index durumunda [][] C++23 öncesinde başka başka yöntemlerle örneğin 1. [] içeren ifade bir fonksiyon çağırısı olarak geri dönüş değeri olarak diğer [] operatörünün
+operanı olabilmesi için ya pointer ya da yine [] operatörünü overload eden bir sınıf türünden olmalıydı fakat şimdi bu ve bunun gibi diğer yöntemlere gerek kalmadı operatör
+overloading'de multi indeks biçiminde overload edebiliriz!!
+
+
+işaret operatörlerinin overload edilmesi(+ ve -)
+
+class Mint{
+public:
+    explicit Mint(int x = 0) : mx{x} {} 
+
+    Mint operator+()const
+    {
+        return *this;
+    }
+
+    
+    Mint operator()const
+    {
+        return Mint{-mx};
+    }
+
+
+    Mint& operator+=(const Mint& other)
+    {
+        mx += other.mx;
+        return *this;
+    }
+
+
+    
+    Mint& operator-=(const Mint& other)
+    {
+        mx -= other.mx;
+        return *this;
+    }
+
+    
+    Mint& operator/=(const Mint& other)
+    {
+        if(other.mx == 0)
+            throw std::runtime_error{"divede by zero error"};
+        mx /= other.mx;
+
+        return *this;
+    }
+
+    Mint& operator*=(const Mint& other)
+    {
+        mx *= other.mx;
+        return *this;
+    }
+
+    Mint& operator++()
+    {
+        ++mx;
+        return *this;
+    }
+
+    Mint operator++(int)//buradaki int parametre 0'dır dilin kuralı //postfix 
+    {
+        Mint tmp{*this};
+
+        //++*this;//sonek ++ nesnesin değerini(yan etki) arttırmak için önek ++ fon. çağırıyor
+        operator++();//yukarıdaki ile aynı anlamda bu daha şık
+        return tmp;
+
+    }
+
+
+    Mint& operator--()
+    {
+        --mx;
+        return *this;
+    }
+
+    Mint operator--(int)//buradaki int parametre 0'dır dilin kuralı //postfix 
+    {
+        Mint tmp{*this};
+
+        //--*this;//sonek -- nesnesin değerini(yan etki) arttırmak için önek -- fon. çağırıyor
+        operator--();//yukarıdaki ile aynı anlamda bu daha şık
+        return tmp;
+
+    }
+
+    friend bool operator<(const Mint&lhs, const Mint& rhs)//bunlar birer global func. sırf sınıf tanımı içinde diye member func. değil!!
+    {
+        return lhs.mx < rhs.mx;
+    }
+
+    friend bool operator==(const Mint&lhs, const Mint&rhs)
+    {
+        return lhs.mx == rhs.mx;//burada recursive çağrı yok == operandları int zaten
+    }
+
+    //inserter
+    friend  std::stream& operator<<(std::ostream& os, const Mint& mint)
+    {
+        return os << '(' << mint.mx << ')';
+
+    }
+
+    //extractor
+    friend  std::istream& operator>>(std::istream& is, Mint& mint)
+    {
+        return    is >> mint.mx;
+
+    }
+private:
+    int mx;
+};
+
+inline bool operator!=(const Mint&lhs, const Mintrhs)
+{
+    return(!lhs == rhs); //ben aslında sınıf içinde tanımlanan global fonksiyonu operator notasyonu ile çağırmış oldum
+    //return !operator==(lhs, rhs); şeklinde de yazılabilir zaten 
+}
+
+inline bool operator>(const Mint&lhs, const Mintrhs)
+{
+    return rhs < lhs;
+}
+
+
+inline bool operator>=(const Mint&lhs, const Mintrhs)
+{
+    return !(lhs < rhs);
+}
+
+inline bool operator<=(const Mint&lhs, const Mintrhs)
+{
+    return !(rhs < lhs);
+}
+
+inline Mint operator+(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} += r2;
+}
+
+inline Mint operator-(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} -= r2;
+}
+
+inline Mint operator/(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} /= r2;
+}
+
+inline Mint operator*(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} *= r2;
+}
+
+dereferencing operatörünün ve ok operatörünün (member selection(arrow)) overload edilmesi
+
+Bu operatörleri overload etmemin nedeni pointer like sınıfları için;
+ptr->foo();
+ptr sözde Myclass sınıfı türünden bir nesneyi gösteren pointer gibi görev yapacaksa nasıl olacak da ptr'nin sözde gösterdiği nesnenin foo fonksiyonu çağrılacak?
+Ok operatörüne ilişkin ilginç bir kural var o da şu binary operatör olmasına rağmen unary operatör olarak overload ediliyor. Yani derleyici için böyle bir ifade ile karşılaştığında
+ptr'nin bir sınıf nesnesi olması durumunda ifadeyi şuna dönüştürüyor:
+ptr.operator->()->foo();
+Yani ptr nesnesinin ismi  operator-> olan fonksiyonunu çağır bunun parametresi olmamak zorunda yani foo fonksiyona gönderilen bir argüman değil!!
+bu fonksiyonun geri dönüş değeride  yine ok'un soluna koyuluyor.  Bu durumda bu yapının legal olması için fonksiyonun geri dönüş değeri pointer olması gerekir.
+Çünkü o -> operatörünün sol operandı pointer olmalıdır. Dolayısıyla yaygın olmayan örnekleri saymazsak 
+sınıfların -> operatörünü overload eden fonksiyonların geri dönüş değerleri hemen her zaman pointer yapılıyor!!
+
+buna örnek vermek için aslında standart kütüphanenin unique_ptr sınıfının ilkel yine primitif karşılığı olacak bir sözde kod yazıyoruz;
+öyle bir sınıf yazın ki MyclassPtr isimli;  MyclassPtr dinamik ömürlü (yani new ile oluşturulmuş) Myclass nesnelerini gösteren pointer değişkenler gibi kullanılabilecek.
+Ancak bir MyclassPtr nesnesinin hayatı bittiğinde onun gösterdiği Myclass nesnesi delete edilecek:
+
+
+#include <iostream>
+
+class Myclass {
+public:
+    Myclass() = default;
+    ~Myclass()
+    {
+        std::cout << "degeri" << mx << "olan nesnenin hayati bitiyor\n";
+    }
+    Myclass(int x) : mx{ x } {}
+    void set(int val)
+    {
+        mx = val;
+    }
+    int get()const
+    {
+        return mx;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const Myclass& m)
+    {
+        return os << '[' << mx << ']';
+    }
+private:
+    int mx{};
+};
+
+
+class MyclassPtr {
+public:
+    explicit Myclass(Myclass *p) : mp{p} {}
+
+    ~MyclassPtr()
+    {
+        delete mp;
+    }
+    Myclass& operator*()
+    {
+        return *mp;
+    }
+    Myclass* operator->()
+    {
+        return mp;
+    }
+private:
+    Myclass *mp;
+};
+
+int main()
+{
+    using namespace std;
+    {
+        MyclassPtr p(new Myclass(45));
+
+        cout << *p << '\n';
+
+        p->set(745);
+        p.operator->()->set(745);
+
+        cout << *p << '\n';
+        cout << p->get() << '\n';
+        cout << p.operator()->get() << '\n';
+
+        (*p).set(999);
+        p->set(999);
+
+        std::cout << *p << '\n';
+
+
+    }
+
+    std::cout << "main devam ediyor\n";
+}
+
