@@ -1,0 +1,680 @@
+24 Şubat 2023 - Cuma 20. Ders günü
+
+//mint.h
+#include <istream>
+#include <ostream>
+
+
+class Mint{
+public:
+    explicit Mint(int x = 0) : mx{x} {} 
+
+    //inserter
+    friend  std::stream& operator<<(std::ostream& os, const Mint& mint)
+    {
+        return os << '(' << mint.mx << ')';
+        //os.operator<<(mint.mx) yukarıdaki kod satırı bu anlama gelir burada global bizim yazdığımız fonksiyonun içinde
+        //bu kod satırılı ile stream sınıfının üye operator fonksiyonunu çağırıyor. mint'in mx'i int türden olduğu için
+        //burada func. ovrldng. resolt. ile sınıfın int parametreli fonksiyonu seçilir.
+        //bu da yine stream türünden bir nesne döndürüğünden return ifadesinde doğrudan kullanılabilir.
+
+
+    }
+
+    //extractor
+    friend  std::istream& operator>>(std::istream& is, Mint& mint)
+    {
+        return    is >> mint.mx;
+
+    }
+private:
+    int mx;
+};
+
+#endif
+
+//burada derleyicinin special member functionları yazmasında herhangi bir sakınca yok tamamen rule of zero'ya bağımlı kaldık.
+
+//main.cpp
+
+#include "mint.h"
+#include <iostream>
+
+int main()
+{
+    Mint m1{}, m2{};
+
+    std::cout << "iki tane tam sayı giriniz: ";
+
+    std::cin >> m1 >> m2;
+
+    std::cin >> m1;
+    operator>>(std::cout, m1);//yukarıda ki kod satırı ile aynı anlamda
+
+    std::cout << m1;
+
+    operator<<(std::cout, m1);//yukarıda ki kod satırı ile aynı anlamda
+
+    std::cout << "m1: " << m1 << "m2: " << m2 << '\n';
+
+}
+
+Popüler olarak çıkış akımına formatlı olarak nesnelerimizin değerlerini yazdıran fonksiyonlara inserter; giriş akımlarından karakterleri
+alarak nesnelerimizi  formatlı şekilde set eden fonksiyonlarada extractor deniliyor.
+
+Standart kütüphane belirli türleri için kendi inserter'larını oluşturmuş, yani onlar için bizim inserter yazmamız gerekmiyor.
+Aynı durum extractor için de geçerlidir.
+
+standart kütüphanenin bize sunduğu bazı inserter fonksiyon örnekleri:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string name;
+
+    std::cout << "isim girin: ";
+    std::cin >> name;
+    std::cout << "isim: " << name << '\n';
+}
+
+#include <iostream>
+#include <bitset>
+
+int main()
+{
+    using namespace std;
+
+    bitset<16> bx{ 76243u };
+    std::cout << bx;
+}
+
+#include <iostream>
+#include <complex>
+
+int main()
+{
+    using namespace std;
+
+    complex c{ 3.4, 6.7 };
+
+    cout << c << '\n';
+}
+
+Peki ben bu fonksiyonları dosyaya yazdırmak için kullanabilir miyim?
+Kesinlikle çünkü dosya da bir stream o dosya işlemlerini kontrol eden yöneten sınıf nesneleri de yine ostream türünden. Ama ostream
+sınıfından kalıtım yoluyla elde edilen sınıflar türünden ama kalıtım mekanizması ile onlar içinde bu fonksiyonları kullanabiliyorum.
+
+#include "mint.h"
+#include <iostream>
+#include <fstream>
+
+int main()
+{
+    std::ofstream ofs{ "out.txt" };
+    if(!ofs) {
+        std::cerr << "out.txt dosyasi olusturulamadi\n";
+        exit(EXIT_FAILURE);
+    }
+
+    Mint m1{ 46 }, m1{ 561 };
+
+    std::cout << m1 << " " << m2;//standart çıkışa yazdırılır
+    ofs<< m1 << " " << m2;//ofs'nin kontrol ettiği dosyaya yani out.txt'ye yazdırılır
+
+    //veya
+    for(int i = 0; i < 100; ++i) {
+        ofs<< Mint{i} << '\n';//döngünün her turunda mint türünden geçici bir nesne oluşturup onu döngü değişkeninin değeri ile 
+                            //initialize ediyorum ve onun değerini dosyaya yazdırıyorum.
+    }
+}
+
+karşılaştırma operatörlerinin overload edilmesi
+
+C++20 ile burada ciddi değişiklik yapıldı, kursun 2. yarısında bunu göreceğiz fakat burada ele alınacak konu C++20
+öncesinde olan halidir. Üretimde C++20 standartları kullanılıyorsa hocamız C++20 ile gelen araçlarla bunu uygulamamızı
+uygun görüyor.
+
+C++20 standartı ile dile önemli eklemeler yapıldı, bunlardan biride dile eklenen yeni bir operator:
+bu operator karşılaştırma işlemlerinin yapılması için yazılan bu operator fonksiyonlarının kimyasını bir hayli değiştirmiştir.
+<-> bu operatörün formal ismi three-way comparison'dır. Fakat popüler ismi spaceship'tir. Bu operatörü overload eden fonksiyon
+defalut edilebilir olduğunu ve yine == operatorünün derleyiciye yazdırılmak amaçlı default edilebileceğini bilmemiz şu an için
+yeterlidir.
+
+geleneksel yapı nasıldı?
+burada genel olarak şöyle bir konvensiyon kullanılıyordu:
+equality operators
+==
+!=
+relational operator
+<
+<=
+>
+>=
+bu operatörleri global ya da member function olarak overload edebiliriz, bunlar simetrik operatorler olduğu için daha 
+çok tercih bunları global fonksiyon olarak overload etmek.
+
+Karşılaştırma operatörlerinin ürettiği değer boolean olduğu için bu fonksiyonlar bool döndüren fonksiyonlardır.
+bool dışında başka türden döndürsek sentaks hatası olmaz ama anlamsızdır. 
+
+eşit değil eşitin lojik değili  dolayısıyla her 2 fonksiyonu ayrı ayrı implemente etmek yerine bazı avantajlar kazanmak 
+için eşiti   implemente edip eşit değilin eşiti çağırıp onun geri dönüş değerinin  lojik değilini ifade olarak kullanıp 
+onu döndürmesi sağlanabilir. Bu çok yaygın bir konvensiyon gerekmedikçe eşit değili bu şekilde implemente etmekten sapmayın!
+
+
+class Mint{
+public:
+    explicit Mint(int x = 0) : mx{x} {} 
+
+    friend bool operator==(const Mint&lhs, const Mint&rhs)
+    {
+        return lhs.mx == rhs.mx;//burada recursive çağrı yok == operandları int zaten
+    }
+
+    //inserter
+    friend  std::stream& operator<<(std::ostream& os, const Mint& mint)
+    {
+        return os << '(' << mint.mx << ')';
+
+    }
+
+    //extractor
+    friend  std::istream& operator>>(std::istream& is, Mint& mint)
+    {
+        return    is >> mint.mx;
+
+    }
+private:
+    int mx;
+};
+
+inline bool operator!=(const Mint&lhs, const Mintrhs)
+{
+    return(!lhs == rhs); //ben aslında sınıf içinde tanımlanan global fonksiyonu operator notasyonu ile çağırmış oldum
+    //return !operator==(lhs, rhs); şeklinde de yazılabilir zaten 
+}
+
+
+Ben bir sınıf yazdım bu sınıf için karşılaştırma operatörlerini overload etmeli miyim?
+Çoğunlukla EVET, çünkü STL'in bazı bileşenlerine kullanabilmemiz için sınıfımızın özellikle == ve < operatörlerini 
+overload etmesi gerekiyor. İleride göreceğimiz bazı kütüphane öğeleri bir sınıfın < operatörünün ya da == operatörünün
+operandı olması durumu oluşturuyor: std::set, find
+
+#include <iostream>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<Mint> mvec;
+
+    for(int i = 0; i < 100; ++i) {
+        mvec.push_back(Mint{i});
+    }
+
+    Mint mval{ 35 };
+
+    auto iter = find(mvec.begin(), mvec.end(), mval);//eğer Mint sınıfının == operator fonksiyonu yoksa sentaks hatası meydana gelir!
+}
+sözde find fonksiyonu:
+template <typename InIter, typename T>
+InIter Find(InIter beg, InIter end, const T& val)
+{
+    while(beg != end) {
+        if(*beg == val)
+            return beg;
+        ++beg;
+    }
+
+    return end;
+}
+
+Derleyici şablondan(template'den) kod ürettiğinde derleyicinin yazdığı fonksiyonun parametreleri öyle türden olucak ki
+*beg == val karşılaştırma iki Mint nesnesinin karşılaştırması olucak dolayısıyla derleyici bu şablondan elde edeceği fonksiyonun
+kodunu derlediğinde iki Mint nesnesi == operatörü ile karşılaştırıldığı için eğer 2  Mint nesnesinin eşitlik karşılaştırmasını 
+yapan bir fonksiyon yok ise sentaks hatası oluşur.
+
+#include <iostream>
+#include <set>
+
+int main()
+{
+    using namespace std;
+
+   set<Mint> myset;
+
+   Mint m1{ 10 };
+   myset.insert(m1);//eğer Mint sınıfının < operator fonksiyonu yoksa sentaks hatası meydana gelir!
+}
+
+a < b
+a <= b
+a > b 
+a >= b
+bu operatörlerden herhangi birisi varsa örneğin < ki konvensiyonel olarak hep < implemente edilir. Diğerleri <'ü kullanabilir.
+O zaman < operatörü varsa > operatörü < operatörünü kullanabilir. 
+
+a < b
+
+a <= b      !(b < a)
+a > b       b < a
+a >= b      !(a < b)
+
+yani sadece <'ü implemente edersem diğerleri <'ü çağırılabilir. Bunun sağladığı fayda ortak kodu bir yerde toplamak ve ileride olası 
+değişikliklerde bu değişikliği daha kolay implemente edebilmek.
+
+
+class Mint{
+public:
+    explicit Mint(int x = 0) : mx{x} {} 
+
+    friend bool operator<(const Mint&lhs, const Mint& rhs)//bunlar birer global func. sırf sınıf tanımı içinde diye member func. değil!!
+    {
+        return lhs.mx < rhs.mx;
+    }
+
+    friend bool operator==(const Mint&lhs, const Mint&rhs)
+    {
+        return lhs.mx == rhs.mx;//burada recursive çağrı yok == operandları int zaten
+    }
+
+    //inserter
+    friend  std::stream& operator<<(std::ostream& os, const Mint& mint)
+    {
+        return os << '(' << mint.mx << ')';
+
+    }
+
+    //extractor
+    friend  std::istream& operator>>(std::istream& is, Mint& mint)
+    {
+        return    is >> mint.mx;
+
+    }
+private:
+    int mx;
+};
+
+inline bool operator!=(const Mint&lhs, const Mintrhs)
+{
+    return(!lhs == rhs); //ben aslında sınıf içinde tanımlanan global fonksiyonu operator notasyonu ile çağırmış oldum
+    //return !operator==(lhs, rhs); şeklinde de yazılabilir zaten 
+}
+
+inline bool operator>(const Mint&lhs, const Mintrhs)
+{
+    return rhs < lhs;
+}
+
+
+inline bool operator>=(const Mint&lhs, const Mintrhs)
+{
+    return !(lhs < rhs);
+}
+
+inline bool operator<=(const Mint&lhs, const Mintrhs)
+{
+    return !(rhs < lhs);
+}
+
+int main()
+{
+    Mint m1{ 243 }, { 345 };
+
+    if(m1 < m2) {
+        std::cout << "evet doğru\n";
+    };
+
+    if(m2 >= Mint{ 345 }) {
+        std::cout << "evet doğru\n";
+    }
+}
+
+C++20 kullansaydım kesinlikle buradaki operatörleri bu şekilde yazmazdım, şu şekilde yazardım:
+class Mint{
+public:
+    explicit Mint(int x = 0) : mx{x} {} 
+
+    auto operator<=>(const Mint&) = default;
+    //inserter
+    friend  std::stream& operator<<(std::ostream& os, const Mint& mint)
+    {
+        return os << '(' << mint.mx << ')';
+
+    }
+
+    //extractor
+    friend  std::istream& operator>>(std::istream& is, Mint& mint)
+    {
+        return    is >> mint.mx;
+
+    }
+private:
+    int mx;
+};
+
+aritmetik operatörler için operator fonksiyon yazılması:
+aritmetik operatörleri overload ederken de 1'den fazla seçeneğimiz var fakat hocamız özellikle bir konvensiyon
+yapısını öneriyor.
+Bu konvensiyon scoot meyer'in önerdiği bir konvensiyon:
++ ve += operatörleri aynı işi yaptığı için biri için operatör fonksiyonu tanımlayıp diğeri için o operatör fonksiyonunu çağırmasını sağlayabiliriz 
+burada genel olarak + operatörü için operatör fonksiyonu yazıp += atama operatör fonksiyonu için bunu çağırmaya yönelik bir eğilim olsa da 
+bu iyi bir teknik değildir biz bunun tam tersini yani+= için bir operatör fonksiyonu yazıp + operatörü için bunu çağırmayı uygun buluyoruz 
+çünkü += operatörü sonucu sınıf nesnesinin kendisi değişmektedir:
+
+class Mint{
+public:
+    explicit Mint(int x = 0) : mx{x} {} 
+
+    Mint& operator+=(const Mint& other)
+    {
+        mx += other.mx;
+        return *this;
+    }
+
+
+    
+    Mint& operator-=(const Mint& other)
+    {
+        mx -= other.mx;
+        return *this;
+    }
+
+    
+    Mint& operator/=(const Mint& other)
+    {
+        if(other.mx == 0)
+            throw std::runtime_error{"divede by zero error"};
+        mx /= other.mx;
+
+        return *this;
+    }
+
+    Mint& operator*=(const Mint& other)
+    {
+        mx *= other.mx;
+        return *this;
+    }
+
+    friend bool operator<(const Mint&lhs, const Mint& rhs)//bunlar birer global func. sırf sınıf tanımı içinde diye member func. değil!!
+    {
+        return lhs.mx < rhs.mx;
+    }
+
+    friend bool operator==(const Mint&lhs, const Mint&rhs)
+    {
+        return lhs.mx == rhs.mx;//burada recursive çağrı yok == operandları int zaten
+    }
+
+    //inserter
+    friend  std::stream& operator<<(std::ostream& os, const Mint& mint)
+    {
+        return os << '(' << mint.mx << ')';
+
+    }
+
+    //extractor
+    friend  std::istream& operator>>(std::istream& is, Mint& mint)
+    {
+        return    is >> mint.mx;
+
+    }
+private:
+    int mx;
+};
+
+inline bool operator!=(const Mint&lhs, const Mintrhs)
+{
+    return(!lhs == rhs); //ben aslında sınıf içinde tanımlanan global fonksiyonu operator notasyonu ile çağırmış oldum
+    //return !operator==(lhs, rhs); şeklinde de yazılabilir zaten 
+}
+
+inline bool operator>(const Mint&lhs, const Mintrhs)
+{
+    return rhs < lhs;
+}
+
+
+inline bool operator>=(const Mint&lhs, const Mintrhs)
+{
+    return !(lhs < rhs);
+}
+
+inline bool operator<=(const Mint&lhs, const Mintrhs)
+{
+    return !(rhs < lhs);
+}
+
+inline Mint operator+(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} += r2;
+}
+
+inline Mint operator-(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} -= r2;
+}
+
+inline Mint operator/(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} /= r2;
+}
+
+inline Mint operator*(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} *= r2;
+}
+int main()
+{
+    Mint m1{ 243 }, { 345 };
+
+    std::cout << m1 + m2 + Mint{ 102 } << '\n';
+
+    std::cout << "m1: " << m1 << '\n';
+
+    m1 += m2;
+
+    std::cout << "m1: " << m1 << '\n';
+
+}
+
+Biz burada + operatörü += operatörünü çağıracak şekilde bir konvensiyon uyguladık. + operatörünü bu şekilde implemente etmenin faydalarından;
+1)derleyici bu haliyle daha iyi optimizasyon yapıyor
+2)sınıfın private bölümüne hiç erişmiyoruz o halde friend olmak zorunda değildir!!
+
+
+
+
+++ ve -- operatörlerinin overload edilmesi
+increment / decrement
+
+++x prefix increment
+x++ postfix increment
+
+--x prefix decrement
+x-- postfix decrement
+
+int x = 10;
+sonek ++ operatörünün ürettiği değer nesnenin kendi değeridir 
+int y = x++; //y'ye 10 atanır fakat x bundan sonra 11 değerini alır.
+
+önek ++ operatörünün ürettiği değer nesnenin kendi değerinin bir fazlasıdır:
+
+int b = 19;
+
+int a = ++b;//a'ya  20 değeri atanır b de 20 değerine eşit olur
+
+int main()
+{
+    using namespace std;
+
+    Mint mx{ 34 };
+
+    //++mx
+    //mx++
+}
+
+++mx veya mx++ her iki operatörde unary normalde bu operatörler sınıfın üye fonksiyonu olduğunda unary olduğu için parametre eğişkenine sahip olmaması gerekir.
+Çünkü zaten mx *this olacak bu durumda da ikisi için ayrı kod vermek/overload etmek mümkün olmaz. Çünkü aynı imzaya sahip iki tane fonksiyon olamaz.
+Bunun için şöyle bir kural uydurmuşlar:
+Eğer biz bir sınıfa ++ sonek ve önek operatörlerini overload edilecek  fonksiyon yazacaksak parametresi olmayan yani unary operatör gibi overload edilmiş 2 fonksiyon yazarız.
+int parametreli olan postfix parametresi olmayan ise prefix olarak overload edilmiştir.
+
+ Önek operatörlerinin oluşturduğu ifadeler L value expr. kategorisine girdiği için fonksiyonların genellikle geri dönüş değeri sınıf türünden sol taraf referansı olmalıdır.
+ class Myclass {
+public:
+    Myclass& operator++();//prefix
+    Myclass  operator++(int);//postfix
+ };
+
+
+
+class Mint{
+public:
+    explicit Mint(int x = 0) : mx{x} {} 
+
+    Mint& operator+=(const Mint& other)
+    {
+        mx += other.mx;
+        return *this;
+    }
+
+
+    
+    Mint& operator-=(const Mint& other)
+    {
+        mx -= other.mx;
+        return *this;
+    }
+
+    
+    Mint& operator/=(const Mint& other)
+    {
+        if(other.mx == 0)
+            throw std::runtime_error{"divede by zero error"};
+        mx /= other.mx;
+
+        return *this;
+    }
+
+    Mint& operator*=(const Mint& other)
+    {
+        mx *= other.mx;
+        return *this;
+    }
+
+    Mint& operator++()
+    {
+        ++mx;
+        return *this;
+    }
+
+    Mint operator++(int)//buradaki int parametre 0'dır dilin kuralı //postfix 
+    {
+        Mint tmp{*this};
+
+        //++*this;//sonek ++ nesnesin değerini(yan etki) arttırmak için önek ++ fon. çağırıyor
+        operator++();//yukarıdaki ile aynı anlamda bu daha şık
+        return tmp;
+
+    }
+
+
+    Mint& operator--()
+    {
+        --mx;
+        return *this;
+    }
+
+    Mint operator--(int)//buradaki int parametre 0'dır dilin kuralı //postfix 
+    {
+        Mint tmp{*this};
+
+        //--*this;//sonek -- nesnesin değerini(yan etki) arttırmak için önek -- fon. çağırıyor
+        operator--();//yukarıdaki ile aynı anlamda bu daha şık
+        return tmp;
+
+    }
+
+    friend bool operator<(const Mint&lhs, const Mint& rhs)//bunlar birer global func. sırf sınıf tanımı içinde diye member func. değil!!
+    {
+        return lhs.mx < rhs.mx;
+    }
+
+    friend bool operator==(const Mint&lhs, const Mint&rhs)
+    {
+        return lhs.mx == rhs.mx;//burada recursive çağrı yok == operandları int zaten
+    }
+
+    //inserter
+    friend  std::stream& operator<<(std::ostream& os, const Mint& mint)
+    {
+        return os << '(' << mint.mx << ')';
+
+    }
+
+    //extractor
+    friend  std::istream& operator>>(std::istream& is, Mint& mint)
+    {
+        return    is >> mint.mx;
+
+    }
+private:
+    int mx;
+};
+
+inline bool operator!=(const Mint&lhs, const Mintrhs)
+{
+    return(!lhs == rhs); //ben aslında sınıf içinde tanımlanan global fonksiyonu operator notasyonu ile çağırmış oldum
+    //return !operator==(lhs, rhs); şeklinde de yazılabilir zaten 
+}
+
+inline bool operator>(const Mint&lhs, const Mintrhs)
+{
+    return rhs < lhs;
+}
+
+
+inline bool operator>=(const Mint&lhs, const Mintrhs)
+{
+    return !(lhs < rhs);
+}
+
+inline bool operator<=(const Mint&lhs, const Mintrhs)
+{
+    return !(rhs < lhs);
+}
+
+inline Mint operator+(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} += r2;
+}
+
+inline Mint operator-(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} -= r2;
+}
+
+inline Mint operator/(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} /= r2;
+}
+
+inline Mint operator*(const Mint& r1, const Mint&r2)
+{
+    return Mint{r1} *= r2;
+}
+int main()
+{
+    Mint mx{ 34 };
+
+    auto my = mx++;
+
+    std::cout <<"mx: " << mx << '\n';
+    std::cout <<"my: " << my << '\n';
+
+
+}
