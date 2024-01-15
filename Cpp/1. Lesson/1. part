@@ -1,10 +1,15 @@
 Ders 1: 9 Ocak 2023 -  Pazartesi
 
-1. Kısım
+C++11'den sonrasına Modern C++ deniliyor.
+
+Bu kursta minimal base'miz C++17 standartları olucak.
+
+C++ C'nin bir sürümü/versiyonu değildir.
 
 ABI: Abstract Binary Interface
 
 C++ ilk isimlendirme olarak C with classes olarak isimlendirilmiştir. Burada C++ bir espiri neticesinde ismi bu şekilde olmuştur.
-Buradaki ++ C’deki increment operatödür. C++ multiparadaym bir dildir.
+Buradaki ++ C’deki increment operatödür. Buradaki ++ C'nin değerini arttırma espirisinden geliyor.  C++ multiparadaym bir dildir.
+Yani bizi belirli bir paradigmaya bağlı kılmıyor.
 
 Özellikle generic paradigmaya verdiği destkek tartışılmaz çok büyüktür. Birçok dilden faydalandığı için, hibrit bir dildir.
