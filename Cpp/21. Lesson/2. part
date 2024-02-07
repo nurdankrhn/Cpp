@@ -1,0 +1,282 @@
+tür dönüştürme operatorlerinin overload edilmesi
+
+x bir sınıf nesnesi olmak üzer:
+(target type)x
+x.operator target type()
+
+sınıfın üye fonksiyonu olmak zorundadır, global olamaz!!([], ->, () vb de olamıyordu), target type yerine hangi türe dönüşüm
+yapılmaısnı istiyorsak o tür bilgisini yazarız.
+ Bu fonksiyonların geri dönüş değeri olmasına rağmen yazmıyoruz, çünkü yazsakta target tpye'ı
+yazacaktık o sebeple yazmıyoruz. 
+Eğer dönüşüm referans türüne yapılmıyorsa fonksiyon çağrı ifadesi bir PR value expr. oluşturur. Fakat 
+referas türüne dönüşü yapılırsa fonksiyon çağrı ifadesi bir L value expr. oluşturur. 
+Tür dönüştürme operatörü tipik olarak nesneyi değiştirmediği için çok özel bir durum söz konusu değil ise tür dönüştürme operator fonksiyonu hemen her zaman sınıfın const
+üye fonksiyonu olur.
+
+class Myclass{
+public:
+    operator int()const //Myclass sınıfı türünden bir nesne int türüne örtülü olarak derleyicinin bu fonksiyona çağrı yapması ile dönüştürülebilir.
+    {
+        std::cout << "Myclass::operator int() this = " << this << '\n';
+        return 189;
+    }
+};
+
+int main()
+{
+    Myclass mx;
+    int ival{};
+
+    std::cout << "&mx = " << &mx << '\n';
+    
+
+     ival = mx; //aşağıdaki kod satırları aynı işi yapar
+    //int ival = mx.operator int();
+    //ival = static_cast<int>(m);
+
+    std::cout << "ival = " << ival << '\n';
+}
+
+function overload resolution için kötüden iyiye doğru bir sıralama yapmıştık:
+variadic conversion
+
+user-defined conversion(UDC)
+1)conversion ctor
+2)type cast operator function
+standard conversion
+
+UDC 2 yolla yapılabiliyor:
+1)conversion ctor
+class Nec{
+public:
+    explicit Nec(int);
+};
+
+2)sınıfın tür dönüştürme operatörü ile sınıf türünden başka türe dönüşüm yapılması
+class Myclass{
+public:
+    operator int()const;
+    operator double()const;
+};
+
+Eğer tür dönüştürme fonksiyonu örtülü olarak bir dönüşüm imkanı sağlıyorsa bu oldukça tehlike arz eden bir durumdur!!!! Çünkü yanlışlıkla yapılan tür dönüşümleri
+kodlama hatalarının en tipik kaynaklarından biridir. 
+önceden değindiğimiz gibi : SC->standart conversion UDC->user defined type conversion
+//derleyicinin yapmak zorunda oldukları
+SC + UDC 
+UDC + SC 
+
+//derleyicinin yapmamak zorunda oldukları
+UDC + UDC
+
+
+aşağıdaki örnek UDC ardından SC dönüşüm örneği:
+class Myclass{
+public:
+    operator int()const;
+
+};
+
+int main()
+{
+    Myclass m;
+    double dval{};
+    dval = m; //dval = (double)(m.operator int(); gibi olur bu aslında istenmeyen dönüşümlerede kapı açar tehlikeli!!)
+}
+
+Modern C++ öncesinde tür dönüştürme operatör fonksiyonları için explicit anahtar sözcüğü kullanılamıyordur yani tür dönüştürme fonksiyonları explicit olamıyordu.
+Fakat modern C++ ile kullanılabilir hale geldi, böylece explicit ctor'da olduğu gibi sadece explicit olarak dönüşümü sağlar örtülü dönüşüm yapmaz!!!
+
+class Myclass{
+public:
+    explicit operator int()const;
+
+};
+
+int main()
+{
+    Myclass m;
+    int ival{};
+    //code
+
+    ival = m;//sentaks hatası explicit yapmalıyız
+    ival = static_cast<int>(m);
+    //veya
+    //ival = (int)m;
+    //veya
+    //ival = int(m);
+    //ival = m.operator int();
+}
+
+yine aynı şekilde conversion ctor için hangi tavsiyeler verildi ise tür dönüştürme operator fonksiyonu içinde aynı tavsiyeler geçerlidir:
+aksi yönde karar almanızı gerektiricek makul bir neden olmadıkça tür dönüştürme operatör fonksiyonlarını her zaman explicit yapınız!!!
+
+not:explicit anahtar sözcüğünü tanımda(definition'da) kullanamayız, bildirimde olur.
+class A{
+public:
+    explicit A(double);//converison ctor
+};
+
+A::A(double dval)
+{
+    
+}
+tanımda explicit anahtar sözcüğü olsaydı sentaks hatası olurdu:
+explicit A::A(double dval)//sentaks hatası
+{
+    
+}
+
+aynı şey tür dönüştürme operatör fonksiyonu için de geçerlidir:
+class B{
+public:
+    explicit operator int()const;
+};
+
+B::operator int()const//başta explicit anahtar sözcüğünü kullanmak sentaks hatası
+{
+
+}
+
+yani definition ve declaration  farklı dosyalarda olduğu zaman sadece decleration kısmında explicit anahtar sözcüğü kullanılır.
+
+standart kütüphanede explicit olmayan tür dönüştürme operatör fonksiyonları vardır, ama onların zaten varlık nedenleri itibarıyla 
+explicit olmamaları gerekiyor.
+
+#include <iostream>
+
+
+class Counter{
+public:
+    Counter() = default;
+
+    explicit Counter(int x) : mc{x} {}
+
+    friend std::ostream& operator<<(std::ostream&os, const Counter&c)
+    {
+        return os << "(" << c.mc << ")";
+    }
+
+    Counter& operator++()
+    {
+        ++mc;
+        return *this;
+    }
+    Counter operator++(int)
+    {
+        Counter temp{*this};
+        operator++();
+        return temp;
+    }
+    explicit operator int()const
+    {
+        return mc;
+    }
+private:
+    int mc{};
+};
+
+int main()
+{
+
+    Counter mycounter{};
+
+    for (int i = 0; i < 10; i++)
+    {
+        ++mycounter;
+    }
+
+    mycounter++;
+
+    auto x1 = static_cast<int>(mycounter);
+    auto x2 = (int)mycounter;
+    auto x3 = int(mycounter);
+    auto x4 = int(mycounter);
+    auto x5 = static_cast<int>(mycounter);
+
+    //int ival = mycounter;//sentaks hatası implicit dönüşüm yok öünkü explicit yapılmış converison ctor
+
+    std::cout << "x1 : " << x1 << '\n';
+    std::cout << "x2 : " << x2 << '\n';
+    std::cout << "x3 : " << x3 << '\n';
+    std::cout << "x4 : " << x4 << '\n';
+    std::cout << "x5 : " << x5 << '\n';
+
+
+    
+
+}
+Eğer sınıf türünden bir nesneyi lojik karşılaştırma işlemlerine tabii tutmak istiyorsak sınıfın  bool türüne dönüşüm gerçekleştiren  operator bool fonksiyonu olması gerekir!!!
+Aksi halde aşağıda verilen işlemler ve buna benzer lojik işlemleri yapamayız.(sınıf türünden nesneler için):
+#include <iostream>
+
+class Myclas{
+
+};
+
+int main()
+{
+    Myclas m1, m2;
+    
+    m1 && m2 //yapamayız
+    m1 // m2 //yapamayız
+
+    if(m1) //yapamayız
+}
+
+
+DİKKAT!!
+en çok karşımıza çıkacak olan tür dönüştürme operatör fonksiyonu bool türüne dönüşüm gerçekleştiren sınıfların operator bool fonksiyonudur.
+Standart kütüphanede birçok sınıfın operator bool fonksiyonu vardır.
+
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    auto b = cout && cin;
+
+    while(cin)
+    {
+        //code
+    }
+
+    if(cout) {
+
+    }
+}
+
+#include <iostream>
+#include <memory>
+
+int main()
+{
+    using namespace std;
+
+    unique_ptr<int> up{new int};
+
+    if(up) {
+
+    } 
+
+    //if içinde örtülü olarak aslında sınıfın operator bool fonk. çağırılıyor:
+    if(up.operator bool()) {
+
+    }
+}
+
+#include <iostream>
+#include <optional>
+
+int main()
+{
+    using namespace std;
+
+    optional<int> op;
+
+    if(op) {
+
+    }
+}
+
