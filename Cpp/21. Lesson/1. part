@@ -1,0 +1,342 @@
+6 Mart 2023 Pazartesi
+
+operator overloading
+    dereferencing
+    arrow (member selection)
+    bu operatörler pointer like sınıflar için overload ediliyor, çünkü bu operatörler sınıf nesnesini operand olarak aldığı zaman doğal türler için verdiği çağrışım ile
+    aynı anlamı hissiyatı versin diye operand olan sınıfın pointer like sınıf olmalı.
+Pointer like sınıflarını da 2 ayrı kategoriye ayırmak mümkündür:
+1)iterators:veri yapılarında, container'larda  tutulan öğelerin konum bilgilerini tutan nesnelerdir. (pointer'ların daha da soyutlanmış bir biçimi)
+2)smart pointers(unique_ptr, shared_ptr)
+
+
+Aşağıda verilen yapı class template olarak isimlendirilir, ve class template derleyicinin sınıf kodu yazmasında kullanacağı bir yapı aslında derleyiciye
+kod yazdıran bir yapı:
+template <typename T>
+class UniquePtr{
+    T *mp;
+
+};
+
+class Myclass{
+
+};
+
+int main()
+{
+    UniquePtr<Myclass> uptr; //T görünen yerde Myclass sınıfını kullanacak!!
+}
+
+
+sözde yazdığımız unique_ptr sınıfı:
+uniqueptr sınıfı taşımaya açık kopyalamaya kapalı; move memberlardan birini bildirince copy memberlar delete ediliyprdu!!
+template <typename T>
+class UniquePtr{
+public:
+    UniquePtr(): mp{nullptr} {}
+    ~UniquePtr()
+    {
+        if(mp)
+            delete mp;
+    }
+    UniquePtr(UniquePtr&& other) : mp{other.mp} //move ctor
+    {
+        other.mp = nullptr;
+    }
+    UniquePtr& operator=(UniquePtr&& other)//move assigment
+    {
+        if(this == &other)
+            return *this;
+        mp = other.mp;
+        other.mp = nullptr;
+
+        return *this;
+    }
+    explicit UniquePtr(T *p) : mp{p} {}
+    T& operator*()
+    {
+        return *mp;
+    }
+
+    T* operator->()
+    {
+        return mp;
+    }
+private:
+    T *mp;
+};
+
+class Myclass{
+public:
+void foo();
+void bar();
+
+};
+
+int main()
+{
+    UniquePtr<Mylass> uptr{new Myclass} ;
+    (*uptr).bar();
+    uptr->foo();
+    //derleyicinin ele alışı şu şekilde
+    uptr.operator->()->foo();
+}
+
+
+factory function: öyle bir fonksiyon ki fonksiyonun varlık nedeni bir nesne oluşturmak. C++'ın standart kütüphanesinde de amacı nesne oluşturmak olan  ve daha çok generic programlama
+paradigması ile birlikte kullanılan çok sayıda standart fonksiyon bulunmaktadır:
+make_pair
+make_tuple
+make_unique
+make_shared 
+C++'ın standart kütüphanesi fabrika fonksiyonlarını isimlendirirken make ön ekini kullanıyor.
+
+unique_ptr sınıfı standart kütüphanenin memory isimli başlık dosyasında yer alır. Şimdi başlık dosyasında olan sınıfı göreceğimiz bir örnek yapalım:
+
+#include <memory>
+#include <iostream>
+
+class Myclass{
+
+public:
+    Myclass()
+    {
+        std::cout << "Myclass ctor\n";
+    }
+    ~Myclass()
+    {
+        std::cout << "Myclass dtor\n";
+    }
+
+void foo()
+{
+    std::cout << "Myclass::foo()\n";
+}
+void bar()
+{
+    std::cout << "Myclass::bar()\n";
+}
+
+};
+
+int main()
+{
+    using namespace std;
+
+    std::cout << "main basladi\n";
+    {
+    unique_ptr<Myclass> uptr(new Myclass); //unique_ptr<Myclass> uptr= new Myclass; şekinde initialize etseydim sentaks hatası meydana gelirdi 
+                                            //çünkü sınıfın ctor'u explicit olduğu için copy initialization sentaks hatası olur
+    }
+    std::cout << "main devam ediyor\n";
+}
+Buradan yola çıkarak içerik operatörünün ve ok operatörünün STL'de de yoğun olarak kullanıldığını söyleyebiliriz. Örneğin iterator sınıfıda buna örnektir:
+list öyle bir sınıf ki arka planda çift bağlı veri yapısını implemente ediyor. 
+#include <list>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    list<string>  namelist{"cinar", "alperen", "yusuf", "zeynep", "utku", "kerem", "mehmet"};
+
+    auto iter = namelist.begin();
+    cout << *iter << '\n';//cinar
+    ++iter;
+     cout << *iter << '\n';//alperen
+     ++iter;
+    cout << *iter << '\n';//yusuf
+
+    cout << "uzunluk = " << iter->length() <<'\n';
+    
+}
+
+==================================================================================================================================================
+fonksiyon çağrı(function call) operatörünün overload edilmesi
+C'de fnc() sonucu bir fonksiyon çağırılıyor desek bu durumda fnc ne olabilir diye sorarsak cevaplar şu olabilir:
+1)fnc bir fonksiyonun ismidir:
+    void fnc(void);
+2)fonksiyon pointer'ı
+    void (*fnc)(void)=&foo;
+    fnc();//fnc'nin gösterdiği fonksiyon çağırılır
+3)function like macro
+    #define square(a) ((a) * (a))
+
+    int main()
+    {
+        int x = 10;
+        square(x);
+        //function like macro biraz tehlikelidir; örneğin fonksiyon olsa aşağıda ki deyim sentaks hatası olmazken fnc. like ptr'de sentaks hatası olur:
+        //square(x++);
+    }
+
+C++'ta bu yapıyı legal kılacak bu 3 çeşit dışında birçok C++ aracı vardır:
+fnc bir function object
+fnc std::function
+std::bind
+
+C++'ta eğer bir isim fonksiyon çağrı operatörünü operandı olabiliyorsa ve bu legal olarak bir fonksiyon çağrısı oluşturuyor ise böyle varlıklara
+callable deniliyor. f()
+Bunu legal kılıcak en tipik örnek f'nin bir sınıf nesnesi (object instance) olması ve f'nin ait olduğu sınıf fonksiyon çağrı operatörünü overload etmiştir.
+Bu durumda f() buna karşılık gelir f.operator()()
+
+Fonksiyon çağrı operatörünü overload eden sınıflara popüler olarak Functor class  deniliyor:
+
+//functor class
+//function object(class)
+
+class Functor{
+puplic:
+    void operator()(int x)
+    {
+        std::cout << "void Functor::operator()(int x)\n";
+        std::cout << "x = " << x << '\n';
+        std::cout << "this: " << this << '\n';
+    }
+
+};
+
+int main() {
+    Functor fn;
+
+    std::cout << "&fn = " << &fn << '\n';
+    fn(12); 
+    fn.operator()(12);//yukarıdaki ile aynı anlamda
+}
+
+Sentaks Özellikleri
+
+Fonskiyon çağrı operatörünün overload edilmesinde ilginç bir kural var; varsayılan argüman alabilen tek operatör fonksiyonu budur.
+//functor class
+//function object(class)
+
+class Functor{
+puplic:
+    void operator()(int x = -1)
+    {
+        std::cout << "void Functor::operator()(int x)\n";
+        std::cout << "x = " << x << '\n';
+        std::cout << "this: " << this << '\n';
+    }
+
+}; 
+
+int main() {
+    Functor fn;
+
+    std::cout << "&fn = " << &fn << '\n';
+    fn(12); 
+    fn();//fn(-1);
+}
+
+Bu da diğer operatör fonksiyonlarında olduğu gibi overload edilebilir:
+ #include <iostream>
+
+ //function class
+ //function object(class)
+
+ class Myclass{
+public:
+    void operator()(int);//1
+    void operator()(double);//2
+    void operator()(char);//3
+    void operator()(const char*);//4
+
+ };
+
+ int main()
+ {
+    Myclass m;
+
+    m(12); //1
+    m(5.6);//2
+    m('A');//3
+    m("osman");//4
+ }
+
+ Semantik Özellikleri
+
+ Neden üye fonskiyon yerine fonksiyon çağrı operatörünü overload etmeliyim?
+ Fonksiyon çağrı operatörünün overload edilmesi ile fayda sağladığımız temaların büyük çoğunluğu generic programlama araçları ile beraber kullanıldığı
+ zaman ele alacağız. Fakat şöyle küçük bir örnek vermek gerekirse:
+ örneğin rand isimli fonksiyonun önceden belirlenmiş değer aralığı için random sayı üretmesini isteyelim: burada daha önce değerleri ctor ile 
+ initalize edilmiş sınıf nesnelerini function operator fonksiyonu ile random sayı üretmesini sağlayabilirim:
+    Random bir sınıf olmak üzere:
+    Random rand1{12, 78};
+    Random rand2{1900, 1975};
+
+    rand1();//12 ile 78 aralığında rastgele değer üretir.
+daha da önemlisi paramtresi yine böyle bir sınıf türünden ise ve bu parametre değişkeni fonksiyon çağrı operatörünün operandı olursa:
+void func(Random rand)
+{
+    rand();//burada bir fonksiyon çağırılır, ama buradaki state bilgisini fonksiyona ileten bu fonksiyonu çağıran kod olur.
+}
+
+int main()
+{
+    func(Random{466, 789});
+
+}
+
+yani;
+#include <cstdlib>
+#include <iostream>
+
+
+class Random {
+public:
+    Random(int low, int high): mlow{low}, mhigh{high} {}
+    
+    int operator()()
+    {
+        return std::rand() %  (mhigh - mlow + 1) + mlow;
+    }
+    
+private:
+    int mlow, mhigh;    
+};
+
+int main()
+{
+    using namespace std;
+
+    Random r1{2300, 2360};
+    Random r2{40, 45};
+    Random r3{1'000'000, 1'001'000};
+
+    for(int i = 0; i <10; ++i ) {
+        cout<< r1() << " ";
+    }
+
+    std::cout << "\n\n\n";
+
+    for(int i = 0; i <10; ++i ) {
+        cout<< r2() << " ";
+    }
+
+    std::cout << "\n\n\n";
+
+    for(int i = 0; i <10; ++i ) {
+        cout<< r3() << " ";
+    }
+
+    std::cout << "\n\n\n";
+}
+
+bir fonksiyonun parametresi de bu türden olabilirdi:
+void foo(Random rx) 
+{
+    for(int i = 0; i <10; ++i ) {
+        cout<< rx() << " ";
+    }
+
+    std::cout << "\n\n\n";
+}
+
+int main()
+{
+    using namespace std;
+
+    foo(Random{12, 17});
+}
