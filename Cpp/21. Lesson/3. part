@@ -1,0 +1,284 @@
+Neden bir sınıfın operator bool fonksiyonu olsun?
+neden bir sınıf nesnesi lojik yorumlamaya gereken bir yerde lojik yorumlamaya tabi tutulsun, bunun sağladığı
+fayda ne olabilir?
+örneğin normal pointerlar için kullandığımız:
+int *p{};
+if(!pi) 
+vb lojik yorumlamayı smart pointerlar içinde yapabilmemiz istenen bir durum. Bunu bool operator fonksiyonu 
+sayesinde yaparız. 
+Bir diğer örnek ise unique_ptr sınıfı için lojik yorumlama sınfın dolu mu boş mu olup olmadığı ile ilgilidir.
+
+örneğin bu örnekte cin için state kontrolü yapılmış, kullanılabilir olup olmadığı öğrenilmek için yazılmıştır:
+int main()
+{
+    if(cin)
+    {
+
+    }
+}
+
+
+örneğin aşağıda verilen örnek ile cin ile kullanıcıdan istenen formatta değer girişi olduğu sürece 
+devam eden bir while döngüsünün içerde de alınan değeri standart çıkış akımına yazdırdığı kod satrıları mevcut:
+
+#include <iostream>
+
+int main()
+{
+    int x;
+
+    //while(cin >> x) {
+    while(cin.operator>>(x).operator bool() ) {
+        cout << x << '\n';
+    }
+
+
+}
+
+örneğin optional sınıfı(modern C++ ile C++17 ile dile eklenen bir sınıftır) ise ya bir değer sahip
+ya da bir değere sahip değildir. Bu sınıfın bir değere sahip olması kadar bir değere sahip olmaması da son derece 
+doğaldır. O halde optional sınıfı türünden bir nesnenin operator bool fonksiyonu çağırıldığında değerinin olup 
+olmadığını sınamış oluyoruz. 
+
+#include <iostream>
+#include <optional>
+
+int main()
+{
+    using namespace std;
+
+    optional<int> x = 340;
+
+    if(x) {
+        std::cout << "ben sana bos degilim\n";
+    }
+
+    else {
+        std::cout << "ben bosum degerim yok\n";
+    }
+
+
+}
+
+DİKKATTT!!!
+Modern C++ ile operatör bool işlevine ilişkin bazı kurallar değiştirildi:
+1)operator bool fonksiyonu explicit olsa da lojik bağlamda  kullanıldığında sentaks hatası olmaz: 
+
+class Myclass{
+public:
+    operator bool()const;
+};
+
+int main()
+{
+    Myclass m;
+
+    int x = m;
+
+    int *p = m; //sentaks hatası bool'dan pointer'a örtülü dönüşüm yok
+
+    bool b = m;
+
+    if(m) {
+
+    }
+
+    auto val = m ? 10 : 20;
+
+    while(m) {
+
+    }
+}
+
+explicit yaparsam:
+
+class Myclass{
+public:
+    explicit operator bool()const;
+};
+
+int main()
+{
+    Myclass m;//sentaks hatası explicit çünkü
+
+    int x = m;//sentaks hatası explicit çünkü
+
+    int *p = m; //sentaks hatası bool'dan pointer'a örtülü dönüşüm yok
+
+    bool b = m; //sentaks hatası explicit çünkü
+
+    //lojik bağlamda explicit olsa da legal 
+    if(m) {
+
+    }
+
+    auto val = m ? 10 : 20;
+
+    while(m) {
+
+    }
+}
+
+class Myclass{
+public:
+    explicit operator bool()const;
+};
+
+int main()
+{
+    Myclass m;
+
+    //bool b = m; //sentaks hatası; explicit 
+
+
+    //legal lojik bağlamda
+    bool b = !m; 
+
+    b = m && m;
+    b = m || m;
+
+    if(m) {
+
+    }
+    while (m)
+    {
+        /* code */
+    }
+
+    for(;m;) {
+
+    }
+    
+}
+
+
+cin içinde aynı şeyler söylenir, o sınfında bool operator fonk. explicit'dir:
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    auto b = cin && cout;
+
+    b = !cin;
+    b = !cout;
+
+    if(cin) {
+
+    }
+
+    while(cin) {
+
+    }
+
+    if(cin && cout)
+    {
+
+    }
+}
+
+BU KONUYA İLİŞKİN C++ MÜLAKATLARININ BAZI TİPİK SORULARI!!!
+eğer primitiv türde bir işlem yapılabiliyorsa o zaman yine tür dönüştürme operatörü explicit değilse 
+çağırılıyor; örnekte A sınıfı türünden nesneler toplama operatörünün operandı olamayacağı için a1 ve a2
+bool türünde dönüştüğünde işlem yapılabileceği için dönüşüm gerçekleşir ve true + true ifadesi çıkar karşımıza.
+Bilindiği gibi bool türünden bir ifade işleme sokulduğunda int'e dönüştürülür(integer promotion). Dolayısıyla 
+işlem sonucu int türden ve true 1'e false 0'a dönüştürüldüğü için işlem sonucu 2 değeri elde edilir
+
+class A {
+public:
+    operator bool()const 
+    {
+        return true;
+    }
+
+
+};
+
+int main()
+{
+    A a1, a2;
+
+    //auto x = a1 + a2;
+
+    auto x = a1.operator bool() + a2.operator bool();
+
+    std::cout << "x = " << x << '\n';
+}
+
+örneğin yine aynı sınıf türünden bir nesne işaret operatörün operandı olduğunda da yukarıda bahsedilen olay gerçekleşir:
+
+int main()
+{
+    auto x = A{}; //x'in türü A sınıfı
+    auto y = +A{}; //y'nin türü int ayrıca t.d.o.f explicit tanımlansaydı sentaks hatası olurdu
+}
+
+
+bir fonksiyon adresi türüne dönüşüm yapan t.d.o.f olabilir mi?
+olabilir, t.d.o fonk. ile bir fonksiyon adresine dahi örtülü ya da explicit dönüşüm olabilir.
+
+Dikkat!!
+enum türleri sınıf türleri olmamasına karşın enum türleri için de global operator fonksiyonları tanımlanabilir.
+Zaten üye fonk. olamaz çünkü enum türünün böyle bir yapısı yok.
+
+
+enum  class WeekDay {
+    Sunday;
+    Monday;
+    Tuesday;
+    Wendnesday;
+    Thursday;
+    Friday;
+    Saturday
+};
+
+
+std::ostream& operator<<(std::ostream& os, const WeekDay& wd )
+{
+    static const char* const p[] = 
+    {
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wendnesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+    };
+
+    return os << p[static_cast<int>(wd)];
+}
+
+//prefix
+WeekDay& operator++(WeekDay& wd)
+{
+    using enum WeekDay;//C++20
+    return wd = w == Saturday ? Sunday : static_cast<WeekDay>(static_cast<int>(wd) + 1);
+}
+
+//postfix
+WeekDay operator++(WeekDay& wd, int)
+{
+    auto temp{wd};
+    ++wd;
+    //operator++(wd);
+    return temp;
+}
+
+
+int main()
+{
+    auto wd{WeekDay::Sunday};
+
+    for(int i = 0; i < 100; i++)
+    {
+        std::cout << wd << '\n';
+    }
+
+    auto x = wd;
+    std::cout << x++ << '\n';
+     std::cout << x << '\n';
+
+
+}
