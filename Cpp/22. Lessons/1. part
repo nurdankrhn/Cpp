@@ -1,0 +1,295 @@
+8 Mart 2023 - Çarşamba
+
+Sınıfın Statik Veri Elemanları
+class Myclass {
+    static int x;//static data member
+};
+
+Statik veri elemanlarının temel Özellikleri
+1)sınıfların statik veri elemanları sınıf nesnesine ait değil yani fiziksel olarak sınıf nesnesinin içinde değildir.
+Sınıfa ait statik ömürlü deişkenler dil katmanında semantik bir araç, yoksa bildiğimiz global değişkenlerdir; yani programın başından sonuna kadar
+varlığını devam ettiren static ömürlü değişkenlerden bahsediyoruz. class skop içinde yer aldığından artık class skop'a ilişkin olur ve isim arama
+kuralları değişir. class skopta sınıfın veri elemanı olduğu için access controlde işin içine giriyor. Dolayısıyla sınıfın veri elemanı class skopta;
+name lookup kuralları buna göre yapılır ve erişim kontrolü sağlanacak. Dolayısıyla örneğin global değişken olsaydı namespace skopta olacakken 
+şimdi sınıfın kendi skobuna gizlemiş olucaz böylece hem isim çakışmasına karşı bir önlem alınmış olucak hem de lojik açıdan bu sınıf ile ilgili olduğu
+vurgusu kuvvetlenecek!!!
+
+Sonuçlar:
+1)Sınıfın kaç tane static veri elemanı olursa olsun bunlar sınıf başına tektir, yani ortada sınıf türünden bir tane bile sınıf nesnesi olmasa dahi 
+sınıfın statik veri elemanı yine hayatta olur; yani sınıf nesnesi ile statik veri elemanının doğrudan bir ilişkisi yoktur. Yani tıpkı global 
+değişkenler gibi main fonksiyonu çağırılmadan hayata başlıyorlar.
+
+2)storage'ları sınıf nesnesinin içinde değildir.
+class Myclass {
+    int {}; 
+    static int x;//static data member
+    static int x1;
+    static int x2;
+    static int x3;
+};
+
+int main()
+{
+    std::cout << "sizeof(Myclass) = " << sizeof(Myclas) <<'\n';//4
+}
+
+
+Kritik birçak soru:
+
+class Myclass {
+    int a{};
+    static int x;//static data member
+};
+
+1)Derleyici Myclass sınıfının üzerinden geçerken x için bellekte bir yer allocate ediyor mu?
+HAYIRRR, static int x; bir bildirim yani non-defining   declaration'dır. 
+
+2)aşağıda verilen kodda ne olur:
+a)sentaks hatası
+b)link zamanı hata alırım
+c)hatasız
+class Myclass {
+    int a{};
+public:
+    static int x;//static data member
+};
+
+int main()
+{
+    Myclass::x = 5;
+}
+
+b çünkü derlendiğinde hata vermez ama obje koda bu yazılmaz; çünkü x için bir yer ayrılmamıştı. Projenin link edilebilmesi için 
+bunun bir de tanımının olması gerekiyor. Zaten x için yer ayrılsaydı ODR ihlal edilmiş olurdu. Çünkü bu başlık dosyasınıı include eden 
+her kaynak dosya için ayrı ayrı derlendiği zaman her biri ayrı ayrı x için yer ayırır, saçma olur oysa bunun için bir defa yer ayrılması gerekir,
+kaç tane kaynak dosya olursa olsun!
+O zaman tipik modelimiz şu sınıfın static veri elamanının sınıf içinde bildirimini yapıyoruz, fakat tipik olarak .cpp dosyasında ise tanımını yapıyoruz.
+Ve tanımda static anahtar sözğü kullanılmamalı!!!
+
+//myclass.h
+class Myclass {
+    int a{};
+public:
+    static int x; //this is a declaration only
+};
+
+//myclass.cpp
+//dikkat tanımda static anahtar sözcüğü kullanılmamalı!!!!!!!!!!
+
+int Myclass::x; //default initialize ettim statik ömürlü (ayrca global de) olduğuna göre önce zero initalize edilir. Değeri 0 olur.
+
+3)Sınıfın tanımında incomplete türden static veri elemanı bildirilebilir.
+static anahtar sözcüğü ile sınıfın tanımında yer alan veri elemanı bir bildirim olduğu için incomplete type'ı b şekilde veri elemanı olarak 
+bildirmek sentaks hatasına neden olmaz çünkü bildirim tanım değildir!
+
+Sınıfın incomplete type türünden veri elemanı olamaz!!
+
+//myclass.h
+class Nec;
+
+class Myclass{ 
+public:
+    Nex mx;//sentaks hatası
+};
+
+
+class Nec;
+
+class Myclass{ 
+public:
+    static Nex mx;//sentaks hatası değil; bildirim bir tanım değil bu legal
+};
+
+4)Sınıfın kendi türünden static veri elemanı bildirilebilir, çünkü bu bir definition değil bildirimdir derleyici yer ayrımadığı için
+incomplete type kullanabiliriz:
+
+//myclass.h
+class Myclass {
+public:
+    static int mx;
+};
+
+5)sınıfın sttaik veri elemanını main için sınıf nesnesi içinde set'lemek compile time'a yönelik bir hata oluşturmaz fakat anlamsızdır, çünkü
+statik veri elemanının sınıf nesnesi ile doğrudan bir ilişkisi yoktur:
+
+//myclass.h
+class Myclass {
+public:
+    static int mx;
+};
+
+int main()
+{
+    Myclass m1, m2;
+
+    m1.mx = 4; //gecerli ama dikkat! cunku mx değişkeninin ne m1 ile ne de m2 ile bir ilişkisi yok
+    m2.mx = 6;
+}
+
+6)Aşağıda yer alan kod satırı için;
+int Myclass::mx = foo(); çağrısı legal midir ve main basladi yazisi fonk. cagrisindan önce mi sonra mi cikar? cevap evet, sonra çıkar 
+çünkü statik ömürlü değişkenler tıpkı global değişkenlerde olduğu gibi main çağırılmadan initialize ediliyorlar.  
+
+//myclass.h
+class Myclass {
+public:
+    static int mx;
+};
+
+int foo()
+{
+    std::cout << "foo cagirildi\n";
+    return 5;
+}
+
+int Myclass::mx = foo();
+
+int main()
+{
+    std::cout << "main basladi\n";
+}
+
+7)Bu örnekte de sentaks hatası yoktur Nec default ctor yazısı main basladi yazısından önce çıkarılır:
+#include iostream 
+class Nec {
+public:
+    Nec()
+    {
+        std::cout << "Nec default cto\";
+    }
+};
+
+class Myclass {
+public:
+private:
+    static Nec nec;
+};
+
+//myclass.cpp
+Nec Myclass::nec{};
+
+int main()
+{
+    std::cout << "main basladi\n";
+}
+
+8)Aşağıda mx ile ilgili yapılan tüm yazımların 3'üde aynı anlamda ve legaldir:
+class Myclass {
+    static int mx;
+
+    void foo()
+    {
+        mx = 5;
+        this->mx = 5;
+        Myclass::mx = 5;
+    }
+};
+
+9)constructor initializer list sınıfın non-static veri elemanlarını initialize etmeye yöenlik; oysa sınıfın static veri elemanının bu şekilde 
+initialize edilmesi söz konusu değil dolayısıyla aşağıda sentaks hatası meydana gelir:
+class Myclass {
+    static int mx;
+    int mval;
+
+    Myclass() : mval{24}, mx{67} {}//mx static veri elamanı sentaks hatası meydana gelir
+};
+
+10)Hangi elemanları sınıfın static veri elamanı yapmalıyı?
+Sınıfla ilgisi olan fakat instance ile doğrudan ilgisi olmayan elemanları static veri elemanı yapmalıyız. Instance'ın bir özelliği olmamasına rağmen bunu instance veri elemanı
+yani static olması gerekirken non-static yaparsak; model  olarak yanlış olur yani yanıltıcı olur hem de her nesne için fiziksel olarak yer ayırır gereksiz bellek alanı kullanmış
+oluruz ayrıca her nesne için her defasında bu elemanı initialize etmiş oluruz. 
+
+Sınıfın Static Veri Elamanı Olmaya Aday Tipik Elemanlar:
+
+1)Sınıfların ortaklaşa kullandığı lookup table'lar, örneğin algoritmik training'de kullanılan bir sınıf fakat bazı fonksiyonlar asal sayıları kullanıyor farz edelim ki ilk 100
+asal sayı sürekli bazı hesaplamalarda kullanılıyor, programcının ilk 100 asal sayıyı içeren statik ömürlü bir dizi oluşturması çok mantıklı olur. C'de olsak bunu global bir 
+dizi yapardı. 
+2)Sınıfın hayatta ki nesne sayısını tutan ya da hayata gelmiş ve halen hayatta olan ölmüşler dahil bütün nesnelerin sayısını tutan değişkenler de sınıfın static veri elemanı olmalı!!
+
+3)Sınıf nesnelerinin her birinin birbiri ile iletişime geçmesi gerekiyor, hayata gelen bütün   nesnelerin adreslerini container'da tutup o container'da sınıfın static veri elamanı 
+yapılır böylece bütün sınıf nesneleri o container'a erişebilir. Böylece hayatta olan nesnelerin adreslerini kullanabiliriz. -->mutex örnek veriilebilir, senkronizasyon amaçlı 
+paylaşılan kaynakları korumak için mutex kullanarak bütün üye fonksiyonlara girişte mutex kitlenir böylece orada okuma ve yazma amaçlı thread'ler herhangi bir şekilde veriyi bozmayacak.
+
+Bazı durumlarda şöyle bir ikilem de kalabiliriz; global değişken mi sınıfın static veri elemanı mı?
+Burada çoğunlukla uygulanan eğer tek bir sınıfla doğrudan ilişkisi var ise sınıfın static veri elemanı olması daha çok tercih edilir; fakat öyle durumlar var ki bu durumda global 
+değişkenleri tercih ediyoruz; örneğin cout bir sınıf türünden global değişken. 
+
+
+Sınıfın static veri elemanlarına sınıf tanımı içerisinde ilk değer verme
+Modern C++ öncesinde de sınıfların const static ve tam sayı türlerinden veri elemanlarına sınıf tanımı içinde ilk değer verilebilir, bu eskiden beri olan bir kuraldır.
+(const ve ingegral type olmak zorunda yoksa sentaks hatası olur)
+ODR ihlal edilmez, cpp dosyasında ayrı bir tanıma gerek yoktur ve bu link aşamasında bir soruna neden olmaz
+class Myclass {
+private:
+    const static int mx = 10;//legal
+};
+
+bool'da tam sayı türünün alt kategorisi
+
+class Myclass {
+private:
+    const static bool mx = true;//legal
+};
+
+enum türleri de tam sayı türlerinin bir alt kategorisi
+class Myclass {
+private:
+    enum Color {blue, black, red};
+    const static Color mc = black;
+};
+
+class Myclass {
+private:
+    const static double mx = 1.0;//sentaks hatası
+};
+
+11)static initialization fiasco static veri elemanları için de söz konusu mu?
+KESİNLİKLE, hem global hem de sınıfın static veri elemanları için geçerli olan bir durumdur. Hangi kaynak dosyadaki static veri elemanının hangi kaynak dosyadaki static veri 
+elemanına göre hayata daha önce veya daha sonra geleceği konusunda bir belirleme yoktur.
+//rohat.cpp
+A Myclass::ax;
+
+//ali.cpp
+B Data::bx;
+
+bunların dtor'ları progarmın main fonksiyonunun çalışmasından sonra çağırılır. 
+
+
+12)C++17 itibarıyla çok önemli bir değişiklik/ekleme yapıldı dile: inline variable's dile eklendi, yani C++17 ile statik ömürlü global değişkenler ve sınıfların static
+veri elamanları için artık inline anahtar sözcüğü ile tanımlanabilme özelliği getirilmiştir. İşte bu değişkenlere "inline variable" deniliyor.
+
+//myclass.h
+class Myclass {
+private:
+    inline static int x = 5;
+};
+
+Tıpkı inline fonksiyonlarda olduğu gibi inline variable'larda ODR'ı ihlal etmez. Yani bu başlık dosyasını kaç tane kaynak dosya include ederse etsin ODR ihlal edilmez.
+Yani run time ve link zamanı açısından baktığımızda bütün myclass.h'ı include eden bütün kod dosyaları aynı nesneyi kullanır, yani örneğin bu nesnenin adresini farklı
+farklı kaynak dosyalarda yazdırırsak hepsi aynı adresi gösterir. Bu modern C++'ın en önemli eklemelerinden biri çünkü sınıfların static veri elemanları header-only
+library oluşturma konusunda problem oluşturuyorlardı, çünkü inlie anahtar sözcüğü olmasaydı inline static int x = 5; yani  static int x = 5; tanımını .cpp dosyasında 
+yapmak zorunda kalırdık; dolayısıyla header-only  library yapabilmek için başka hileler uygulamak zorundaydık. Ayrıc inline olması sadece primitiv türler için değil
+sınıf türlerinden de olabilir. 
+
+//myclass.h
+#include <vector>
+#include <string>
+
+class Myclass {
+
+public:
+
+private:
+    inline static std::vector<int> msvec{};
+    inline static std::string msname{"necati ergin"};
+    
+};
+
+inline int gcount{};
+
+bu durum global değişkenler için de geçerlidir:
+
+
+Eğer bir sınıfın static veri elamanı const ise buna tipik olarak client kodarın erişmesinde bir sakınca yoktur. Standart kütühaninde hemen hemen her sınıfının static const veri 
+elemanları varıdr ve constexpr tipik olarak. 
+
