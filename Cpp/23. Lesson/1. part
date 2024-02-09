@@ -1,0 +1,543 @@
+
+10 Mart 2023 - Cuma
+
+önceki derste yazdığımız klasik singleton örneğinde:
+
+class Myclass {
+public:
+    static Myclass& get_instance()
+    {
+        if(!mp) {
+            mp = new Myclass;
+        }
+
+        return *mp;
+    }
+
+    void foo();
+    void bar();
+    void baz();
+    Myclass(const Myclass&) = delete;
+    Myclass& operator=(const Myclass&) = delete;
+
+private:
+    Myclass()
+    {
+        std::cout << "Myclass object constructed\n";
+    }
+    inline static Myclass* mp{};
+};
+
+
+sınıfın static veri elemanını raw pointer olarak implemente etmiştik fakat burada ham pointer yerine ilerde smart pointer kullanmak bir tercih
+nedeni olacak; genel olarak zaten dinamik ömürlü nesneleri ham pointer ile yönetmeyi tercih etmiyoruz ilerde ele alacağız. Burada amaç singleton 
+örüntüsünden ziyade sınıfın static veri elemanlarını ve static üye fonksiyonlarını göstermektir. 
+
+örneğin burada neden static üye fonksiyonunu kullandık?
+1)bir nesneye bağımlı değil, non-static üye fonk. olsaydı onun call edilmesi için bir nesneye ihtiyaç duyardık. Zaten burada amaç
+tek bir nesne oluşturmak, amaca uygun değil. 
+2)sınıfın static üye fonk. olduğu için sınıfın private ctor'ını çağırabiliyor fakat diğer client kodlar sınıfın  private ctor'ına 
+çağrı yapamazlar. 
+
+İncelediğimiz singleton'a göre farklı avanatajlara sahip bir başka singleton implementasyonu örneği daha var.
+Bu Scott Meyers'in ilk tanıttığı  singleton implementasyonu olduğu için Meyers' singleton deniliyor.
+
+Meyers' singleton implementasyonu(mülakatlarda gelir)
+
+bu therad safe'tir çünkü static yerel değişkenlerin initialization'ı birden fazla thread olsa bile bir kez yapılma garantisi altındadır.
+
+class Myclass {
+public:
+    static Myclass& get_instance()
+    {
+        static Myclass instance;
+        return instance;
+    }
+
+    void foo();
+    void bar();
+    void baz();
+    Myclass(const Myclass&) = delete;
+    Myclass& operator=(const Myclass&) = delete;
+
+private:
+    Myclass()
+    {
+        std::cout << "Myclass object constructed\n";
+    }
+    
+};
+
+instance static yerel değişken olduğundan hayata fonksiyon ilk kez çağırıldığında gelir!! Dolayısıyla burada yine lazy evaluation da var 
+yani get_instance fonk. çağırılmadan static yerel Myclass sınıfı türünden instance nesnesi hayata başlamaz. Fakat 2. 3. kez çağırıldığında tekrar hayata gelmez.
+
+int main()
+{
+
+    std::cout << "main basladi\n";
+    Myclass::get_instance().bar;
+    std::cout << "main devam ediyor\n";
+    Myclass::get_instance().baz;
+
+    //her defasında böyle uzun uzun Myclass::get_instance() yazmamak için
+    //bunu bir referansa bağlayıp onu kullanmak daha kolaydır.
+
+    auto& sng = Myclass::get_instance();
+
+    sng.bar();
+    sng.baz();
+    
+}
+
+
+back reference: mandatory cop elision
+bir fonksiyonun geri dönüş değeri bir sınıf türünden ise ve bu fonksiyonun geri dönüş değeri ifadesi bir PR val. expr. ise
+(örneğin bir geçici nesne ise) burada mandatory copy elision olur. Hatta hocamız her ne kadar burada kullanılan terim 
+mandatory copy elision olsa da aslında bir cop elision olmadığını da belirtmişti. Çünkü dilin kuralları burada zaten bir
+kopyalama olduğunu belirticek şekilde oluşturulmamış; dilin kuralları aslında PR val. expr olan ifadeler bir sınıf nesnesi 
+değildir. Ancak ingilizcesiyle materialize olunca bir sınıf nesnesi haline gelir. Yani örneğin şöyle bir kod yazarsak:
+
+burada Myclas{} için copy ctor veya move ctor çağırılmaz:
+class Myclass {};
+//RVO is mandatory
+Myclass foo()
+{
+    return Myclass{};
+}
+
+int main()
+{
+    Myclass x = Myclas{};
+}
+burada 2 tane nesne oluşturulmuyor C++17 standardına göre sağ taraf nesnesi olan Myclas{} adeta bir initializer yani x nesnesinin
+hangi değerle initialize edildiğini gösteren bir resim gibidir. Sadece x'in nasıl hayata geldiğini anlatıyor. Dolayısıyla copy elision
+terimi de çok doğru olmuyor çünkü aslına bakarsak dilin standardı burada bir kopyalama olmadığını anlatıyor. Oysa copy elision denildiğinde
+sanki burada bir kopyalama var da o yapılmıyor gibi anlaşılıyor fakat durum öyle değil.
+
+Mandatory copy elision senaryonlarında bilmemiz gereken:
+a)burada formal olarak bir kopyalama yok; 
+b)formal olarak bir kopyalama olmadığı için sınıfın copy ctor'ının olmaması, delete edilmesi herhangi bir şekilde
+sentaks hatası oluşturmaz. 
+
+class Myclass {};
+//RVO is mandatory
+Myclass foo()
+{
+    return Myclass{};
+}
+
+int main()
+{
+    Myclass x = Myclas{};
+}
+
+buna Return Value Optimization deniliyordu eskiden fakat şimdi mandatory hale geldi; optimizasyon değil dilin kuralı.
+
+Fakat Named Return Value Optimizasyon böyle değil; isimlendirilmiş bir yerel değişkeni return edersek burada 
+kesinlikle mandatory copy elision söz konusu değil yani bunun geçerli olması için 
+a)Myclass sınıfının copy ctor'ının callable olması gerekir. Yani derleyici şöyle diyemez copy ctor delete edilmiş
+ama ben zaten optimizasyon yapmıştım copy ctor'ı çağırmadım ondan dolayı da bir snetaks hatası veriyoruum diyemez.
+
+class Myclass {
+public:
+    Myclass();
+    Myclass(const Myclass&);
+};
+//NRVO
+Myclass foo()
+{
+     Myclass m;
+    return m; //burada olan copy elision optimizasyon
+}
+copy ctor'ı delete olarak bildirirsem sentaks hatası meydana gelir:
+
+class Myclass {
+public:
+    Myclass();
+    Myclass(const Myclass&) = delete;
+};
+//NRVO
+Myclass foo()
+{
+     Myclass m;
+    return m; //sentaks hatası copy ctor delete edilmiş.
+}
+
+
+NRVO'ı derleyici yapmak zorunda mıdır? Hayır değil, hatta yapamadığı bazı durumlar vardır. 
+NRVO ileride profesyonel düzeyde ayrıntılı incelenmesi gereken bir konu çünkü tipik bir
+C++ derleyicisi hangi durumlarda NRVO yapabiliyor; derleyicinin NRVO yapamadığı yerler 
+var mı? Bu senaryolarda neden yapamıyor? Ayrıca şunu incelemekte de fayda var:
+
+11)nasıl oluyorda sadece 1 defa default ctor çağırılıyor, yani main içinde oluşturulan nesne için copy ctor çağırılmıyor(relaese modda derlemede)
+class Myclass {
+public:
+    Myclass()
+    {
+        std::cout << "default ctor\n";
+    }
+
+    Myclass(const Myclass&)
+    {
+        std::cout << "copy ctor\n";
+    }
+};
+
+
+//NRVO
+
+Myclass foo()
+{
+    Myclass m;
+    return m;
+}
+int main()
+{
+    auto x = foo(); 
+}
+
+2)Sınıfın hem move ctor'ı hem de copy ctor'ı olduğunda main içinde oluşturulan nesne için move ctor çağırılır:
+burada NRVO yapılmadığı için 
+class Myclass {
+public:
+    Myclass()
+    {
+        std::cout << "default ctor\n";
+    }
+
+    Myclass(const Myclass&)
+    {
+        std::cout << "copy ctor\n";
+    }
+    Myclass(Myclass&&)
+    {
+        std::cout << "move ctor\n";
+    }
+};
+
+
+//NRVO
+
+Myclass foo()
+{
+    Myclass m;
+    return m;
+}
+int main()
+{
+    auto x = foo(); 
+}
+
+aşağıdaki örnekte copy ctor'ın çağırlmasını gerektiricek bir durum olmamasına rağmen copy ctor delete durumunda olduğu için sentaks hatası meydana gelir:
+(sınıfın move member'larından birini bildirdiğim zaman copy member'lar delete ediliyordu)
+
+class Myclass {
+public:
+    Myclass& operator=(const Myclass&)
+    {   
+        std::cout << "copy assigment\n";
+        return *this;
+
+    }
+
+    Myclass& operator=(Myclass&&)
+    {   
+        std::cout << "move assigment\n";
+        return *this;
+        
+    }
+};
+
+Myclass foo()
+{
+    Myclass x;
+
+    return x;//sentaks hatası meydana gelir çünkü copy ctor delete durumunda
+}
+
+int main()
+{
+    Myclass x;
+
+    x = foo();//burada assigment olmasına rağmen copy ctor delete edildiği için sentaks hatası
+}
+
+copy ctor define edilirse sentaks hatası artık kalmaz:
+class Myclass {
+public:
+    Myclass() {}
+
+    Myclass(const Myclass&)
+    {
+
+    }
+    Myclass& operator=(const Myclass&)
+    {   
+        std::cout << "copy assigment\n";
+        return *this;
+
+    }
+
+    Myclass& operator=(Myclass&&)
+    {   
+        std::cout << "move assigment\n";
+        return *this;
+        
+    }
+};
+
+Myclass foo()
+{
+    Myclass x;
+
+    return x;
+}
+
+int main()
+{
+    Myclass x;
+
+    x = foo();//burada özel bir durum var move assigment çağırıldı
+}
+bu özel durumun nedeni foo fonksiyonu içinde bulunan x otomatik ömürlü yerel bir nesne aslında bu bir L value expr. fakat 
+otomatik ömürlü yerel nesneler return ifadesi olduklarında derleyici dilin kuralları gereği bir dönüşüm yapıyor: burada ki
+L value'yu önce X value'ya dönüştürüyor dolayısıyla X value'ya dönüştüğü için taşıma semantiği devreye giriyor. Bu dilin
+özel bir kuralı bu özellikle bizim için geri döndürülen otomatik ömürlü nesnenin move-only bir type olması çok önemlidir.
+Yani copy ctor'ı olmayan sadece move ctor'ı/assigment'ı olan bir sınıfta olabilirdi:
+
+class Myclass {
+public:
+    Myclass() {}
+
+    Myclass(const Myclass&) = delete;
+
+    Myclass& operator=(const Myclass&) = delete;
+
+    Myclass(Myclass&&) = default; //move ctor
+
+    Myclass& operator=(Myclass&&)
+    {   
+        std::cout << "move assigment\n";
+        return *this;
+        
+    }
+};
+
+Myclass foo()
+{
+    Myclass x;
+
+    return x;
+}
+
+int main()
+{
+    Myclass x;
+
+    x = foo();
+}
+burada yine sentaks hatası olmaz çünkü burada yine kopyalama değil taşıma yapıldığı için; eğer az önce söylediğimiz L val. expr. kategorisindeki
+x return ifadesinde bulunduğunda X value'ya dönüştürülmeseydi bu kod legal olmayacaktı. Özetle otomatik ömürlü bir nesneyi döndürüyorsak o nesnenin
+move-only type olması herhangi bir engel teşkil etmez. Örneğin otomatik ömürlü bir unique_ptr nesnesini(çokta sık karşımıza çıkar)return etmemiz
+herhangi bir soruna neden olmaz çünkü o da move-only type'dır.
+
+Move-only type olan birkaç sınıf örneği:
+
+ofstream sınıfı 
+auto ofx = ofs; sentaks hatası çünkü ofstream sınıfının copy ctor'ı delete edilmiş:
+
+#include <fstream>
+
+int main()
+{
+    using namespace std;
+
+    ofstream ofs{"deneme.txt"};
+
+    ofs << "necati ergin\n"; //deneme.txt dosyasına necati ergin yazıldı
+
+    auto ofx = std::move(ofs);
+}
+
+
+concurrency konusunda göreceğimiz std::thread de bir move-only type
+
+şimdi ofstream sınıfının move-only type olmasından faydalanıp her defasında dosyay tekrar tekrar aynı kodu yazmamak için güzel bir fonksiyon yazalım:
+
+#include <fstream>
+
+std::ofstream create_text_file(const char* pfilename)
+{
+    std::ofstream ofs{pfilename};
+
+    if(!ofs)
+        throw std::runtime_error{"cannot open file!"};
+
+    return ofs;
+}
+
+int main()
+{
+    auto ofs{create_text_file("deneme.txt")};
+
+    for (int i = 0; i < 10; i++)
+    {
+        ofs << i << '\n';
+    }
+
+    
+}
+
+static veri elmanına/fonksiyonlara ilişkin bir diğer örnek ise object count; ilerde CRTP örüntüsünü anlatırken de bunun generic hale getirilmesini 
+CRTP idiom'u ile göstericeğiz. Sınıfa static bir veri elemanı olan sayaç koyarız bütün ctor'lar sayıcı arttırır, dtor ise sayacı azaltır.
+Böylece her nesne hayata geldiğinde o sayaç artar nesnenin ömrü bittiğinde ise dtor sayesinde dtor 1 azaltılır. Tabii ctor'ları kendimize 
+göre formalize etmeliyiz çünkü derleyicinin yazdığı copy ctor bizim yazdığımız sayacı azaltıp arttırmaz.
+
+biz örnekte counter'ı int türden yaptık fakat bu tür durumlarda hem standart kütüphane hem de 3. parti kütüphaneler bu tür sayaçları
+genelde int türden yapmak yerine std::size türünden yaparlar yani negatif değer olmayacak bir tam sayı türü; biz de normalde o şekilde
+yaparız
+
+
+class Nec {
+    Nec()
+    {
+        ++ms_live_count;
+        ++ms_ever_lived_count;
+    }
+
+    ~Nec()
+    {
+        --ms_live_count;
+    }
+
+    static int get_live_count()
+    {
+        return ms_live_count;
+    }
+
+    static int get_ever_lived_count()
+    {
+        return ms_ever_lived_count;
+    }
+private:
+    inline static int ms_live_count{};
+    inline static int ms_ever_lived_count{};
+};
+
+int main()
+{
+    Nec x, y, z;
+
+    Nec *p1 = new Nec;
+    Nec *p2 = new Nec;
+
+    {
+        Nec a;
+        delete p1;
+    }
+
+    std::cout << Nec::get_live_count() << '\n';//4
+    std::cout << Nec::get_eve_lived_count() << '\n';//6
+}
+
+burada bir sorun var çünkü derleyicinin yazdığı copy ctor bizim static veri elamanlarımızın değerini arrtırmaz:
+class Nec {
+    Nec()
+    {
+        ++ms_live_count;
+        ++ms_ever_lived_count;
+    }
+
+    ~Nec()
+    {
+        --ms_live_count;
+    }
+
+    static int get_live_count()
+    {
+        return ms_live_count;
+    }
+
+    static int get_ever_lived_count()
+    {
+        return ms_ever_lived_count;
+    }
+private:
+    inline static int ms_live_count{};
+    inline static int ms_ever_lived_count{};
+};
+
+int main()
+{
+    Nec x, y, z;
+
+    Nec mynec{ x };
+
+    std::cout << Nec::get_live_count() << '\n';//3 fakat 4 olması gerekirdi
+    std::cout << Nec::get_eve_lived_count() << '\n';//3 fakat 4 olması gerekirdi
+}
+
+zaten special member konusunu ele alırken de destructor'ı kendimiz defien ettiğimiz senaryoda copy ctor'ın değerlendirilmesi
+gerektiğini söylemiştik:ya bu durumda copy ctor'ı kendimiz yazacağız ya da sınıfı kopyalamaya karşı kapatacağız
+
+===========================================================================================================================================
+
+bir sınıf türünden nesnelerin birbirleriyle iletişimini sağlamak
+
+nesnelerin adreslerini bir containerde tutup
+
+
+container:C++'ta kullanılan bir terim burada kast edilen şudur: belirli türden nesneleri bir arada tutmak için kullanılan  
+ve bir veri yapısını implemente eden sınıftır. Bunlar C++'ın standart kütüphanesinde var olan sınıflar bazıları da 3. 
+parti kütüphanelerin sunduğu sınıflardır(örneğin boost'ta C++'ın standart kütüphanesinde olmayan container'larda var).
+
+standart container'lar:
+c dizileri(c arrays)
+    std container classes 
+    sequence containers
+    ========================
+    std::string
+    std::vector
+    std::deque
+    std::list
+    std::forward_list(C++11)
+    std::array(C++11)
+
+    associative containers
+    ==========================
+    std::set
+    std::multiset
+    std::map
+    std::multimap
+
+    unordered containers
+    ============================
+    std::unordered_set(C++11)
+    std::unordered_multiset(C++11)
+    std::unordered_map(C++11)
+    std::unordered_multimap(C++11)
+
+yani container'ların varlık nedenleri öğeleri bir arada tutmak:
+örneğin mantıksal ilişki içindeki Myclass nesnelerini bir arada tutmak istiyoruz; onlarca yüzlerce Myclass nesnesini 
+dilediğimiz zaman ekleme dilediğimiz zaman silme işlemi yapmak istiyorsak bunu tipik olarak bir container'da tutuyoruz.
+Ve aksi söylenmedikçe 1. tercihimiz vector container'ı :
+
+class Myclass {};
+
+int main()
+{
+    using namespace std;
+
+    vector<Myclass> myvec;
+    //artık bu vektöre ben istediğim kadar Myclass nesnesi ekleyebilirim
+    //onları bir arada tutabilirim, silme işlemi yapabilirim ama arka planda 
+    //dinamik dizi veri yapısı kullanılıyor. 
+}
+
+
+Bir sınfın copy ctor'ı kendi türünden olsaydı recursive çağrı oluşurdu bu da sürekli fonk. yani copy ctor'ın çağırılması ile 
+sonuçlanırdı:
+class Myclass {
+public:
+Myclass(Myclass) {}
+};
