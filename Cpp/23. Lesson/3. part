@@ -1,0 +1,480 @@
+
+öyle bir fonksiyon yazın ki a dizisinin adresini döndürsün; auto p = func_call; dediğim zaman ardından *p dediğim zaman
+*p demek a demek olsun:
+
+yöntem 1:
+
+
+#include <iostream>
+
+int a[5] = {1, 2, 3, 4, 5};
+
+
+auto foo()
+{
+    return &a;
+}
+
+
+int main()
+{
+    auto p = foo();
+
+    for(int i = 0; i < 5; ++i)
+    {
+        std::cout << (*p)[i] << " ";
+    }
+}
+
+2. yöntem
+
+typedef int (*aptr)[5];
+
+
+int a[5] = {1, 2, 3, 4, 5};
+
+
+aptr foo()
+{
+    return &a;
+}
+
+3. yöntem 
+yukarıda yapılan typedef bildirimi yerine C++'ta bulunan daha pratik olan using anahtar sözcüğü ile yapabiliriz:
+
+using aptr = int(*)[5];
+
+
+int a[5] = {1, 2, 3, 4, 5};
+
+
+aptr foo()
+{
+    return &a;
+}
+
+
+4. yöntem
+int a[5] = {1, 2, 3, 4, 5};
+
+int(*foo())[5]
+{
+    return &a;
+}
+========================================================================================================================
+
+Bir if deyimi olan if with initializer C++17'nin en çok kullanılan araçlarından biri olan günümüzde en çok kullandığımız 
+araçlardan biridir. Bu yeni bir if deyimi dilin böyle sentaks özelliklerine yani dile yapılan böyle eklemelere; dilin temel 
+sentaksına yapılan ekleme anlamında "core syntax" denir.
+
+aslında C'de olmayan C++'ta olan 2 ayrı if deyimi var:
+if with initializer
+if constexpr(static if)
+
+if with initializer
+C++17 standardı ile kapsam sızıntısı problemi ile daha kolay baş etmek ve bazı kodları daha kolay yazmak ve anlamak için 
+yeni bir if deyimi dile eklenmiştir.
+
+if(T x = expr(intlztn.); cond. expr.) {
+    
+}
+x'i if'in yanlış kısımında da kullanabilirim.
+
+#include <iostream>
+
+int foo();
+
+int main()
+{
+    using namespace std;
+
+    if(int ival = foo(); ival > 10) {
+        cout << ival << " ";
+    }
+
+    else {
+        ival = 5;
+    }
+
+    ival;//sentaks hatası
+}
+
+
+
+
+expr(condtnl. expr.) yürütüldüğünde x hayata gelmiş durumdadır. x'i if'in dışında tanımlasam x'in skobu if deyiminin sonrasında 
+da visible olurdu yani skobu devam ederdi; bunu engellemek içib bu şekilde yazılabilirdi:
+{
+    T x = expr;
+
+    if(expr) {
+
+    }
+}
+
+işte böyle yazmak yerine if with initializer sentaksı daha kompakt kolay bir görünüm sağlamıştır.
+
+if with initializer'a basit bir örnek verelim:
+
+#include <iostream>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec(100);
+
+    //code 
+
+    if(auto iter = find(begin(ivec), end(ivec), 78); iter != end(ivec)) {
+        cout << iter - begin(ivec);
+    }
+}
+
+===========================================================================================================================
+
+aşağıda verilen sentaks C++'ta önceden bu yana olan bir araç fakat C'de yok.(C++98 yani ilk standart'tan beri var)
+
+int foo();
+
+int main()
+{
+    using namespace std;
+
+    if(int ival = foo()) {
+        std::cout << ival << "\n";
+    }
+}
+
+eğer foo'nun geri dönüş değeri pointer olsyadı if(int *ival = foo()) gibi; if'in doğru kısmına geri dönüş değeri null pointer olmadığı 
+sürece girerdi. 
+
+Bir diğer dikkat etmemiz gereken şey ise if'in içine yazdığımız ifadede eğer ki bir sınıf türünden nesne kullanıyorsak o sınıfın operator bool
+fonksiyonunun olup olmadığı; çünkü operator bool fonksiyonu yoksa lojik karşılaştırma operator bool fonk. call edilmesi ile sonuçlanır
+ve sentaks hatası meydana gelir.
+
+class Myclass {
+public:
+    operator bool()const;
+};
+
+Myclass foo();
+
+int main()
+{
+    if(Myclass x = foo()) { // auto x = foo() da yazabilirdik aynı şey bunu legal kılan sınıfın operator bool fonksiyonu.
+
+    }
+}
+
+bir diğer örnek: Der pointer'ı null değil ise if'in doğru kısmına girer
+if(Der *p = dynamic_cast<Der *>(baseptr)) {
+
+}
+
+if(T x = expr) {
+
+}
+
+bunun C++17 ile dile eklenen if with initializer gösterirsek:
+
+if(T x = expr; x) {
+
+}
+
+int foo();
+int bar();
+
+int main()
+{
+    if(int x = foo()) {
+
+    }
+
+    else if(x = bar()) {
+
+    }
+
+}
+
+genel bildiğimiz if yapısında paramtez içinde değişken tanımlaması while döngüsü için de, switch döngü deyimi için de  geçerli bir durumdu:
+
+int *foo();
+
+int main()
+{
+    while (int *p = foo())
+    {
+        /* code */
+    }
+    
+}
+
+====================================================================================================================================================
+
+composition
+sınıfların implementasyonunda en sık kullanılan  araçlardan biri sınıfın bir veri elemanının yine bir sınıf türünden olması:
+
+sınıfın non-static veri elemanının bir sınıf türünden olması:
+
+class A {
+
+};
+
+class B {
+        
+private:
+    A ax;//member object
+};
+
+Burada bilmemiz gereken bazı önemli kurallar:
+1)Bir başka sınıf türünden elemana sahip olmak; onun private bölümüne erişim hakkı kesinlikle vermez:
+class A {
+
+private:
+    void foo();
+
+};
+
+class B {
+public:
+    void func()
+    {
+        ax.foo();//sentkas hatası
+    }
+private:
+    A ax;//member object
+};
+
+eğer bunun legal olmasını istiyorsak:
+burada bir friend bildirimi yapmak gerekir
+
+bir diğer önemli nokta ise A'da bir sınıf olduğuna göre; B nesnesinin hayata gelme sürecinde B'nin içindeki A'nın da hayata gelmesi gerekir.
+Dolayısıyla B'nin içindeki A'nın hayata gelmesi için A'nın ctor'ının çağırılması gerekir. Eğer B'nin ctor'ını derleyici yazmışsa sınıfın 
+veri elemanlarını default edecek o zaman A sınıfı türünden veri elemanını da default initialize eder. 
+class A {
+public:
+    A()
+    {
+        std::cout << "A default ctor\n";
+    }
+};
+
+class B {
+public:
+
+private:
+    A ax;//member object
+};
+
+int main()
+{
+    B b;
+}
+
+bu senaryoda dikkat edilmesi gerekilen bazı husular:
+
+a)aşağıda verilen kod derlenince sentaks hatası olur mu?
+class A {
+public:
+    A(int);
+};
+
+class B {
+public:
+
+private:
+    A ax;//member object
+};
+
+int main()
+{
+    
+}
+cevap sentaks hatası çünkü tanımlanan bir nesne yok fakat B'nin default ctor'ı delete edilmiş hem de derleyici tarafından. Çünkü önceden de dediğimiz gibi eğer derleyici
+sınıfın herhangi bir special member function'ını implicitly declare edip default ettiğinde sentaks hatası oluşursa sentaks hatası vermek yerine 
+yazması gereken special member function'ı delete ediyor. Burada derleyicinin yazdığı default ctor ax için A'nın default ctor'ını çağırıcak.
+Fakat A'nın default ctor'ı olmadığı için geçersiz bir kod oluşuyor fakat hata vermek yerine B'nin default ctor'ını delete eder.(eski C++'ta böyle değildi)
+
+
+nesne tanımladım burada sentaks hatası olur; çünkü B'nin default ctor'ı delete edilmiş
+class A {
+public:
+    A(int);
+};
+
+class B {
+public:
+
+private:
+    A ax;//member object
+};
+
+int main()
+{
+    B bx;//sentaks hatası default ctor delete edilmiş
+}
+
+
+burada da yine aynı durum var sentaks hatası yok fakat B'nin default ctor'ı delete edilmiş çünkü B'nin default ctor'ı ax için A'nın default ctor'ını
+çağırırken onun private olduğunu görür ve default ctor delete eder:
+
+class A { 
+    A();
+};
+
+class B {
+public:
+
+private:
+    A ax;//member object
+};
+
+int main()
+{
+   
+}
+
+B türünden default ctor gerektiricek bir nesne tanımlarsam sentaks hatası meydana gelir:
+class A { 
+    A();
+};
+
+class B {
+public:
+
+private:
+    A ax;//member object
+};
+
+int main()
+{
+    B bx;
+}
+
+biz B için default ctor'ı kendimiz bu şekilde implemente edersek; direk tanımda sentaks hatası alırız çünkü bu durumda ax için 
+A sınıfının default ctor'ı call edilecek fakat A sınıfının default ctor'ı olmadığı için sentaks hatası meydana gelir:
+class A { 
+public:
+    A(int);
+};
+
+class B {
+public:
+    B() {} //çünkü aslında B() { } demek B() :ax() {} demektir
+private:
+    A ax;//member object
+};
+
+int main()
+{
+   
+}
+
+burada artık ax için default ctor olmadığı için int parametreli ctor'ı constructor initializer_list ile çağırmak programcının görevidir:
+#include <iostream>
+
+class A { 
+public:
+    A(int)
+    {
+        std::cout << "A(int x) x = " << x << '\n';
+    }
+};
+
+class B {
+public:
+    B() : ax(19) {} 
+private:
+    A ax;//member object
+};
+
+int main()
+{
+    B bx;//C.I.L ile ax elemanı için A(int) ctor'ı çağırılır
+}
+
+
+birden fazla ctor olsaydı; ax için hangi fonksiyonun call edileceği function overload resolution ile seçilir:
+
+class A { 
+public:
+    A(int) { std::cout << "i"; }
+    A(double) { std::cout << "d"; }
+    A(int, int) { std::cout << "ii"; }
+};
+
+class B {
+public:
+    B() : ax(19) {} 
+private:
+    A ax;//member object
+};
+
+int main()
+{
+    B bx;//C.I.L ile ax elemanı için A(int) ctor'ı çağırılır yine
+}
+
+bu şu anlama gelir; biz C.I.L ile elemanımızın hangi ctor'ına çağrı yaptığımızı gönderdiğimiz argüman ile belirlemiş oluruz.
+
+
+class Person {
+public:
+    Person()
+    {
+
+    }
+private:
+    std::string m_name;
+};
+burada m_name için string sınıfının default ctor'ı çağırıldı
+==============================================================================================================================
+
+class Person {
+public:
+private:
+    std::string m_name;
+};
+int main()
+{
+    Person p;// p nesnesinin m_name isimli veri elemanı için default ctor çağırılır
+            //çünkü derleyicinin yazdığı default ctor elemanları default initialize eder
+            //sınıf türünden bir nesnenin default initialize edilmesi demek default ctor'ının çağırılması demektir.
+}
+
+=================================================================================================================================
+
+class Person {
+public:
+    Person(const char *p) : m_name(p) {}
+private:
+    std::string m_name;
+};
+
+Person(const char *p) : m_name(p) {} --> kodun legal olmasını string sınıfın const char* parametreli bir ctor'ının olması şeklinde açıklarız. Bu ctor'ı call etmiş oluyoruz.
+
+======================================================================================================================================
+class Nec {
+public:
+    Nec(int a, char c) : mstr(a, c) {}
+
+    void print()const
+    {
+        std::cout << "[" << mstr << "]\n";
+    }
+private:
+    std::string mstr;
+};
+
+int main()
+{
+    Nec mynec(10, 'X');//ekrana 10 tane X karakteri yazar
+    mynec.print(); 
+}
+
+Nec(int a, char c) : mstr(a, c) {} --> kodun legal olmasını string sınıfın const char* parametreli bir ctor'ının olması şeklinde açıklarız. Bu ctor'ı call etmiş oluyoruz.
+
+Burada vurgulanan C.I.L ile sınıf türünden veri elemanını initialize edilmesi!
+
