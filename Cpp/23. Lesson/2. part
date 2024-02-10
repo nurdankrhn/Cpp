@@ -1,0 +1,206 @@
+bir sınıf türünden nesnelerin birbirleriyle iletişimini sağlamak
+
+burada amaç Fighter sınıfı türünden nesnelerin birbiri ile hayatta ki nesnelerin iletişim kurmasını sağlamak.
+Bu iletişimi implementasyon tarafında bulunan nesnelerin adresini tutan container sayesinde sağlar.
+O halde her Fighter nesnesi hayata geldiğinde ctor onun adresini yani this pointer'ının değerini container'a 
+insert eder.
+
+burada kritik bir diğer nokta container'ın sınıfın kendi adresini de içeriyor; yani örneğin yardım için 
+yazdığımız bir fonksiyonda eğer ki bu kritere dikkat etmezsek kendinden de yardım istemesine neden oluruz
+bu da lojik bir hatadır.
+
+bir sınıfın bir sınıf türünden elemana sahip olması compasion veya containment olarak adlandırılır. Ve 
+buna member object denir.
+
+vector sınfı için yaptığımız bildirimde <> arası yazılan ifadeye template argümanı denir.
+
+C'de olmayan C++'ta olan bir döngü deyimi var: range-based for loop; bizim normalde yazmamız gereken 
+bir döngü deyimini derleyiciye yazdıran bir döngü deyimi gibi düşünebiliriz.
+
+#include <iostream>
+#include <string>
+#include <vector>
+
+
+class Fighter {
+public:
+    Fighter(const std::string& name) : m_name{name}
+    {
+        svec.push_back(this);
+    }
+
+    ~Fighter()
+    {
+        std::erase(svec this); //C++20
+        //yukarıdaki fonksiyon, remove-erase idiom'unu kullanıyor
+
+        /*bunun yerine bu idiom'u kendimiz yazsaydık:
+        algorithm başlık dosyasını dahil edecektik
+
+        auto iter = std::find(svec.begin(), svec.end(), this);
+
+        svec.erase(iter);
+        */ 
+    }
+
+    void ask_help()
+    {
+        std::cout << "yetisin arkadaslar dusmanlar beni oldurecek\n";
+        //range-based for loop
+        for(Fighter *p :svec) {
+            if(p != this)//p this'e eşit ise kendi adresidir.
+            {
+                std::cout << p->name << " ";
+
+            }
+        }
+        std::cout << '\n';
+    }
+private:
+    std::string m_name;//member object
+    inline static std::vector<Fighter*> svec;
+};
+
+int main()
+{
+    Fighter f1{ "ates" }, f2{ "bircan" }, f3{ "enes" }, f4{ "sevim" };
+
+    auto p1 = new Fighter{ "sadullah" };
+    auto p1 = new Fighter{ "abdulmuttalip" };
+
+    delete p1;
+
+    f1.ask_help();
+}
+
+range-based for loop kısa bir bilgilendirme
+burada ival dizide tutulan öğenin kendisi değil; burada yorum satırı ile yazdığım döngüyü kendim yazmak yerine bu döngüyü yazdıracak
+bir döngü dilin sentaksına göre oluşturuyorum yani yazdığım kod derleyici tarafından adeta yorum satırı ile yazılmış döngü gibi ele
+alınacak:
+
+int main()
+{
+    int a[5] = {2, 4, 6, 8, 10};
+
+    for(int ival : a) {
+        std::cout << ival << " ";
+    }
+
+    /*
+
+    for(int *ptr = a; ptr != a + 5; ++ptr) {
+        int ival = *ptr;
+        std::cout << ival << " ";
+    }
+
+    */
+}
+
+
+yukarıda ival *= 10 deseydik dizinin elemanları değişmezdi çünkü ival yerel bir değişken bunu yapabilmek için dizinin elemanlarını
+ival referansına bağlamamız lazım:
+
+int main()
+{
+    int a[5] = {2, 4, 6, 8, 10};
+
+    for(int &ival : a) {
+        ival *= 10;
+        std::cout << ival << " ";
+    }
+    /*
+    for(int *ptr = a; ptr != a + 5; ++ptr) {
+        int &ival = *ptr;
+        ival *= 10;
+        std::cout << ival << " ";
+    }
+
+    */
+
+   for(int i = 0; i < 5; ++i) {
+        std::cout << a[i] << " ";
+   }
+
+}
+
+genelleştirilmiş hali:
+
+for(T x : container) {
+
+}
+bu döngünün her turunda x değerini container'daki öğeden alarak hayata gelecek anlamına gelir
+
+
+for(T& x : container) {
+
+}
+bu döngünün her turunda x  container'daki öğelerden birine referans anlamına gelir.abort
+
+eğer ben bu container'daki öğeleri salt okuma amaçlı kullansaydım o zaman ival const olmalıydı:
+for(constT &x : container) {
+
+}
+
+auto type decuction ile de tür çıkarımı yapabiliriz yani ival için container'daki öğenin türünü açık açık yazmak 
+yerine derleyiciye çıkarım yaptırabiliyoruz:
+
+int main()
+{
+    
+    int a[5] = {2, 4, 6, 8, 10};
+    for(auto val : a) {
+
+    }
+}
+
+veya 
+int main()
+{
+    
+    int a[5] = {2, 4, 6, 8, 10};
+    for(auto &val : a) {
+
+    }
+}
+
+ya da 
+
+int main()
+{
+    
+    int a[5] = {2, 4, 6, 8, 10};
+    for(const auto val : a) {
+
+    }
+}
+
+veya
+
+int main()
+{
+    
+    int a[5] = {2, 4, 6, 8, 10};
+    for(const auto &val : a) {
+
+    }
+}
+
+aşağıda verilen örnekte copy ctor delete durumda olduğu için sentaks hatası meydana gelir çünkü derleyicinin range-base for loop'ta
+ürettiği kodda Myclass x = container'daki öğe burada x için copy ctor çağırılır o da delete edildiği için snetaks hatası meydana gelir.
+(move ctor bildirdiğim için copy ctor delete edildi)
+
+class Myclass {
+public:
+    Myclass();
+    Myclass(Myclass&&);
+    void foo();
+};
+
+int main()
+{
+    Myclass a[100];
+
+    for(auto m: a) {
+        m.foo();//sentaks hatası
+    }
+}
