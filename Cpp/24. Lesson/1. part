@@ -1,0 +1,563 @@
+13 Mart 2023 - Pazartesi
+
+
+composition tekrarı
+
+sınıfın incomplete type türünden elemanı olamaz demiştik o sebeple aşağıda verilen kod parçasında sentaks hatası meydana gelir:
+
+class Member;
+
+class Owner {
+public:
+private:
+    Member mx;//sentaks hatası
+};
+mx pointer veya referans olsaydı legal olurdu:
+
+
+class Member;
+
+class Owner {
+public:
+private:
+    Member *mx;//legal
+};
+
+
+class Member;
+
+class Owner {
+public:
+private:
+    Member &mx;//legal
+};
+
+
+default member initializer sentaksı sınıf türünden veri elemanları için de kullanılabilir mi?
+
+class Member {
+public:
+    Member(int, int, int);
+};
+
+class Owner {
+public:
+private:
+    Member{2, 3, 7};
+    //Member = {2, 3, 7}; şeklinde de yazabiliriz fakat burada direct initialization sentaksı yok
+    Member(2, 3, 7);//sentaks hatası
+};
+evet fakat default member initializer'da direct initialization sentaksı yok onu kullanamayız.
+
+
+standart kütüphaneden default member initializer'a örnek:
+#include <vector>
+
+class Owner {
+public:
+private:
+    std::vector<int> ivec{2, 5, 7, 12}; //default member initializer
+};
+
+
+====================================================================================================================================
+
+special member function in composition
+composition'da derleyici special member function'ı kendisi default ederse sınıfın elemanını  diğer sınıfın elemanı ile copy 
+ctor/move ctor move assign/copy assign eder.
+
+A, B, C birer tür olmak üzere derleyicinin yazdığı special member function'ları göz önüne alalım:
+
+class Myclass {
+
+public:
+
+private:
+    A ax;
+    B bx;
+    C cx;
+};
+
+1)Derleyicinin yazdığı default ctor elmanları default initialize eder.
+    Myclass() : ax(), bx(), cx() {}
+
+2)Derleyicinin yazdığı copy ctor elamanları copy construct eder.
+    Myclass(const Myclass &other) : ax{other.ax}, bx{other.bx}, cx{other.cx} {}
+
+3)Derleyicinin yazdığı  move ctor
+    Myclass(Myclass &&other) : ax{std::move(other.ax)}, bx{std::move(other.bx)}, cx{std::move(other.cx)} {}
+
+4)Derleyicinin yazdığı copy assigment
+    Myclass& operator=(const Myclass &other) 
+    {
+        ax = other.ax;
+        bx = other.bx;
+        cx = other.cx;
+
+        return *this;
+    }
+
+5)Derleyicinin yazdığı move assigment
+    Myclass& operator=(Myclass &&other) 
+    {
+        ax = std::move(other.ax);
+        bx = std::move(other.bx);
+        cx = std::move(other.cx);
+
+        return *this;
+    }
+
+
+Burada yapılan tipik hata programcı sınıfa bir nedenden dolayı specail member function yazmak istiyor fakat artık elemanların hepsinden
+artık kendisinin sorumlu olduğunu unutuyor. Özellikle copy ctor'da ve move ctor'da şöyle bir beklentiye giriyor; eğer diyor ben
+elemanı copy construct etmezsem derleyici oraya eleman için copy ctor kodunu yazar fakat durum öyle olmuyor; bu çok tipik bir yanılgı:
+
+class Member {
+public:
+    Member()
+    {
+        std::cout << "Member default ctor\n";
+    }
+
+
+    Member(const Member&)
+    {
+        std::cout << "Member copy ctor\";
+    }
+
+
+};
+
+class Myclass {
+public:
+    Myclass() = default;
+    Myclass(const Myclass& other) : mval(other.mval)
+    {
+
+    }
+private:
+    int mval;
+    Member mx;  
+};
+
+mx için bir değer ataması yapmadım sentaks hatası olışmaz fakat birçok kişi burada; Myclass'ın copy ctor'ı çağırıldığında 
+Myclass'ın Member türünden mx'i için derleyicinin Member sınıfının copy ctor'ını çağırıldığını düşünür yani programcı 
+tarafından initialize edilmediği için derleyici mx için orada copy ctor çağrısını eklediğini söylerler fakat durum 
+öyle değildir. Burada default ctor çağırılır. 
+
+int main()
+{
+    Myclass a;
+    Myclass b = a;//b için Myclass'ın copy ctor'ı çağırılır; b'nin mval'i a'nın mval'inden değer alır. Fakat b'nin mx'i
+                  // a'nın mx'inden değerini almaz; default construct olur. 
+}
+sonuç olarak eğer ki ben copy ctor yazıyorsam her bir elmanın copy construct edilmesinden programcı sorumludur. Bu sorumluluk yerine getirilmez ise 
+örnekte de görüldüğü gibi sınıf türünden elemanlar için copy ctor değil default ctor çağırılır!!!! Tabii default ctor olmasaydı sentaks hatası meydana gelirdi.
+
+o halde copy ctor bu şekilde tanımlanmalıydı:
+
+class Member {
+public:
+    Member()
+    {
+        std::cout << "Member default ctor\n";
+    }
+
+
+    Member(const Member&)
+    {
+        std::cout << "Member copy ctor\";
+    }
+
+
+};
+
+class Myclass {
+public:
+    Myclass() = default;                              !!!!!!!!!!!!
+    Myclass(const Myclass& other) : mval(other.mval), mx(other.mx)
+    {
+
+    }
+private:
+    int mval;
+    Member mx;  
+};
+
+aynı durum move ctor için de geçerlidir.
+
+class Member {
+public:
+    Member()
+    {
+        std::cout << "Member default ctor\n";
+    }
+
+
+    Member(const Member&)
+    {
+        std::cout << "Member copy ctor\";
+    }
+
+    Member(Member&&)
+    {
+        std::cout << "Member move ctor\";
+    }
+
+
+};
+
+class Myclass {
+public:
+    Myclass() = default;                              !!!!!!!!!!!!
+    Myclass(const Myclass& other) : mval(other.mval), mx(other.mx)
+    {
+
+    }
+                                                            !!!!!!!!!!!!!!!!!!!!!!
+    Myclass(Myclass&& other) : mval(std::move(other.mval)), mx(std::move(other.mx))
+    {
+
+    }
+private:
+    int mval;
+    Member mx;  
+};
+
+int main()
+{
+    Myclass a;
+    Myclass b = std::move(a);
+}
+
+atama operator fonksiyonları için de aynı şey geçerlidir:
+eğer atama operator fonksiyonlarını da programcı yazarsa bütün elemanların birbirine atanmasından yine programcı sorumludur:
+
+A, B, C birer tür olmak üzere 
+class Myclass {
+public:
+    Myclass& operator=(const Myclass& other)
+    {
+        ax = other.ax;
+        bx = other.bx;
+        cx = other.cx;
+
+        return *this;
+    }
+private:
+    A ax;
+    B bx;
+    C cx;
+};
+
+bunun yerine programcı şunu yazsaydı:
+A, B, C birer tür olmak üzere 
+class Myclass {
+public:
+    Myclass& operator=(const Myclass& other)
+    {
+        ax = other.ax;
+        return *this;
+    }
+private:
+    A ax;
+    B bx;
+    C cx;
+};
+
+copy assigment çağırıldığı zaman sadece ax'e yeni değer atanırdı; bx ve cx eski değerinde kalırdı.(atama operator func. bir ctor değil; atama operator fonksiyonu hayatta olan bir 
+nesneye atama yapıyor. Dolayısıyla zaten hayatta olduğuna göre ax, bx ve cx bir değere sahip öncesinde)
+
+
+aşağıda verilen örnekte Member sınıfı türünden veri elamanı olan Owner sınıfı türünden y nesnesi için copy ctor çağırılır; bu copy ctor derleyici tarafından yazıldıpı için
+derleyicinin yazdığı copy ctor sınıfın elemanlarını copy ctor eder fakat elemanları copy ctor ettiğinde elemanının copy ctor'ı delete ettiğinden derleyici kendi yazması gereken
+copy ctor'ı delete eder yani Owner sınıfı için implicitly copy ctor deleted olduğundan sentaks hatası olur. Öte yandan z için çağırılan move ctor yine derleyici tarafınfan 
+yazılmıştır ve o da elemanları move  eder. Elemanların move ctor'ında(implicitly declared defaulted) herhangi bir sorun olmadığından kod legaldir
+
+class Member {
+public:
+    Member = default;
+    Member(const Member&) = delete;
+    Member(Member&&);
+};
+
+class Owner {
+
+private:
+    Member mx;
+};
+
+int main()
+{
+    Owner x;
+
+    Owner y = x; //sentaks hatası
+    Owner z = std::move(x);//legal
+}
+
+====================================================================================================================================================================================
+
+nested types
+
+türü içeren sınıftan bahsederken kullanılan terim:enclosing type
+
+sınıf tanımı içinde bulunan veriler: data member; member function ve member type olabilir. Memeber type demek yani sınıfın elemanının bir tür olması.
+Bir türün bir namespace içinde bildirilmesi ile aynı türün bir sınıf tanımı içinde bildirilmesi/tanımlanması farklı anlamlar içeriyor. Bir türü sınıfın
+içinde bildirirsek ya da tanımlarsak bu tür; tanımını içeren türün bir nested type'dır. Bu 3'ü aynı anlamdadır: nested type, member type, type member
+
+member type olması başka member type'ı türünden member'a sahip olması başka anlamlara gelir. 
+
+aşağıda member type'ı olan fakat member type'ı türünden elemana sahip olmayan sınıf örneği verilmiştir:
+#include <iostream>
+
+class Myclass {
+    class Nec {
+        int a, b, c, d;
+    };
+};
+
+int main()
+{
+    std::cout << "sizeof(Myclass) = " << sizeof(Myclass) << '\n';  //1   
+}
+sınıf şu anda Nec türünden bir elemana sahip değil.
+
+
+eğer nested type türünden bir member'ı olursa:
+
+#include <iostream>
+
+class Myclass {
+    class Nec {
+        int a, b, c, d;
+    };
+    
+    Nec x;
+};
+
+int main()
+{
+    std::cout << "sizeof(Myclass) = " << sizeof(Myclass) << '\n';  //16
+}
+
+Nec'in namespace içinde tanımlanan bir sınıf olması ile class definition içinde tanımlanan bir sınıf olması durumunda hangi farklılıklar var?
+
+class Nec {
+    int a, b, c, d;
+};
+
+class Myclass {
+    class Nec {
+        int a, b, c, d;
+    };
+};
+
+Dikkat!!
+nested type'lara ilişkin kurallar C ve C++ dillerinde aynı değildir. 
+
+1)Skoplar farklı olur; nested type olduğu zaman class skoba ait oluyor. İsim arama kuralları class skoba göre yapılıyor. Dolayısıyla ancak sınıfın ismi ile 
+nitelenirse bu tür kullanılabilir:
+
+
+
+class Myclass {
+public:
+    class Nec {
+        int a, b, c, d;
+    };
+};
+
+int main()
+{
+    Nec mynec;//sentaks hatası
+
+    Myclass::Nec mynec;
+}
+
+2)Erişim kontrolüne sahip olması yani namespace'te tanımlanan tür herkese açıkken nested type public kısımda olursa client kodlara sahip olur.
+
+
+class Myclass {
+    class Nec {
+        int a, b, c, d;
+    };
+};
+
+int main()
+{
+    Myclass::Nec mynec;//Nec sınıfı Myclass sınıfının private type member'ı olduğu için sentaks hatası oluşur.
+}
+tabii bir friend bildirimi yapılmış olsaydı erişim kontrolüne tabi tutulmayacaktı.
+
+O halde nested type yaparak class skop içine alıyoruz. Böylece bu sınıfın varlık nedeninin bu tanımı içeren sınıf ile ilgili olduğunu adeta onun bir helper 
+class olduğunu ancak 2'sinin birlikte birbiri ile mantıksal bir ilişki içinde var olduğunu anlatmış oluyoruz. Tabii her zaman nested type yaparak yardımcı sınıf
+oluşturmuyoruz; bazen nested type yapmadan da yardımcı sınıflar oluşturuyoruz. Ama tipik olarak böyle sınıflara ingilizcesi ile "proxy class" deniliyor; yardımcı
+bazı işlemleri gerçekleştirmek için bir yardımcı olarak kullanılıyorlar.
+
+type member'ımızın private bölümüne erişemeyiz; fakat yine friend bildirimi yapılarak erişebilir hale gelirdik:
+
+//enclosing type
+class Myclass {
+    class Nec {
+        int a, b, c, d;
+    };
+
+    void func()
+    {
+        Nec mynec;
+
+        auto val = mynec.a;//sentaks hatası
+    }
+};
+
+
+Dikkat!!!
+nested type; nested type içeren sınfın private bölümüne erişebilir.(modern C++ ile bu kural geldi). Yani enclosing type; nested type'ın private 
+bölümüne erişemezken nested type enclosing type'ın private bölümüne erişebiliyor.
+
+STL'de karşımıza çok çıkacak nested type'lar.
+
+
+3)Lojik açıdan da o sınıfla ilişkisini vurgulamış oluyoruz
+örneği container'ların iteratörleri aşağıda olduğu gibi nested type'lar
+
+class String {
+public:
+    class iterator {
+
+    };
+};
+
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec(100);
+
+    vector<int>::iterator //vector'ün int açılımının iterator türü; bu şekilde tanımlıyoruz çünkü iterator türü
+                        //container türlerinin nested type
+    vector<int>::value_tye//vector'ün int açılımının value type'ı; 
+    vector<int>::pointer//vector'ün int açılımının pointer type'ı;
+    vector<int>::constpointer//vector'ün int açılımının const pointer type'ı;
+}
+
+örneğin vector'ün int açılımının ıterator'ü; genel tür değildir herkes kullanamaz; nested type'dır vector ile ilgili bir türdür bu işlerde kullanılır.
+
+=====================================================================================================================================================================================
+
+nested type'lar neler olabilir?
+1)nested class / structure
+2)nested enum / enum class
+3)nested type alias
+
+3 tane tipik nested type vardır:
+1)nested type'ın class olması (nested type is a class(tabii class derken struct'lar da dahil ))
+class Nec {
+public:
+    class Erg {
+        //...
+    };
+};
+
+2)nested type'ın bir enumaration type olması:(geleneksel unscoped enum da olabilir scoped enum da olabilir)
+
+class Nec {
+public:
+    enum Color {Blue, Red, Purple};
+};
+
+int main()
+{
+    Blue//sentaks hatası bulunamaz skobu Nec sınıfı için de o yüzden nitelenmeli 
+    Nec::Blue //legal
+}
+zaten scoped enum'lar dile eklenmeden önce enumaration constant olan isimlerin namespace'i kirletmesi problemine karşın bazen sırf enumaratörlerin skobu olsun diye
+enumarator'ler sınıfların nested type'ı yapılabiliyordu. Fakat artık buna gerek kalmadı; sırf bu amaç için bir sınıf oluşturmak iyi bir fikir değildir. Çünkü bunun 
+için zaten scoped enum'lar var.
+
+veya nested type scoped enum olabilir:
+
+class Nec{
+public:
+    enum class Color {Blue, Red, Purple};
+};
+
+3)nested type'ın tür eş ismi olması:
+
+class Myclass {
+public:
+    using Word = int;
+};
+
+int main()
+{
+    Word myword;//sentaks hatası
+    Myclass::Word myword;//legal
+}
+
+===================================================================================================================================================================================
+
+en sık sorulan sorulardan bazıları!!:
+1)
+class Myclass {
+private:
+    class Nested {};
+};
+
+int main()
+{
+    Myclass::Nested x;//private sentaks hatası
+}
+
+2)
+class Myclass {
+private:
+    class Nested {};
+public:
+    static Nested foo();
+};
+
+int main()
+{
+    Myclass::Nested x = Myclass::foo();//private sentaks hatası
+}
+
+ÇOK ÖNEMLİ!!!!
+!!!!!!!
+3)erişim kontrolünü yanlış anlamanın tipik bir örneği; erişim kontrolü en baştan söylediğimiz gibi IDENTIFIER'lar ile ilgili. Burada auto ile tür çıkarımı yapıyoruz.
+Yani ortada bir isim yok ise access control'de olmaz. Yani fiilen yazılmış bir isim yok ise access control de olmaz
+class Myclass {
+private:
+    class Nested {};
+public:
+    static Nested foo(){return Nested{} };
+};
+
+int main()
+{
+    auto x = Myclass::foo();//legal; 
+}
+Bir isim kaynak kodda yazılmadığı sürece erişim kontrolü yapılmaz!!!
+
+eğer nested type'ın kendi elemanı public ise x ile ona da erişebiliriz fakat private olsaydı sentaks hatası olurdu:
+class Myclass {
+private:
+    class Nested {
+    public:
+        void func();
+    private:
+        int ma;
+    };
+public:
+    static Nested foo() {return Nested{} };
+};
+
+int main()
+{
+    auto x = Myclass::foo();//legal; 
+    x.func();//legal
+    x.ma;//private sentaks hatası
+    
+}
