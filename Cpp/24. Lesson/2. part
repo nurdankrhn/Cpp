@@ -1,0 +1,341 @@
+Eğer nested bir type var ise bu type sınıf içinde kullanmak ile üye fonksiyon içerisinde kullanmak aynı şey midir?
+
+isim arama üye fonksiyon içerisinde member kullanırken uygulanan kural ile aynı değildir!! Üye fonksiyonlarda önce skop içinde skop için de 
+bulunamaz ise class skop içerisinde arama yapılıyordu. Nested type için ise class definition başından itibaren başlayıp nested type türünden 
+olan değişken tanımı/bildiriminin yapıldığı yere kadar devam eder; eğer ki oraya kadar nested type'ın tanımı ile karşılaşılmış ise kod legal
+karşılaşılmamış ise sınıf tanımının olduğu name skopta aranır eğer yine bulunamaz ise kod illegal olur.
+
+class Myclass {
+    Nec mx;//sentaks hatası
+    class Nec {};
+};
+
+örneğin aşağıda mx'in türü double olur int değil:
+
+using type = double;
+
+class Myclass {
+    type mx; //double
+
+    using type = int;
+};
+
+tanımdan sonraya alsam mx int olur:
+
+class Myclass {
+
+    using type = int;
+
+       type mx; //int
+};
+
+using Nec = double;
+
+class Myclass {
+    Nec mx;
+
+    void foo();
+
+    struct Nec {
+        int a, b, c;
+    };
+
+};
+
+void Myclass::foo()
+{
+    mx.a = 5;//sentaks hatası mx double olan Nec structure olan Nec değil!!
+}
+
+Demek ki class skop içinde bir nested type'ı kullanabiliriz ama nested type'ın bildiriminden önce kullanamayız. 
+
+Eğer nested type sınıfın içerisinde kullanıyor ise ismi nitelemek zorunda değiliz çünkü aynı skoptalar.
+
+class Myclass {
+    class Nested {
+
+    };
+    Nested x;
+    //aşağıdaki aynı anlama gelir
+    Myclass::Nested x;//legal olsada class skopta olduğu sürece ismi nitelememe gerek yok
+};
+
+sınıfın üye fonksiyonun nested type türünden parametresi olduğunda onu ayrı bir dosya olan .cpp dosyasında tanımlayabiliriz; çünkü parametre parantezinin yazıldığı yer 
+class skop içerisinde kabul ediliyor; yani parametre olan ismi yine class skop'ta arar:
+
+//myclass.h
+class Myclass {
+    class Nested {
+
+    };
+public:
+    void func(Nested);
+};
+
+//myclass.cpp
+void Myclass::func(Nested x)
+{
+
+}
+
+aynı şey fonksiyon içinde bulunan lokal isimler için de geçerlidir:
+
+//myclass.h
+class Myclass {
+    class Nested {
+
+    };
+public:
+    void func(Nested);
+};
+
+//myclass.cpp
+void Myclass::func(Nested x)
+{
+    Nested a;//Myclass::Nested a; ile aynı 
+}
+
+fakat geri dönüş değeri türü böyle değil
+
+//myclass.h
+class Myclass {
+    class Nested {
+
+    };
+public:
+    Nested func(Nested);
+};
+
+//myclass.cpp
+//legal
+Myclass::Nested Myclass::func(Nested x)
+{
+    Nested a;
+}
+
+geri dönüş değeri için çözünürlük operatörünü kullanmazsam sentaks hatası:
+//myclass.cpp
+//ilegal, sentaks hatası
+Nested Myclass::func(Nested x)
+{
+    Nested a;
+}
+
+yani fonksiyonun geri dönüş değeri türü eğer sınıf ismi ile nitelenmez ise class definition içinde aranmaz
+
+
+sınıfın nested type bir sınıf ise;   onun üye fonksiyonu yine sınıf içinde inline olarak tanımlayabilirim:
+
+class Myclass {
+    class Nested {
+    public:
+        int foo(int x) 
+        {
+            return x + 5
+        }
+    };
+public:
+
+};
+
+nested type'ın üye fonksiyonunu ya inline olarak sınıfın içinde tanımlamalıyız ya da namespace skopta tanımlamalıyız; nested type'ı kapsayan enclosing sınıf tanımı 
+içinde tanımlayamayız!!
+
+class Myclass {
+    class Nested {
+    public:
+        int foo(int x) ;
+    };
+
+        int Nested::foo(int x) //sentaks hatası
+        {
+            return x + 5
+        }
+
+};
+
+namespace'ta tanımlaması:
+int Myclass::Nested::foo(int x) 
+{
+    return x + 5;
+}
+
+namespace'te tanımlama için bir diğer örnek:
+
+class Myclass {
+    class Nested{
+    public:
+        Nested& operator=(const Nested&);
+
+    };
+};
+
+//myclass.cpp
+Myclass::Nested& Myclass::Nested::operator=(Nested&)
+{
+    //...
+
+    return *this;
+}
+
+class Myclass;//forward declaration
+
+namespace'te yapılan forward declaration ile class içinde yapılan forward declaration farklıdır:
+
+class Myclass;//namespace içindeki bir sınıfın forward declaration'ı
+
+class Nec {
+    class Myclass;//nested type'ın forward declaration'ı
+};
+
+class Nec::Myclass {
+    //...
+};
+
+     
+burada çok önemli bir idiomik yapıyada gönderme yapalım:
+pimpl idiom'u (C++'ın en sık kullanılan idiomlarından biri, mülakatlarda da çok gelir)
+
+
+A, B, C birer sınıf türü olmak üzere:
+//myclass.h
+
+#include "a.h"
+#include "b.h"
+#include "c.h"
+
+class Myclass {
+
+private:
+    A Ax;
+    B Bx;
+    C Cx;
+};
+Bir sınıfın private bölümünü client kodlardan gizleyebilir miyim?
+
+Sınıfa incomplete type türünden bir tane pointer veri elemanı tanımlarım; bu pointer veri elemanı aslında bir sınıf türünden nesneyi gösterecek;
+benim elemanlarım doğrudan fiziksel olarak benim içimde olmayacak ama başka bir sınıf nesnesi içinde olucak fakat benim içimdeki pointer onu göstericek.
+Dolayısıyla sınıfın üye fonksiyonları eleman olsaydı bunları doğrudan kullanacaktı; şimdi sözde elemanları pointer'ı dereference ederek kullanıcak.
+Bu ilave bir maliyet getirir: örneğin normalde sınıf nesnesi içinde olucak bu elemanlar için her sınıf nesnesi oluşturulduğunda dinamic memory management
+yapılacak; yüksek bir maliyet + sınıf nesnesinin hayatı bittiğinde bunlar dinamic allocate edildiğine göre bunlar deallocate edilecek + elemanım olsa
+bunlara doğrudan erişicektim fakat başka bir sınıfın elemanı olduğu için pointer'ı dereference edip o pointer'ın gösterdiği nesneye erişeceğim (stack'ten 
+taşınması heap'ten taşınmasına göre daha hızlıdır). 
+
+Neden gizlemek isteyeyim?
+
+1)Biz sınıfın private bölümünü doğrudan açarsak herkes hangi sınıfları kullandığımızı doğrudan görür; 
+2)Kullandığımız sınıfın complete type olması gerekir; tanımlı olabilmesi için o sınıfın tanımlı olduğu başlık dosyasını include etmeliyiz; bu durumda  bağımlılık
+oluşurur, compile time uzar(bu duruma göre çok önemli olabilir olmayabilirde), sınıfın private bölümünde birtakım değişikler yapıldığında örneğin elemanların yeri
+bile değişse tekrar o başlık dosyasını include eden kodların derlenmesi gerekir(yoksa binary incompability olur!!). Fakat priavte bölümü hiç görmeseydik sınıfın veri elemanına
+yapılan değişiklikten hiç etkilenmemiş olacaktık. Fakat sınıfın veri elemanlarını görüyorsak; veri elemanlarının offset'lerine ilişkin onların sırası, onların elemanları
+onda yapılan değişiklikler bizim kodumuzunda yeniden derlenmesiyle sonuçlanacaktır. Ve hatta örneğin B sınıfı türünden Bx'in elemanlarının değişmesi bile bizim kodumuzun yani 
+bu başlık dosyasını include eden kodların yeniden derlenmesi gerekliliği ile sonuçlanır. Oysa private bölüm olmaz ise binary compability bozulmaz. Client olarak zaten 
+elemanları kullanmıyor ve fonksiyonları çağırıyor olacak böylece elemanların iç düzeninde yapılan değişiklikten etkilenmemiş olacak. 
+
+Yani sınıfın private bölümünü gizlemek 2 nedenle tercih ediliyor; hangi nedenin olduğu önemli değil bizim amacımıza bağlı olur;
+1)eleman yoksa başlık dosyalarını da include etmiyorum; bağımlılıklardan kurtuldum, compile time kısalır ve duruma göre değişikliklerden de etkilenmiyorum
+2)private bölüm yok ise benim private member'larda yaptığım değişiklikler client kodu etkilemiyor fakat aksi halde etkilerdi
+
+//myclass.h
+class Myclass {
+private:
+    struct pimpl;//forward declaration
+    pimple *mp;
+};
+
+bu yapının ismi pimpl olmak zorunda değil fakat bu isim idiomatik bir isim "pointer implementation" veya "pointer to implementation" dan geliyor!
+
+pimpl idiom' undan önce:
+//myclass.h
+
+#include "a.h"
+#include "b.h"
+#include "c.h"
+
+class Myclass {
+public:
+    void foo();
+private:
+    A Ax;
+    B Bx;
+    C Cx;
+};
+
+//myclass.pp
+
+void Myclass::foo()
+{
+    ax.f2();
+    bx.bar();
+    cx.baz();
+}
+
+pimpl idiom'undan sonra myclass.cpp ve myclass.h şu şekilde olur:
+sınıfın ctor'ırlarından herhangi biri struct pimpl; türünden dinamik ömürlü bir nesne oluşturup onun adresini mp'de saklar. Aslında struct pimpl
+bir nested type. 
+
+//myclass.h
+
+class Class {
+public:
+    Myclass();
+    void foo();
+private:
+    struct pimpl;//incomplete type
+    pimpl *mp;
+};
+
+//myclass.pp
+eğer pimpl idiom'unu kullanmasaydık ax, bx ve cx sınıfımızın veri elemanı olacaktı fakat şimdi pimpl yapısının elemanları olucak:
+#include "a.h"
+#include "b.h"
+#include "c.h"
+
+Myclass::Myclass() : mp{new pimpl}
+ {
+    //
+ }
+
+struct Myclass::pimpl {
+    A ax;
+    B bx;
+    C cx;
+};
+
+void Myclass::foo()
+{
+    mp->ax.f2();
+    mp->bx.bar();
+    mp->cx.baz();
+}
+
+yine sınıfın dtor'ı o nesneyi delete edecek. Azımsanmayacak bir ilave maliyet var fakat bunun önemli olup olmadığı amacımıza göre değişir.
+Eğer bizim pimpl idiom'unu kullanmadan yaptığımız implementasyon bizim amacımız  için önemli ve negatif etki yapıyor ise bu durumda 
+biz pimpl idiom'unu kullanırız. Tam tersi ilave maliyet bizim için negatif etkiye sebebiyet veriyor ise o halde de pimpl idiom'unu kullanmayız.
+
+
+pimpl idiom'unda a.h, b.h ve c.h'yı include ettik fakat başlık dosyasında include etmek ile .cpp dosyasına include etmek aynı şey değildir ki;
+başlık dosyasını herkes include eder, .cpp dosyasını kimse include etmez! Yani başlık dosyasına eklediğimiz .h uzantılı dosyalar bağımlılık ve 
+diğer söylediğimiz negatif etkenlere neden olur. Yani artık bizim başlık dosyamızı include edenlerin a.h, b.h ve c.h ile ilgisi kalmayacaktır.
+
+
+eski C++ mülakatlarında en çok sorulan pimpl idiom'uydu şimdi yine çok sorulan bir konu fakat ufak bir değişiklik ile: bu değişiklik ham pointer yerine smart pointer
+kullanımı ile yapılmıştır:
+
+eskiden olan pimpl idiom'u yapısı:
+class Myclass {
+    struct pimpl;
+    pimpl *mp;
+};
+
+yeni olan pimpl idiom'u yapısı:
+#include <memory>
+
+class Myclass {
+    struct pimpl;
+   std::unique_ptr<pimpl> mp;
+};
+böylece sınıfın unique_ptr veri elemanının hayatı bittiğinde o da o pimpl nesnesini delete ediyor; 
+
+!!Herhangi bir sınıfı istediğimiz zaman pimpl idiom'una dönüştürebiliriz. Burada önemli olan implementasyon ve interface'i birbirinden ayırmak hangi sınıflar için
+daha fazla önem taşıyor-->değişme ihtimali yüksek olan sınıflar için dolayısıyla daha büyük daha fazla elemana sahip genel çatıdaki sınıflar için daha çok söz konusu. 
