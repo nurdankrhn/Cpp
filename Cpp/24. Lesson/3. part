@@ -1,0 +1,125 @@
+isim alanı
+Tipik bir uygulamada C'de de C++'ta da farklı farklı kütüphaneler; modüller kullanıyoruz. O modüllerin başlık dosyalarını include ettiğimiz
+zaman bu başlık dosyalarından dışarıya açılmış isimler geliyor ve biz bu isimleri kendi global isim alanımıza enjekte etmiş oluyoruz. 
+Bu durumda global isim alanınd abir isim çakışması riski oluyor. Yani farklı farklı modüller aynı isimleri dışa açmışlar ise aynı isimleri
+external olarak bildirmişler ise bu isimlerin çakışması compile time'da veya duruma göre link time'da problem oluşturur. En kötüsü compile
+time'da da link time'da da problem oluşturmayıp ub'ye neden olması.
+
+
+C++, java, C# gibi dillerde milyonlarca satırlık kodlu projler var, birçok modül içeriyor. Dolayısıyla böyle dillerde dışa açılan isimleri önekler 
+ile özelleştirmek çakışma riskini azaltmak artık koruyucu olmaktan çıkıyor. İşte bunun için C++'ta namespace aracı bunun için vardır.
+
+namespace:global alandaki isimleri birbirinden gizlemenin bir yoludur. Bir namespace içinde isimleri oluşturduğumuz zaman o isimler diğer isimler
+ile çakışmaz artık.
+
+Farklı farklı namespace'ler farklı isim alanları oluşturur. Ve bu namespace'lerde global isim alanı içerisinde yer alır fakat global isim alanı 
+içerisinde bu isimlerin birbiri ile karışmasını engelleyen namespace dediğimiz birimler içinde yer alır. İşte buna ilişkin dilin  kurallarının
+önemli bir kısmı namespace ile ilişkilidir. Örneğin standart kütüphanenin sunduğu bütün isimler bir namespace içinde gelir. Bu namespace'in ismi
+std; örneğin boost kütüphanesi içerisinde yer alan isimler boost namespace içerisinde gelir. Gerçekten standart kütüphane ile boost kütüphanesi
+arasında bile çakışan onlarca isim var!! Eğer namespace olmasaydı hem boost'un kütüphanelerini hem de standart kütüphaneyi kullansaydık bu isimler
+birbiri ile çakışacaktı.
+
+Kritik nokta!!!!!
+Modüllerin bize sunduğu isimler başlık dosyasında yer alır. Eğer ki namespace olmasaydı burada yer alan isimler doğrudan global isim alanına 
+enjekte edilmiş olacaktı. Fakat burada yer alan isimler namespace içerisinde yer alacağı için bizim bu başlık dosyasını include etmemiz durumunda
+bu isimler adeta bir container için de gelicek ve diğer global alandaki isimler ile karışmamış olacak.
+
+//ali.h
+namespace xyz {
+    int foo(int);
+    class Ali {
+        
+    };
+};
+
+
+Programcı olarak bizler çoğunlukla namespace'i oluşturan tarafta değiliz. %95 namespace içinde bulunan isimleri kullanan bir programcıyızdır. 
+Yani bi bir kütüphane kullanıyoruz; bizim kullandığımız kütüphane isimleri bir namespace içinde sunuyor; o sebeple namespace hakkında iyi 
+bir bilgi sahibi olmamız gerekir; fakat bazen de çok seyrekte olsa namespace'i oluşturan programcının görevinde yer alacağız. 
+
+namespace oluşturan programcı:
+1)definition sonunda noktalı virgül yoktur; yani class definition sonunda olduğu gibi noktalı vrigül içermez. Fakat sonuna ; koyduğumuzda sentaks hatası olmaz çünkü
+; tek başına zaten sentaks hatası oluşturmaz namespace sonuna konan ; ile namespace'in bir alakası yoktur!(global alanda böyle bir null statement sentaks hatası değil)
+2)Sınıflardan farklı olarak namespace'lerde bir erişim kontrolü yoktur. Yani bir namespace'ın public bölümü, private bölümü protected bölümü yoktur.
+İşte böyle oluşturduğumuz namespace global isim  alanı için de adeta bir container yani burada ne bildirip/tanımlayabiliyorsak namespace içinde de bildirip/tanımlayabiliriz.
+
+namespace   Neco {
+    int x;
+    enum class Pos {on, off, hold};
+    class Myclass {
+    public:
+        void member()
+        {
+
+        }
+
+        void bar();
+    };
+    void foo();
+
+    void Myclass::bar()
+    {
+
+    }
+}
+
+burada isimler global namespace'in içindeki Neco namespace'i içindeler. Yani bütün namespace'ler global namespace içinde nested. 
+
+===============================================================================================================================================================================
+namespace ile ilgili bazı sorular
+1)Lokal düzeyde namespace oluşturabilir miyim?
+Hayır; namespace'ler global namespace içinde nested olacak ya da global namespace'in içindeki namespace içinde nested olacak. Yani bir fonksiyonun içinde namespace oluşturmak 
+diye bir şey yok.
+int main()
+{
+    //sentaks hatası
+    namespace ali {
+
+    }
+}
+
+2)namespace içinde namespace oluşturabilir miyim?
+Evet üstelik sıklıkla oluşturuluyor. Standart kütüphanede sıklıkla kullanıyor. Ve buna nested namespace deniliyor:
+namespace neco {
+    namespace details {
+
+    }
+}
+
+nested namespace'ler aynı isme teknik olarak sahip olabilir çünkü skopları farklı fakat üretimde tercih edilmez:
+namespace neco {
+    namespace neco {
+
+    }
+}
+
+3)nested namespace içinde de namespace olabilir mi?
+Tabii,
+
+//global namespace
+
+namespace neco { //nested namespace
+    namespace details { //nessted namespace içindeki namespace
+
+    }
+}
+
+standart kütüphanede de böyle:
+std namespace'nin için de regex_constants namespace'inin içinde bulunan isimler
+
+#include <regex>
+
+int main()
+{
+    std::regex_constants::(namespace içinde olan isimler)
+}
+
+namespace std {
+    namespace regex_constants {
+
+    }
+
+    namespace literals {
+
+    }
+}
