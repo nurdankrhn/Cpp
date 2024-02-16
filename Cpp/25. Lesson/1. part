@@ -1,0 +1,301 @@
+15 Mart 2023 Çarşamba
+
+namespace {
+
+}
+yukarıdaki gibi oluşturulan namespace'lere unnamed namespace ya da anonymous namespace denir. 
+
+C'de  skoplar
+file scope
+block scope
+function prototype scope
+function scope
+
+C++'da skoplar
+namespace scope
+class scope
+block scope
+function prototype scope
+function scope
+
+namespace bir skop oluşturduğuna göre; aynı skop içinde aynı ismi başka bir varlığa veremediğimiz için namespace içerisindeki
+isimler de tıpkı global namespace'de olduğu gibi tek olmalı. Tabii farklı namespace'lerde aynı isimler bulunabilir.
+
+====================================================================================================================================================================================
+namespace'lere ilişkin bilmemiz gereken kurallar:
+
+1)Bir ismin bir namespace'de aranması için; eğer o isim namespace dışında kullanılıyor ise scope resolution operator ile nitelenmesi gerekir.
+namespace neco {
+    int x;
+}
+
+int main()
+{
+    x = 5;//sentaks hatası
+
+    neco::x = 5;
+}
+
+namespace içerisinde bulunan değişkenler namespace'in kendisi de global olduğu için global değişkenlerdir. namespace içerisindeki değişkenin/değişkenlerin 
+diğer global değişkenler açısından bir farkı yoktur sadece isimlerin çakışmasını engellemek için olan bir mekanizmadır. Dolayısıyla namespace içerisinde
+yer alan değişkenler statik ömürlü, main fonksiyonu çağırılmadan hayata gelen, ilk değeri verilmeden initialize edilmiş ise zero initialize edileceği
+hep dilin garantisi altındadır. Yani namespace içerisinde yer alması onun global bir varlık olduğu gerçeğini değiştirmez.  Zaten local düzeyde namespace 
+tanımlayamıyoruz! Yani assembly düzeyde gloabl varlıklar ile aynıdır; dil katmanında bir araçtır. 
+
+
+Bir namespace'teki ismi nitelenmiş olarak kullanmak kötü bir şey değildir; dolayısıyla refleks olarak using anahtar sözcüğü ile bu namespace'i
+bildirme özelliği çok elzem bir durummuş gibi düşünmememiz gerekir; gerektiği yerde kullanmalıyız. 
+
+Standart kütüphanenin öğelerin tamamı std namespace içerisindedir. Burada şöyle ilginç bir özellik vardır: Farklı farlı başlık dosyalarını include 
+ettiğimde o başlık dosyalarından gelen öğeleri sanki tek bir namespace içerisindeymiş gibi kullanabilmek; işte burada bir kural var:
+namespace bildirimleri kümülatiftir. Derleyici bir namespace'in üstünden geçtikten sonra tekrar aynı namespace'in oluşturulduğunu görürse durumu sentkas
+hatası olarak değerlendirmez!! sanki tek bir namespace'miş gibi kümülatif olarak ele alır. 
+
+
+namespace faruk {
+    int a, b, c;
+}
+
+namespace faruk {
+    double x, y;
+}
+
+namespace'i yukarıdaki gibi tanımlamakla aşağıdaki gibi tanımlamak aynı şeydir:
+
+namespace faruk {
+    int a, b, c;
+    double x, y;
+}
+
+Eğer böyle bir kural olmasaydı aynı namespace'i farklı başlık dosyalarında kullanamazdık. Örneğin C++'ın standart kütüphanelerinin tümü std namespace 
+içerisindedir. Fakat standart kütüphanenin onlarca başlık dosyası var işte hepsini namespace'inin aynı namespace yani std olmasını sağlayan bu kuraldır:
+
+namespace std {
+    ....cout
+}
+
+namespace std {
+    class vector
+}
+
+namespace std {
+    class string
+}
+
+O halde yine aynı isimler sentaks hatasına neden olur:
+namespace nec {
+    double a;
+}
+
+namespace nec {
+    int a;//sentaks hatası
+}
+
+Burada sorun yaratabilecek durum şudur:Birden fazla namespace kullanmamız durumunda örneğin bir başlık dosyasını include ettiğim zaman gelen 
+namespace ile başka bir başlık dosyasını include ettiğim zaman gelen namespace sonucu tehlike oluşmaz çünkü namespace 1'den öğeleri kullanırken
+namespace 1 ile niteleyerek kullanırım namespace 2'den gelen öğeleri ise namespace 1 ile niteleyerek kullanırım; fakat bu isimleri nitelemeden 
+kullanmam durumunda problem oluşturabilir isim çakışması bir problem oluşturabilir. Zaten eleştirilen noktada burası; çünkü bunu yaparak 
+namespace'in ana amacını kullanmamış oluyoruz. Çünkü namespace'in kullanılma nedeni direk buydu yani amaç isimleri direk global alana enjekte etmekten
+kaçınmaktı. İşte using bildirimini namespace için kullandığımızda bunun faydasını ortadan kaldırmış oluruz.
+
+
+Dilin standartları belirli istisnalar dışında std namespace'ine ekleme yapmayı ub olarak değerlendiriyor. Yani bazı istisnalar dışında 
+std namespace'ine asla ekleme yapmamalıyız!!
+
+#include <iostream>
+bu başlık dosyası her dosyay include edilmeli diye düşünmemeliyiz. Çoğunlukla bunu include ettik çünkü global stream nensnelerinin extern bildirimleri bu başlık 
+dosyasında yer alır. (std::cout/cin/cerr vb.)
+
+2)Eğer bir ismi namespace ismi ile nitelemeden yine de namespace'de aranmasını sağlamak istiyorsak(bu durumda göre legal olabilir, veya yapmamamız gereken bir durum olabilir)
+ dilin bu konu ile ilgili 3 farklı aracı mevcuttur:
+ a)using declaration
+ b)using namespace (directive) declaration
+ c)ADL(Argument Dependent Lookup)
+
+bu 3 araçtan herhangi biri mevcut değilse namespace içerisindeki ismi nitelemeden kullanmak sentaks hatasına neden olur. 
+
+Özellikle nested namespace'ler söz konusu olduğunda işi kolaylaşırmak adına namespace alias denilen bir aracı kullanıırız:
+
+#include <chrono>
+
+namespace chr = std::chrono;
+bu bildirim ile std namespace'nin nested namespace'i olan chrono'ya namespace ismi olarak chr eş ismini veriyoruz. Yani nasıl türlere eş isim 
+veriliyor ise namespace için de eş isim bildirme mekanizması bulunuyor.
+
+a)using declaration
+bir namespace içerisindeki ismi nitelemeden kullanmanın yollarından biri o namespace öğesi için using bildirimi yapmak. 
+using std::cout; using bildiriminin birdeb fazla özelliği bulunmaktadır:
+1)Bu bir bildirimdir.  Bildirim olması nedeni ile bu bildiriminde bir skobu vardır. Ve bu bildirim o kapsamda etkindir. 
+
+using std::cout;
+
+void foo()
+{
+    cout;
+}
+
+void bar()
+{
+    cout;
+}
+
+fakat using bildirimi bir blok'a ait olsaydı tanımlı olmadığı blokta cout'u direk kullanmak sentaks hatasına neden olurdu:
+
+
+void foo()
+{
+    using std::cout;
+    cout;
+}
+
+void bar()
+{
+    cout;//sentaks hatası
+}
+
+veya
+
+void foo()
+{
+    cout;//sentaks hatası
+}
+
+using std::cout;
+
+void bar()
+{
+    cout;
+}
+Çoğunlukla kapsamı ne kadar daraltırsak o kadar iyidir; yani örneğin sadece o ismi nitelemeden kullanmak belirli bir fonksiyon için ihtiyaç ise  
+o ihtiyaç değişmeyene kadar using bildirimini o fonksiyon içinde yapabiliriz. Tam aksinde ne kadar geniş alana yayılırsa bildirimin etkisi o kadar
+artar ve risk artar.
+
+2)Modern C++'ta using bildirimide ilginç bir değişiklik oldu: using bildirimleri virgüllerle ayrılan liste ile yapılabilir hale geldi:
+using std::cout; std::endl;(C++17 ile gelen özellik) virgüllerle ayrılamsını özellikle istediğimiz senaryolar var özellikle ilerde 
+öğreneceğimiz variadic template'lerde bu gerekebiliyor.
+
+3)using bildiirmi, bildirime konu ismi bildirimin yapıldığı scope'a enjekte eder. Yani o isim sanki o kapsamda bildirilmiş gibi ele alınır. 
+
+int main()
+{
+using std::cout;
+
+    int cout = 5;//sentaks hatası
+}
+veya
+namespace ates {
+    int a;
+}
+
+int main()
+{
+using ates::a;
+
+    a = 10;
+}
+
+bir diğer örnek:
+
+namespace ates {
+    int a;
+}
+
+namespace veli {
+    using ates::a; //bu using bildirimi ile a ismi sanki bildiriminin yapıldığı scope'a yani veli namespace'inin scope'una enjekte edildi
+                    //dolayısıyla veli'nin içinde a ismini tanımlasaydık nasıl onu veli'nin a'sı şeklinde kullanabilecekseydik şimdi de aynı 
+                    //şekilde kullanabiliyoruz. 
+}
+
+int main()
+{
+    auto x = veli::a;
+}
+
+veya 
+
+int x = 10;
+
+namespace veli {
+    using ::x;
+}
+
+int main()
+{
+    veli::x
+}
+
+bir diğer örnek:
+
+namespace neco{
+    int x, y, z;
+}
+
+using neco::x;
+
+int main()
+{
+    int x = 57;//lokal x'e 57 değeri atandı
+    x = 10;//global namespace'de bulunan x'e 10 değeri atandı
+    //::x = 10; da yukarıdaki kod ile  aynı anlama gelir
+}
+
+b)using namespace (directive) declaration
+
+namespace neco {
+    int x, y, z;
+ }
+
+using namespace neco;
+
+int main()
+{
+
+}
+
+bir namespace içerisindeki tüm isimleri nitelemeden  kullanmak istediğimiz zaman bu bildirimi kullanırız:
+1))bu da bir bildirimdir;
+2)bu bildiriminde bir scope'u vardır;
+3)Bu bildirimin yapıldığı kapsamda bu namespace'in içerisindeki isimler sanki bu namespace içerisinde değil de global isim alanında 
+bildirilmiş gibi görünür duruma gelir. Fakat isim alanına enjekte ETMİYOR, KESİNKLEEE!!
+namespace neco {
+    int x, y, z;
+ }
+
+using namespace neco;
+int x = 5; //legal namespece'in içindeki x'in scope'u farklı using namespace (directive) declaration global namespace'e enjekte etmez!!
+
+x'i nitelemeden kullanırsak ambiguity olur!!!!
+
+int main()
+{
+    x =5;//ambiguity
+}
+
+fakat using declaration ile yapılsaydı sentaks hatası olurdu çünkü using declaration yapılan nesne'yi global namespace'e enjekte eder:
+namespace neco {
+    int x, y, z;
+ }
+
+using neco::x;
+int x = 5; //sentaks hatası namespece'in içindeki x'in scope'u da artık using declaration ile global alana enjekte edildi
+
+int main()
+{
+
+}
+
+
+#include <iostream>
+
+namespace neco {
+    int x, y, z;
+ }
+
+using namespace neco;
+int x = 5; //legal namespece'in içindeki x'in scope'u farklı using namespace (directive) declaration global namespace'e enjekte etmez!!
+
+int main()
+{
+   std::cout << ::x << '\n';
+   std::cout << neco::x << '\n';
+}
