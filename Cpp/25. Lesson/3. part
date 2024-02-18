@@ -1,0 +1,202 @@
+
+ADL aslında en basit "merhaba dünya" programında bile karşımıza çıkıyor:
+#include <iostream>
+
+int main()
+{
+    std::cout << "merhaba dunya";
+    //aşağıdaki fonk. çağrısı yukarıdaki fonk. çağrısı ile eş değerdir.
+    std::oprator<<(std::cout, "merhaba dunya");
+
+}
+burada global olan operator<<() fonksiyonu çağırılıyor; burada ismi nitelemeden de fonksiyon çağrısı yaparsak yine legal olur işte bunun nedeni fonksiyon 
+isminin bulunmasını sağlayan ADL. Eğer burada ADL devreye girmeseydi o zaman operator overloading'inde bu şekilde implemente edilmesi mümkün olmazdı
+
+int main()
+{
+    std::cout << "merhaba dunya";
+    //aşağıdaki fonk. çağrısı yukarıdaki fonk. çağrısı ile eş değerdir.
+    oprator<<(std::cout, "merhaba dunya");
+
+}
+
+
+
+//falanca.h
+
+class Myclass {
+public:
+    void foo();
+}
+
+void bar(Myclass);
+
+
+//necati.cpp
+//include "falanca.h"
+
+int main()
+{
+    Myclass m;
+    m.foo();
+    bar(m);
+}
+
+sınıfın üye fonksiyonunu da global fonksiyonu da m nesnesi ile çağırabiliyorum sadece birinde nokta operatörünü kullanırken diğerinde fonsiyona argüman olarak geçiyoruz.
+
+Şimdi diyelim ki karar değişikliği ile falanca.h dosyasında bulunan class tanımını bir namespace içerisinde almaya karar verdik:
+//falanca.h
+namespace neco {
+    class Myclass {
+    public:
+        void foo();
+    }
+}
+
+void bar(Myclass);
+
+
+//necati.cpp
+//include "falanca.h"
+
+int main()
+{
+    neco::Myclass m;
+    m.foo();
+    bar(m);
+}
+
+burada nesneyi tanımlarken neco::Myclass'ı türünden m şeklinde tanımladık; fakat fonksiyon çağrılarında herhangi bir değişiklik olmaz. Eğer ADL olmasaydı global fonksiyona 
+yapılan çağrıda ismi nitelemek zorunda kalacaktık oysa ADL kuralı gereği; neco namespace'inde olmasına rağmen öğeler hala bar fonksiyonunu ismi nitelemeden çağırmamızı
+sağlayan ADL kuralıdır.
+
+ //bu örnek Herb Sutter'in blogundan alınmıştır:
+
+namespace A {
+	struct X{};
+	struct Y{};
+	void f(int);
+	void g(X);
+}
+
+namespace B {
+	void f(int i) 
+	{
+		f(i);   // calls B::f (endless recursion)
+	}
+
+	void g(A::X x) 
+	{
+		g(x);   // Error: ambiguous between B::g (ordinary lookup) and A::g (argument-dependent lookup)
+	}
+
+	void h(A::Y y) 
+	{
+		h(y);   // calls B::h (endless recursion): ADL examines the A namespace but finds no A::h, so only B::h from ordinary lookup is used
+	}
+}
+
+
+Bildiğimiz gibi namespace'ler eski C++'ta da olan (unnamed namespace, namespace alias) bir araçtır. Fakat Modern C++ ile dile eklenen bazı eklemeler mevcuttur:
+örneğin using bildiriminin vrigüllerle ayrılabilmesi gibi.
+
+1. Eklenen Özellik
+Modern C++ öncesinde nested namespace'ler ya bu şekilde:
+namespace A {
+
+    namespace B {
+
+        namespace C {
+
+        }
+    }
+}
+
+ya da 2. bir kümülatif bildirim yapmak gerekiyordu. Fakat Modern C++ ile şöyle bir sentaksta eklendi: doğrudan şu şekilde yazabiliyoruz:
+A'nın B'nin tanımı olmasada olur:
+
+#include <iostream>
+
+namespace A:B:C {
+    int x = 4;
+}
+
+int main()
+{
+    std::cout << A::B::C::x << '\n'; //4
+}
+
+Böyle bir bildirimden sonra tekrar kümülatif olarak A'yı B'yi ya da C'yi bildirebiliriz:
+
+#include <iostream>
+
+namespace A::B::C {
+    int x = 4;
+}
+
+namespace A::B {
+    int y = 10;
+}
+
+namespace A {
+    int z = 5;
+}
+
+int manin()
+{
+    std::cout << A::B::C::x << '\n'; //4
+    std::cout << A::B::y << '\n'; //4
+    std::cout << A::z << '\n'; //4
+}
+Modern C++17 ile dile eklenmiştir.
+
+2. Eklenen Özellik
+namespace'lerin inline anahtar sözcüğü ile tanımlanabilmesi
+
+inline namespace özelliği yokken isteneni yapmak için nested namespace için onu kapsayan blokta using namespace bildirimi yapılıyorud:
+namespace X {
+    namespace Y {
+        int ival;
+    }
+    using namespace Y;
+}
+
+int main()
+{
+    X::ival = 10; //using namespace Y bildirimi sayesinde artık legal
+}
+
+Böyle oluşturulan namespace'lere inline namespace deniliyor. Eğer biz nested namespace içindeki isimlerin sanki doğrudan onu kapsayan namespace'in bir öğesiymiş 
+gibi görünür olmasını istiyorsak; nested namespace'i inline anahtar sözcüğü ile oluşturuyoruz. Böyle oluşturulan namespace'lere inline namespace deniliyor.
+inline anahtar sözcüğü burada overload edilmiştir yani burada ki inline'nın ne inline fonksiyon ile ne de inline variable ile alakası yoktur. Burada yine yeni
+bir anahtar sözcük eklememek için inline anahtar sözcüğü kullanılmış.
+
+namespace X
+{
+    inline namespace Y {
+        int ival;
+    }   
+}
+
+int main()
+{
+    X::Y::ival = 6; //demekle aşağıdaki kod satırı aynı anlamda
+    X::ival = 6;
+}
+
+global namespace içindeki bir namespace'ide inline olarak tanımlayabiliriz; bu durumda sanki global namespace'deymiş gibi o namespace'te bulunan isimleri
+nitelemeden kullanabilirim:
+inline namespace Y {
+    int ival;
+}
+
+int main()
+{
+    ival = 5;
+}
+
+unnamed namespace'ide inline tanımlayabilirim fakat gereksiz olur çünkü unnamed namespace içerisinde bulunan isimleri aynı dosyada kullanırken nitelemeden kullanabiliyoruz.
+
+peki neden inline namespace tanımını yapmalıyım?
+1)inline namespace olmadan daha önceden yapılan biçimde ADL'de sorun oluyordu; dilin kuralları orada ADL düzenlemesini gerçekleştirmiyordu.
+2)versiyon kontrolü
