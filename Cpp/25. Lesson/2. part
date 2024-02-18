@@ -1,0 +1,483 @@
+b)using namespace (directive) declaration
+bu bildirim biraz tehlikelidir; isim çkışmasının önünü açabilir:
+namespace neco {
+    int x, y, z;
+}
+
+namespace erg {
+    int x;
+}
+
+using namespace neco;
+using namespace erg;
+
+bu iki bildirim ile hem neco'daki hem de erg'deki isimler sanki global isim alanındaymış gibi görünür hale gelir:
+bu bir sentaks hatası değil fakat çakışan bir ismi kullandığımız zaman ambiguity olur!!!
+
+int main()
+{
+    x = 10;//sentaks hatası ambiguity!!
+}
+
+işte programcıların tipik olarak gözden kaçırdıkları bir diğer durumlardan biri de budur!!
+
+aşağıdaki örnekte func isimli fonksiyonlar overload oluşturmazlar çünkü function overload olabilmesi için skoplarının aynı olması kuralını sağlamıyorlar:
+o sebeple main içinde func fonksiyonuna yapılan çağrıda global fonksiyon olan func çağırılır:
+
+namespace can {
+    void func(int)
+    {
+        std::cout << "can::func(int)\n";
+    }
+}
+
+void func(double)
+{
+    std::cout << "::func(double)\n";
+}
+
+int main()
+{
+    func(4);
+}
+int argüman double'a dönüştürülür. Global olan func çağırılır!!
+
+int main()
+{
+    can::func(4.5);
+}
+burada ismi nitelediğimiz için namespace içinde bulunan func fonk. çağırılır int argüman double'a dönüştürülür.
+
+Burada using namespace bildirimi yaparsam:
+
+namespace can {
+    void func(int)
+    {
+        std::cout << "can::func(int)\n";
+    }
+}
+
+using namespace can;
+
+void func(double)
+{
+    std::cout << "::func(double)\n";
+}
+
+int main()
+{
+    func(10);
+    func(4.5);
+}
+
+veya aynı şey şu şekilde de implemente edilebilirdi:
+namespace can {
+    void func(int)
+    {
+        std::cout << "can::func(int)\n";
+    }
+}
+
+
+
+namespace deniz {
+    void func(double)
+    {
+        std::cout << "deniz::func(double)\n";
+    }
+}
+
+using namespace can;
+using namespace deniz;
+
+int main()
+{
+    func(10);
+    func(4.5);
+}
+yani using namespace bildirimleri ile bu tarz overloading etkisi de oluşturulabilir!
+
+using namespace bildiriminin de bir scope'u olduğunu söylemiştik:
+
+namespace nec {
+    int a, b, c;
+}
+
+void foo()
+{
+    using namespace nec;
+    a = 5;
+}
+
+void bar()
+{
+    b = 45;//sentaks hatası
+}
+
+ASLA ASLA ASLA başlık dosyalarında böyle bir bildirim yapmamalıyız!!!Bu kırmızı hata!!!
+çoğunlukla olması gereken:
+
+//necati.h
+#include <vector>
+#include <string>
+
+class Nec {
+    std::vector<std::string> msvec;
+};
+
+sırf yazım kolyalığı olsun diye using namespace bildiriminin yapılması; ve kaçınılması gereken durum:
+
+//necati.h
+#include <vector>
+#include <string>
+
+using namespace std;
+
+class Nec {
+    vector<string> msvec;
+};
+
+böyle bir şey teorik olarak sorun olmasada lojik açıdan çok tehlikelidir. Çünkü bu başlık dosyasını herkes include edebilir; örneğin ali.cpp bu dosyayı include ettiği zaman
+bu using bildirimini o da edinmiş olur fakat kaynak dosyaya böyle bir bildiirmi empoze etme hakkımız yoktur. O sebeple asla asla başlık  dosyasında ne using namespace bildirimine
+ne de using bildirimini kullanmamalıyız. Burada doğru olan her ismi niteleyerek kullanmak!!
+
+örneğin bir başlık dosyası için implemente ettiğimiz .cpp uzantılı dosyada namespace içinde verilen fonksiyon bildirimlerinin tanımını yapacaksak eğer burada 3 farklı
+yöntem izleyebiliriz:
+
+//necati.h
+
+namespace ncx {
+    class Neco {
+        ///..
+        public:
+            int bar(int);
+    }
+    int g;
+
+    bool foo();
+}
+
+//necati.cpp
+#include "necati.h"
+
+int ncx::Neco::bar(int)
+{
+    //..
+}
+
+bool ncx::foo()
+{
+
+}
+
+ncx::g = 10;
+
+eğer namespace adı ile nitelemezsek onlar global fonksiyon tanımı olarak değerlendirilir:
+
+
+
+bool foo()
+{
+    
+    //global fonkisyon tanımı olur
+}
+
+2. yöntem 
+//necati.h
+
+namespace ncx {
+    class Neco {
+        ///..
+        public:
+            int bar(int);
+    }
+    int g;
+
+    bool foo();
+}
+
+//necati.cpp
+#include "necati.h"
+
+namespace ncx{
+    int Neco:bar(int)
+    {
+
+    }
+    bool foo()
+    {
+
+    }
+}
+artık fonksiyon tanımını veya değişken isimlerini nitelemeden kullanabiliriz; burada yazacağımız kodda ncx namespace'i içerisinde olacağından direk ismini kullanabiliriz!!
+
+
+Yani namespace başlık dosyasında oluşturulur fakat kod dosyasında aynı namespace'e kümülatif olarak ilave de yapılabilir; yukarıda olduğu gibi. Bu üretim pratiğinde de 
+yapılan bir yöntemdir. 
+
+3. yöntem
+.cpp uzantılı dosya(necati.cpp) kendi dosyamız olduğu için dosya içerisinde global düzeyde using namespace bildirimi yapmak:
+eğer başka başlık dosyalarını da özellikle include etmeyeceksek yani oradan gelen isimlerle bir ambiguity oluşturmayacağına 
+eminsek bu şekilde bir bildirim yapabiliriz(hocamız önermiyor).
+
+//necati.cpp
+#include "necati.h"
+
+using namespace ncx;
+
+bool foo()
+{
+
+}
+
+//
+
+
+Sadece .cpp dosyasında bir namespace oluşturmanın anlamı var mı?
+Bunun özel bir anlamı var eğer ki o namespace unnamed ise; bu da kullanılan bir araç:
+
+unnamed namespace (isimsiz - anonim isim alanı)
+unnamed namespace içerisindeki öğeler internal linkage'a aittir.
+
+namespace {
+    int foo(int);
+    int g = 10;
+}
+
+int main()
+{
+    foo(5);
+    g = 125;
+}
+unnamed namespace içerisinde bulunan isimleri aynı dosyada kullanırken nitelemeden kullanırız. Derleyici bu isimsiz isim alanını adeta şöyle ele alıyor:
+sanki bu namespace'in bir adı var ve sanki namespace tanımından sonrada using namespace bildirimi varmış gibi ele alır:
+namespace xyz{
+    int foo(int);
+    int g = 10;
+}
+
+using namespace xyz;
+yani gerçekten böyle olsaydı nasıl bu kod legal olacaksaydı halen bu kod legal. Ve modern C++ ile gelmiş bir araç değildir. Öncesinde de var olan bir araçtır.
+
+yani buradaki isimler sadece bu mdoülde kullanılacak; diğer modüllerdeki foo ismi ve g ismi bunlara ilişkin olmayacak(internal linkage).
+
+Peki static anahtar sözcüğü ile bunu yapabiliyorken neden unnamed namespace kullanalım?
+1)static anahtar sözcüğünün aşırı yüklenmesi; farklı farklı yerlerde farklı anlamlara gelen bir sözcüktür static anahtar sözcüğü. Oysa burada ki anlamı
+direk internal linkage'a ait yapmak ve static yerine bu yöntemi kullandığımız zaman niyetimiz hemen belli oluyor.
+
+2)Normalde static anahtar sözcüğü bu anlamda sadece fonksiyonlar ve değişkenler için kullanılabiliyorken; unnamed namespace içine class tanımlarını da koyabildiğimiz için
+onlarda artık sadece o modüle özgü class'lar olmuş olur; artık bu sınıfın diğer başlık dosyalarında ki sınıflarla bir alakası olmaz.
+Dolayısıyla eğer class'ı isimsiz isim alanı içerisinde oluşturursak ODR'ı ihlal etmeden sadece bu kod dosyasında kullanılacak bir sınıf
+oluşturmuş oluyoruz.
+
+Dolayısıyla burada derli toplu sadece bu modüle ilişkin öğelerin bulunmasını sağlayan güzel bir yapı olmuş olur.
+
+unnamed namespace de kümülatif olabilir: evet
+namespace {
+    int a = 5;
+} 
+
+namespace {
+    int b = 15;
+}
+
+int main()
+{
+    a = b;
+}
+
+Eğer bazı varlıkları sadece kod dosyasında kullanacak isek yani sadece kod dosyasında kullanılan global değişken/fonksiyon normalde bunun C'de de C++'ta da 
+karşılığı bunları global static yapıp internal linkage'a dahil etmekti. Ama şimdi bunun yerine alternatif diğeri yasaklanmamış olmakla birlikte başka bir araç 
+geldi -->unnamed namespace ve daha çok tercih edilen bu araçtır.
+
+
+namespace'lere eş isim verme 2 fayda sağlayabilir:
+1)namespace'in kendi ismi çakışmaya açık yani namespace'in kendi ismi de global bir isim olduğu için o da global isim alanın enjekte ediliyor.
+#include ...
+bu başlık dosyasından şu namespace gelsin:
+
+namespace neco {
+
+}
+aşağıda aynı ismi değişken ismi olarak kullandığım zaman:
+
+int neco = 4;
+sentaks hatası meydana gelir. İşte böyle bir durumda çakışma söz konusu olmasın diye namespace ismini biraz daha özelleştirebiliriz; fakat bu durumda da 
+namespace'i yazarken yazma zahmeti oluşur ve kod verbose hale gelir. Fakat kendi kod dosyamda kontrol bende olduğu için ben çakışmadığımdan emin olduğum 
+için bunun yerini tutucak bir eş isim verebilirim; üstelik bunu istediğim scope'da yapabilirim:
+
+#include ...
+
+namespace neco_xyz_proj {
+    int ival = 5;
+    namespace details {
+        int x, y;
+    }
+}
+
+void foo()
+{
+    namespace dtl = neco_xyz_proj::details;
+
+    dtl::x = 5;
+}
+
+namespace nec = neco_xyz_proj;
+
+int main()
+{
+    neco_xyz_proj::ival++;
+    nec::ival++;
+}
+
+Özellikle C++20 ile dile eklenen ranges kütüphanesini kullandığımız zaman namespace alias'ın doğal ve idiomatik bir şekilde kullanıldığını göreceğiz.
+
+==================================================================================================================================================================================
+
+c)ADL(Argument Dependant Lookup)
+Argümana bağlı isim arama
+Eğer bir fonksiyon çağrısı nitelenmemiş bir isim kullanılarak yapıldığında söz konusu fonksiyon ismi eğer fonksiyona gönderilen argüman 
+ya da argümanlardan biri bir namespace içerisinde tanımlanan bir türe ilişkin ise (o türle ilgili ise) söz konusu fonksiyon ismi
+o namespace'te de (argümanın ilişkin olduğu) aranır.
+
+#include <iostream>
+
+namespace neco {
+    class Myclass {};
+
+    void foo(Myclass)
+    {
+        std::cout << "neco::foo(Myclass)\n";
+    }
+}
+
+int main()
+{
+    neco::Myclass mx;
+    foo(mx);//ADL sayesinde foo'yu nitelemeden kullandık
+}
+
+veya
+#include <iostream>
+#include <vector>
+
+namespace neco {
+    class Myclass {};
+
+    void foo(std::vector<Myclass>)
+    {
+        std::cout << "******\n";
+    }
+}
+
+int main()
+{
+    std::vector<neco::Myclass> mx;
+    foo(mx);//ADL sayesinde foo'yu nitelemeden kullandık
+}
+
+ADL ilgili soru - cevaplar:
+1)fonksiyonun birden fazla parametresi olsaydı; o parametreler farklı farklı namespace'lere ilişkin olsaydı o zaman fonksiyonada o namespace
+ki türlere ilişkin argümanlar geçseydim fonksiyon bütün namespace'lerde mi aranacaktı?
+Evet; bu bir tane argüman için değil bütün argümanlar için geçerlidir.
+
+2)İlişkin tür'ün sınıf türünden olması şartı yoktur. 
+
+#include <iostream>
+
+
+namespace neco {
+    class Myclass {
+        public:
+            struct Nested {
+
+            };
+    };
+
+
+    void foo(Myclass::Nested)
+    {
+        std::cout << "******\n";
+    }
+}
+
+int main()
+{
+    neco::Myclass::Nested x,
+    foo(x);//ADL sayesinde foo'yu nitelemeden kullandık
+}
+yani foo ismi x'in ilişkin olduğu türün tanımlandığı namespace'te de aranır.
+
+namespace neco {
+    enum Color {Blue, Purple, White};
+
+    void foo(Color);
+}
+int main()
+{
+    foo(neco::Blue);//ADL
+}
+
+ADL ile isim arama normal isim arama kurallarına göre bir öncelik/sonralık ilişkisine sahip değildir. Aynı haklara sahiptir. 
+Örneğin aşağıda verilen örnekte call edilebilir 2 tane fonksiyon olduğu için ambiguity oluşur:
+
+namespace neco {
+    class Erg {
+
+    };
+
+    void foo(neco::Erg);
+}
+
+void foo(neco::Erg);
+
+int main()
+{
+    neco::Erg x;
+    foo(x);//ambiguity sentaks hatası
+}
+
+standart kütüphaneden örnek:
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+int main()
+{
+    std::vector<int> ivec;
+
+    sort(begin(ivec), end(ivec));
+
+    //sort ismi de
+    //begin ismi de
+    //end ismi de std namespace'nin içinde 
+}
+burada begin nitelenmeden de kullanılabiliyor çünkü ivec std namespace'i içinde tanımlanan bir türe ilişkin!! Dolayısıyla derleyici begin ismini ADL ile 
+buluyor; aynı şekilde end ismi de std namespace'i içerisinde bir başka fonksiyonun ismi olmasına rağmen yine gönderilen argüman std namespace'ine ilişkin 
+olduğu için  o da std namespace'inde arandı. begin(ivec) bir fonksiyon çağrısı olduğuna göre bu ifadenin türü de fonksiyonun geri dönüş değeri türüdür.
+
+begin fonksiyonunun geri dönüş değeri: vector<int>::iterator ve bu da std namespace'inin nested type'ı olduğundan sort ismi nitelenmemiş olmasına rağmen
+yine std namespace'inde aranır. ADl ile 3 isim de aranıp bulunmuş oldu.
+
+ADL ile ilgili kritik nokta:
+ADL ile ismin aranıp namespace içerisinde bulunan ismin bulunabilmesi için; ismin bloktaki yerel bir isimle maskelenmemiş olması gerekir:
+
+namespace ali {
+    class Myclass {
+
+    };
+
+    void foo(Myclass);
+}
+
+int main()
+{
+    ali::Myclass mx;
+
+    void foo(int);
+
+    foo(mx);//sentaks hatası; foo yerel olan foo ile maskelendi ve yerel olan foo seçildi bu sebeple de parametresi int olan fonksiyona Myclass türü argüman
+            //olarak geçildi şeklinde değerlendiriliiği için sentaks hatası meydana geldi. ADL ile ismin aranabilmesi için foo isminin blokataki yerel foo
+            //ismi ile maskelenmemiş olması gerekirdi.
+}
+
