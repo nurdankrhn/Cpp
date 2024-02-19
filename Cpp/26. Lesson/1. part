@@ -1,0 +1,440 @@
+17 Mart 2023 - Cuma
+
+Hocamız isim alanları konusunu 2'ye ayırıyor. 1. kısım temel kavramlar 2. kısım ise generic paradigmasıyla beraber ele alacağımız kısmı; template'lerle
+beraber ele alacağımız kısmı ilerde ele alınacak.
+
+inline namespace bildiriminin; normal nested namespace kullanımının onu kapsayan namespace içerisinde using namespace bildirimi yapılarak sanki nested namespace
+yokmuş gibi onu kapsayan namespace içerisinde visible kılmaya yönelik using namespace bildirimi yöntemine bir alternatif olduğunu söylemiştik:
+
+namespace nec {
+    inline namespace inner {
+        int a, b, c;
+    }
+}
+
+int main()
+{
+    nec::a;
+}
+
+ile 
+namespace nec {
+    namespace inner {
+        int a, b, c;
+    }
+
+    using namespace inner;
+}
+
+int main()
+{
+    nec::a;
+}
+
+inline namespace olmadan önceki haliyle görünür olmasını sağladığımız diğer alternatifte bazı işler yapılamıyordu. Bunların çoğu template'lara ve abi breakage(sürüm kontrolüne)
+ilişkin : template, explicit template specialization veya ADL gibi senaryolarda bunun çalışmadığı işe yaramadığı senaryolar vardı. İşte bunu yapabilmek için dile inline namespace
+eklendi.
+
+Peki madem amacım nested namespace içerisindeki isimleri onu kapsayan namespace içerisinde visible yapmak ve kullanmak ise neden direk onu kapsayan namespace'te tanımlamıyorum?
+Bunu kursun 2. yarısında ele alacağız. Sadece kısaca değinebiliriz:
+namespace Nec {
+    namespace Nested {
+        class C {
+            //...
+        }
+        //...
+    }
+
+    using namespace Nested;
+    void func(Nested::C);
+}
+
+int main()
+{
+    Nec::Nested::C x;
+    foo(x);//gecersiz, ADL devreye girmedi
+}
+
+namespace Nec {
+    inline namespace Nested {
+        class C {
+            //...
+        }
+        //...
+    }
+
+
+    void func(Nested::C);
+}
+
+int main()
+{
+    Nec::Nested::C x;
+    foo(x);//gecerli, ADL devreye girdi
+}
+
+2. bir diğerfarklılık ise 
+
+#include <iostream>
+
+namespace nec {
+    int x = 10;
+
+    namespace erg {
+        int x = 5;
+    }
+
+    using namespace erg;
+}
+
+int main()
+{
+    std::cout << nec::x << '\n'; //10
+}
+
+burada isim çakışması olmaz; ambiguity oluşmaz!! nec namespace içerisinde erg namespace içerisinde x ismi var; ve using namespace bildirimi ile içteki x'te visible hale gelmesine 
+rağmen ambiguity olmadı. Yani burada name lookup ile erişilen isim nec namespace'indeki isimdir. Bunun yerine yani using namespace bildirimini kaldırıp inline namespace yaparsam:
+
+
+
+
+#include <iostream>
+
+namespace nec {
+    int x = 10;
+
+    inline  erg {
+        int x = 5;
+    }
+
+}
+
+int main()
+{
+    std::cout << nec::x << '\n';//sentaks hatası, ambiguity
+}
+dolayısıyla isim çakışması ile ilgili de bir farklılık var.
+
+Aslında inline namespace'in tipik kullanılma nedeni: versioning(sürüm oluşturma; sürümleme)
+örneğin benim başlık dosyamda şu şekilde bir implementasyon olsun:
+//foo.h
+namespace faruk {
+    class Nec {
+        int x;
+        int y;
+        double z;
+    };
+}
+
+ben bu kütüphaneyi derleyip obje kodu oluşturduğum zaman; client'larde başlık dosyamı include edip obje kodumu kullandıkları zaman; client'ın yazdığı kodda
+x, y, z'nin Nec nesnesi içindeki konumları başlık dosyasında yapılan bildirime göredir. Fakat sonradan başlık dosyasını yazan başlık dosyasında öğelerin yerini değiştirse:
+//foo.h
+namespace faruk {
+    class Nec {
+        double z;
+        int x;
+        int y;
+    };
+}
+buna göre artık client kod doğru çalışmaz; çünkü sınıfın elemanlarının yeri değişti işte böyle durumlara abi breakage deniliyor. Şimdi burada yer alan başlık dosyası ile
+client kod uyumsuz hale geldi. Şimdi bizim öyle bir araca ihtiyacımız var ki; client kodun başlık dosyasında böyle bir değişiklik yapılsa dahi halen eski halini kullanması
+gereksin yani abi breakage olmasın. İşte bunun için eskiden kullanılan bazı teknikler vardı fakat bu eski tekniklerin yerine inline namespace aracı geldi(ilerde detaylı ele alınıcak)
+
+burada class tanımını inline namespace içerisine alsaydık client kodlar bunu kullanırken derleyici obje koda bu isimleri oluştururken buna göre name mangling yapacak;
+oysa başlık dosyası yeni bir versiyona geçtiğinde onu ayrı bir namespace içerisine koyup buradaki değişikliği o namespace içindeki class'a uygulayacak:
+
+//foo.h
+namespace faruk {
+    inline namespace ver_01 {
+        class Nec {
+        double z;
+        int x;
+        int y;
+    };
+    }
+}
+değişiklik yapıp y ve z'nin yerini değiştirelim:
+//foo.h
+namespace faruk {
+    namespace ver_01 {
+        class Nec {
+        double z;
+        int x;
+        int y;
+    };
+    }
+
+    inline namespace ver_01 {
+        class Nec {
+        int y;
+        double z;
+        int x;
+    };
+    }
+}
+
+bu sefer yeni yapılan değişiklik inline oldu fakat client kod önceki name mangling'e göre oluşturulduğu için yapılan değişiklik ile ilgilenmeyecek. 
+
+bunu güzelce özetleyen aşağıdaki örneği inceleyelim:
+//#define USE_INLINE_Y
+
+namespace X {
+#ifdef USE_INLINE_Y
+    inline
+#endif
+    namespace Y {
+        const char* func(bool)
+        {
+            return "bool";
+        }
+    }
+    const char* func(int)
+    {
+        return "int";
+    }
+}
+
+#include <iostream>
+
+int main()
+{
+    std::cout << X::func(true);//int 
+}
+burada #define USE_INLINE_Y yorum satırında olduğu için nested namespace X namespace'inde visible değil o sebeple int parametreli fonksiyon çağrılır. Eğer yorum 
+satırı kaldırılırsa:
+#define USE_INLINE_Y
+
+namespace X {
+#ifdef USE_INLINE_Y
+    inline
+#endif
+    namespace Y {
+        const char* func(bool)
+        {
+            return "bool";
+        }
+    }
+    const char* func(int)
+    {
+        return "int";
+    }
+}
+
+#include <iostream>
+
+int main()
+{
+    std::cout << X::func(true);//bool
+}
+artık her iki func fonk.'da visible bool parametreli fonk. ile exatch match olur ve o fonksiyon çağırılır.
+
+namespace nec {
+#ifdef VER1
+    inline
+#endif
+namespace ver1 {
+    class Myclass{
+
+    };
+}
+
+#ifdef VER2
+    inline
+#endif
+    namepsace ver2 {
+        class Myclass {
+
+        };
+    }
+} 
+
+int main()
+{
+    nec::Myclass x;//hangi VER define edilirse o Myclass nesnesi seçilir!!
+}
+
+
+unnamed namespace nested olabilir çünkü aslında derleyici hidden olarak bir isim veriyor:
+namespace ali {
+    namspace {
+        int x;
+    }
+}
+
+derleyici gözünden aslında ele alınan şudur:
+namespace ali {
+    namspace xyz{
+        int x;
+    }
+    using namespace xyz;
+}
+
+=============================================================================================================================================================================
+
+string Sınıfı
+
+string sınıfı C++'ın standard kütüphanesinin en çok kullanılan standard sınıfıdır!!
+
+string sınıfı aynı zamanda STL container'ı/container olma niteliklerine sahip. 
+Dinamik dizi veri yapısını implemente ediyor. Bu da çok önemlidir çünkü aslında veri yapısı olarak bakarsak string sınıfı tipik bir dinamik dizi.
+Asıl dinamik dizi sınıfımız vector sınıfıdır. Yani data structure olarak vector de string de dinamik. Arada ki fark ise string sınıfı interface'i 
+yazı işlemleri için özelleştirilmiştir. Yani vector genel bir dinamik dizi; içerisinde int, double, string, vb tutabiliriz. Fakat string aslında 
+tuttuğu öğeler yazının karakterleri olan dinamik bir dizidir. Yine de bir STL container'ı olarak bellekte öğeleri ardışık olarak tutar.
+
+Her yeni C++ standardı ile bu sınıfla ilgili bazı eklemeler yapılmıştır. Taşıma semantiğinden büyük ölçüde faydalanıyor, variadic template'lerden de faydalanıyor.
+Duruma göre perfect forwarding'den faydalanıyor eski string sınıfına göre baya iyileştirildi. 
+
+Bu bir sınıf şablonudur; bu bizim için oldukça önemlidir. Çünkü template olması demek derleyiciye kod yazdıran kod demekti. Derleyiciye fonksiyon kodu yazdıran template'a 
+function template, derleyiciye sınıf kodu yazan template'a class template, derleyiciye değişken tanımlaması yazdıran koda variable template, derleyiciye tür eş ismi bildirimi
+yaptıran koda da alias template deniliyor. İşte string sınıfı da bir class template'dır.
+Bu ingilizcesi iel "fat class" 'tır. Yazı işlemlerinden beklentiler çok fazla olduğu için string sınıfının 
+interface'i aslında genel programla ilklerine biraz aykırıdır. Aslında makul olan bir sınıfın interface'ini mümkün olduğunca küçük tutmaktır. 
+
+string sınıfı aslında şu şekilde bir sınıf şablonudur:
+template<typename C, typename T = char_traits<C>, typename A = allocator<C>>
+class basic_string {
+
+};
+
+aslında birtakım dilsel kolaylıklar olmasaydı ben string başlık dosyasını include ettiğimde bu sınıf türünden bir nesne oluşturmak için şöyle yazmalıydım:
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    //basic_string<char, char_traits<char>, allocator<char>> str{ "mustafa" };
+
+    //template olduğundan aşağıdaki gibi yazılabilir:
+    //basic_string<char> str{ "mustafa" };
+    //eğer aşağıdaki kod satrırı için tür eş isimi bildirirse:
+    using String = basic_string<char>;
+    String str{ "necati" }; 
+}
+
+aslında hemen her yerde gördüğümüz string aslında yukarıda anlatıldığı gibi tür eş ismidir.
+
+Bir sınıfı özellikle de standard kütüphanenin sınıfını öğrenirken:
+Sınıfın üye fonksiyonlarını, special member function'ları. Örneğin string sınıfı bir RAII sınıfı olduğu için burada special member functionlar ve buna bağlı olarak taşıma semantiği
+büyük önem taşır.
+
+dinamik dizi: öğelerin bellekte ardışık olarak tutulduğu veri yapısıdır. Bellekte bu ardışık olarak tutulan öğeler; tipik olarak dinamik olarak allocate edilen bir 
+bellek bloğunda yani programın çalışma zamanında bu bellek alanı allocate edilir. Bunların bellekte ardışık tutulmasının en önemli faydası şudur: 
+1)bunlar bellekte ardışık olduğuna göre index bilgisi ile constant time de(time complexity O(1) ) öğeye direk erişebiliyor olmamız,
+2)dinamik dizi veri yapısına sondan ekleme(push back) yapabilmek; dinamik dizi implementasyonu arka planda tipik olarak eklemenin sondan yapılacağı yeri gösteren bir 
+pointer tutar; eğer ki biz eklemeyi sondan yaparsak bu durumda aslında nesneyi nerede oluşturacağımız bellidir(pointer'ın gösterdiği yerde); ardından arka plandaki kod
+bu pointer'ı bir arttırır. Yani yerimiz olduğu sürece sondan ekleme işlemi sadece bir pointer'ın gösterdiği yere yazmak/nesneyi orada oluşturmak demektir. Sondan ekleme
+constant time dedik fakat dinamik dizi veri yapsının size'ı kapasitesine eşit olduğunda da eklemeyi sondan yaparken de yine bir reallocation olur fakat yine de veri yapılarında
+böyle karmaşılığa "amortized constant time" (yani amorte edilmiş sabit zaman) deniliyor. Evet size kapasite'ye ulaştığında yani yer yoksa reallocation yapılır onun bir maliyeti var 
+fakat o önceden öngörülmeyen olup olmayacağı belli olmayan arada bir olan bir durum, dolayısıyla genel bir maliyeti var fakat algoritmanın karmaşıklığını hala constant time 
+yapıyor. Zaten uygun bir şekilde uygun parametreleri kullanırsak; örneğin bellek alanını önceden allocate edersek o reallocation'ının hiç yapılmamasını bile sağlayabiliriz.
+Zaten tüm ustalık reallocation konusunda bizim kaliteli bir kod yazmamız.
+
+Dolayısıyla;
+a)reallocation'a çok dikkat etmeliyiz ilave bir maliyet getiriyor ama algortimanın karmaşıklığı açısından bakarsak çok nadir veya hiç olmadığı için sondan ekleme
+maliyeti de genelde constant böyle işlemlere amortized constant time deniliyor.
+
+b)vector sınıfınıda stirng sınıfını da kullanırken çok dikkatli olmamız gereken bir diğer nokta reallocation'ın daha önceki bellek bloğunda tutulan öğeleri gösteren 
+pointerların veya onların yerine geçen referansları invalid hale getirmesi buna genel olarak "pointer invalidation" deniliyor. (çok çok dikkat etmeliyiz!!!)
+örneğin; biz bir sınıfın üye fonksiyonunu call ediyoruz; ve o üye fonksiyon vector'ün veya stirng'in size'ını arttırıyor fakat orada bir reallocation olduğu için
+bizim eski bellek bloğumuzu gösteren pointerları kullanmaya devam ediyoruz; onlarda dangling pointer oluyor bu durumda işte bu çok tehlikelidir!!!
+
+bunlar dışında dinamik dizi yapsında dezavataj olabilecek diğer konular:
+dinamik dizi veri yapısının parçalı olma şansının olmaması; dolayısıyla bazı sistemlerde heap alanı fragmente olduğu zaman büyük dinamik dizileri 
+oluşturma şansı olmayabilir. Fakat dinamik dizi yapısının cash belleği mekanizması açısından öğeler ardışık olduğu için Cache Miss vs Cache Hit
+oranı çok düşüktür. Yani örneğin bağlı liste veri yapısında bu oran çok yüksekken dinamik dizi veri yapısında bu oran çok düşüktür. Dolayısıyla aslında teorik 
+olarak baktığımız zaman örneğin herhangi bir konumdan ekleme yapmak dinamik dizi veri yapısında O(n) karmaşıklığında sadece sondan eklemek constant time O(1)
+Yani örneğin ortadan ekleme yapmak bir kaydırma gerektirir; bu da son olmayan bir noktadan ortadan ya da baştan yapılan eklemenin liner context'te doğrusal
+karmaşıklıkta olması demek fakat çifte bağlı listede ise konumunu bildiğimiz her yerden ekleme yapmak constant time'dır O(1). Normalde baktığımızda bağlı 
+listenin kağıt üzerinde O(1) karmaşıklığına sahip olduğu için daha efficent olması gereken birçok senaryoda dinamik dizi veri yapısı çok daha verimli oluyor
+çünkü dinamik dizi veri yapısının cache friendly olması günümüzün bilgisayar sistemlerinde en belirleyici nokta.
+
+
+string sınıfını ve vector sınıfını derleyiciler nasıl implemente ediyor?
+string sınıfında bir dinamik dizi veri yapsının başlangıcını gösteren pointer; dinamik dizi veri yapsının içinde bulunan yazının sonlandığı yeri gösteren tam sayı 
+veya pointer(dinamik dizi veri yapısının size'ı gibi düşünebiliriz), ve dinamiz dizi veri yapısının kapasitesini gösteren pointer/tam sayı olmalıdır:
+//dinamik dizi veri yapımız
+
+---------
+a          <---- start pointer
+---------
+l
+---------
+i
+---------
+o
+---------
+s
+---------
+m
+---------
+a
+---------
+n        <---- end pointer(or integer)
+---------
+---------
+---------
+---------
+--------- <---- pointer to the capacity of the dynamic array data structure (or integer value)
+
+Dolayısıyla basic bir implementasyonda string sınıfı nesnemiz aslında kendi içinde 3 tane pointer veya 1 pointer 2 tane tam sayı tutmalı. Yani en temel implementasyon
+3'ününde pointer olduğunu varsayalım 3 * sizeof(pointer) = 12 
+fakat bunun yerine başka bir implementasyon yapılıyor:
+en çok yapılan yazı işlemleri küçük yazılar üstünde yapılan işlemlerdir. Ve bu yazı dinamik bir bellek alanında tutuluyor fakat bunun yerine her ne kadar standartlar 
+bunu zorunlu kılmasada çok mantıklı bir yöntemdir: string sınıfı nesnesi içinde bir buffer tutmak duruma göre 3 pointer'dan birini veya 2 tanesini de o buffer'ın bir
+parçası yapabilir. Böylece yazı küçük olduğu sürece hiç dinamik bellek alanı allocate edilmemiş olur! yazıyı nesnenin içindeki buffer'da tutar. 
+
+bunu göstermek için operator new fonksiyonunu overload ettiğimiz bir örneği inceleyelim:
+operator new fonksiyonunu overload ettiğimiz zaman dinamik bellek yönetiminde bellek alanı allocate etmek için overload ettiğimiz operator new fonksiyonu çağırılacak.
+Yani arka planda string nesnesi için oluşturduğumuz yazının tutulması için bizim görmediğimiz string sınıfının ctor'ı dinamik bir bellek alanı allocate ediyor ise 
+o zaman overload ettiğimiz fonksiyon içindeki "operator new called for the size of : " yazının ekranda çıkması gerekir:
+
+debug modda yazı çıktı çünkü derleyiciler tipik olarak debug modda optimizasyon yapmıyor fakat release modda yazı ekrana çıkmadı yani dinamik bellek alanı allocate edilmedi; 
+çünkü derleyici optimizasyon yaptı bizim yazımız çok büyük olmadığı için doğrudan string nesnesinin içindeki buffer'da tutuldu.
+
+#include <string>
+#include <iostream>
+
+void *operator new(std::size_t sz)
+{
+    std::cout << "operator new called for the size of : " << sz << '\n';
+    if(sz == 0)
+        ++sz;
+    if(void *ptr = std::malloc(sz))
+        return ptr;
+    throw std::bad_alloc{};
+}
+
+void operator delete(void *ptr) noexcept
+{
+    std::cout << "operator delete called for the address of : " << ptr << '\n';
+    std::free(ptr);
+}
+
+int main()
+{
+    using namespace std;
+
+    string str{ "aliosman" };
+    std::cout << "sizeof(str) = " << sizeof(str) << '\n';
+}
+
+Hemen hemen bütün implementasyonlar böyledir fakat bu standartların koyduğu bir zorunluluk değil yani herhangi bir derleyici bu optimizasyonu yapmak zorunda değildir!!
+
+C++ mülakatlarında en fazla sorulan sorulardan biri de bu : Smal String Optimization(SSO veya SBO) yani küçük bellek ihtiyacı olduğunda doğrudan sınıf nesnesi içerisinde 
+bulunan buffer'ı kullan fakat daha büyük bellek alanıına ihtiyaç duyulduğunda o zaman dinamik bellek yönetiminden faydalan.
+
+Bu buffer'ın büyüklüğü sabit değildir; ne bufferın olması garanti altında ne de derleyicinin bu optimizasyonu yapmadı garanti altındadır.
+
+Buffer'ın kaç byte olduğunu görmek için:
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    std::cout << "sizeof(char*) = " << sizeof(char*) << '\n';
+    std::cout << "sizeof(string) = " << sizeof(string) << '\n';
+}
