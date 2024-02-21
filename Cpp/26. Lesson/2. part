@@ -1,0 +1,628 @@
+
+heap alanının kısıtlı olduğu embedded sistemlerde string sınıfının kullanımı yaygın mı?
+Burada yanlış analışlan şey STL container'larının  heap alanını kullanmayı zorunlu kıldığının düşünülmesidir; halbuki zorunlu kılmıyor sadece default olarak heap
+alanını kullanıyorlar. allocater parametrenin zaten varlık nedeni budur. Yani örneğin herhangi bir embedded sistemde normal static bellek alanından 20004'lük bellek 
+alanından 2000'lik alanı allocate edebiliriz. Örneğin global bir dizi tanımlayabiliriz:
+char buff[2000]; 
+programın çalışma zamanını buff bellek alanını sanki malloc ile allocate edilmiş bir bellek bloğuymuş gibi kullanabilirim; tabii bu implementasyonu yapacak bir koda 
+sahip olmamız gerekiyor. Bu kodu kendimiz de yazabiliriz ya da hazır bu tarz kütüphanelerde var onu da kullanabiliriz. Dolayısıyla dinamik ömürlü nesne ile heap'i
+birebir eşleştirmemeliyiz. Dinamail ömürlü nesne demek bellek alanı dinamik olarak programın çalışma zamanında elde ediliyor demek ama o programın çalışma zamanında 
+o nesne için ayrılan storage yukarıda tanımlanan buff'ın 40 byte'lık bir kısmı olabilir!!
+
+stack ve heap konusunda çok karıştırılan bir nokta var: string sınıfının kendisi de dinamik ömürlü olabilir bu durumda string nesnesinin tuttu yazı için ayrılan 
+bellek bloğu ayrı string nesnesinin kendisinin heap'te mi yoksa stack'te mi olacağı ayrı konudur. 
+#include <string>
+#include <iostream>
+
+int main()
+{
+    auto p = new string { "mustafa yanikdorugu" };
+}
+
+#include <string>
+#include <iostream>
+
+void *operator new(std::size_t sz)
+{
+    std::cout << "operator new called for the size of : " << sz << '\n';
+    if(sz == 0)
+        ++sz;
+    if(void *ptr = std::malloc(sz))
+        return ptr;
+    throw std::bad_alloc{};
+}
+
+void operator delete(void *ptr) noexcept
+{
+    std::cout << "operator delete called for the address of : " << ptr << '\n';
+    std::free(ptr);
+}
+
+int main()
+{
+    using namespace std;
+
+    string str(100, 'A');
+}
+bu örnekte en az 100 karakterli bellek bloğu allocate edilir çünkü str yazısının 100 tane karakteri var; programın çalışma zamanında onun için bir bellek alanının allocate 
+edilmesi gerekir; kapasite denilen bellek alanı budur. 
+
+#include <string>
+#include <iostream>
+
+void *operator new(std::size_t sz)
+{
+    std::cout << "operator new called for the size of : " << sz << '\n';
+    if(sz == 0)
+        ++sz;
+    if(void *ptr = std::malloc(sz))
+        return ptr;
+    throw std::bad_alloc{};
+}
+
+void operator delete(void *ptr) noexcept
+{
+    std::cout << "operator delete called for the address of : " << ptr << '\n';
+    std::free(ptr);
+}
+
+int main()
+{
+    using namespace std;
+
+    auto ps = new string str(100, 'A');
+}
+bu örnekte 2 ayrı bellek tahsilatı yapılacak: biri sizeof(string) kadar bir bellek alanı çünkü string nesnesinin kendisi de dinamik ömürlü diğeri ise string nesnesinin tuttuğu yazı 
+için allocate edilir.
+
+
+otomatik ömürlü bir nesne               --> stack'te tutulur
+statik ömürlü bir nesne                 -->Data Segment'te tutulur
+Dinamik alan tahisisi yapılan değişken  -->Heap'te tutulur
+
+yani veri yapısı olarak string sınıfı bir dinamik dizi veri yapısıdır!!
+
+Mülakatlarda da gelen önemli bir nokta:
+bir string nesnemiz olduğunu varsayalım ve döngüsel bir yapı içinde yazı yavaş yavaş büyüyor:
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string str;
+    for(int i = 0; i < 10000; i++) {
+        str.push_back('A');
+    }
+}
+sondan karakter eklemek için burada programın çalışma zamanında koşan kod açısından baktığımız zaman:
+a)sürekli bellek alanı bir yerden bir yere taşınıyor mu? Evet, kesinlikle sürekli reallocation oluyor. Bu gereksiz reallocation'ını engellememiz gerekir. Dinamik dizi
+implementasyonlarında bunun olmaması için baştan büyüklük belli ise alanı allocate edebiliriz yani reallocation hiç ihtiyaç kalmıyor. İşte gerek string gerek vector sınıfının 
+bunu yapan reserve isimli fonksiyonu var; en baştan kapasiteyi reserve ediyor. O halde şöyle bir kod yazarsa:
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+    string str;
+    str.reserve(10000);
+    for(int i = 0; i < 10000; i++) {
+        str.push_back('A');
+    }
+}
+artık size 10000'i geçmediği sürece bir kere bile reallocation yapılmayacak!! Dikkat çok acemice yazılan kodlarda başta yaptığımız gibi yazılıyor; fakat run time'de oradan oraya
+sürekli bellek bloğu için kopyalama yaptığının farkında olmadığı için verim çok düşer!!
+
+string sınıfının incelenmesi için hocamızın önerdiği kitap: (Nicolai Josuttis) The C++ Standard Library - A Tutorial and Reference 
+
+====================================================================================================================================================================================
+
+string sınıflarının genel parametrik yapısı
+eğer genel parametre kalıplarını iyi öğrenirsek artık herhangi bir işlemi nasıl yapıcağınızda hangi fonksiyonun hangi overload'u var; onu baştan öngörebilir hale geliriz.
+
+string sınıflarının ctor'ları dahil özellikle üye fonksiyonları  paramterik yapı olarak 7 - 8 tane kalıptan birine ilişkin olacak:
+
+1. parametrik yapı: parametre c(const)string //cstring param
+
+str.xxx(const char *p) cstring demek null terminated by stream demek. Örneğin bir fonksiyonun paramtresi sadece const char* ise buna eşlik eden başka bir parametre yok ise
+hemen şunu anlamalıyız; bu aldığı adresteki yazıyı null karakter görene kadar kullanacak. Yani böyle bir parametrik yapı varsa null karakter ile sonlanan bir yazı adresi 
+vermek ile yükümlüyüz. Örneğin böyle bir fonksiyona char türden ama null terminated by stream olmayan pointer'ı argüman olarak geçersek kesinlikle tanımsız davranış oluşur!!!
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+    char str[20];
+
+    str[0] = 'A';
+    str[1] = 'L';
+    str[2] = 'P';
+
+    string name {str}; //ub
+
+    cout << str;
+}
+
+int main()
+{
+    string name { "mustafa aksoy" };//"mustafa aksoy" bir string literal ve string literal C++ const char dizi demek ve null terminated by stream olduğu da 
+                                    //dilin garantisi altında
+}
+
+2. parametrik yapı: str.xx(const string &); //string param
+yani diyor ki bana gönderilen string'in tuttuğu yazı ne ise ben o yazıyı kullanacağım. Burada tahmin ettiğimiz gibi tipik olarak böyle fonksiyonların 2 tane 
+overload'u olabilecek biri L val. ref diğeri R val. ref. Böylece const L ref olan kopyalama yapacakken kendi içinde R val. ref. olan taşıma yapar
+
+3. parametrik yapı: str.xx(string &&); //string param
+
+string sınıfında C'nin standart küyüphanesi olan string kütüphanesinden farklı olarak adres yerine birçok yerde indeks kullanılıyor. index yazının bir karakterinin 
+index'idir. index dğeri string sınıfının interface'inde bir nested type ile ifade ediliyor bu nested type aslında string'in bir size_type. Aslında bu bütün container'larda
+olan bir nested type. Bu size_type'ın string sınıfı için size_t olma garantisi var çünkü string sınıfı bir şablondu dolayısıyla basis_string'in diğer açılımları da olabilirdi
+fakat biz şu an char açılımından bahsediyoruz. Dolayısıyla incelediğimiz kodlarda string'in size_type'ı türünü görürsek:
+a)bunun işaretsiz bir tam sayı türü olduğunu
+b)string sınıfının üye fonksiyonlarının interface'sinde çok sık karşımıza çıkacağını
+c)string sınıfı söz konusu olduğunda bunun size_t türü ile eş değer olduğunu bilmemiz gerekir.
+
+Dolayısıyla taşınabilirliğin gerektiği yerlerde generic programlama tarafınfa size_type'ı kullanacağız öte yandan generic programlama değilse sadece string sınıfını kullanıyorsak
+doğrudan size_t'yide kullanabiliriz.
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+  string::size_type
+}
+
+string'in size_type'ı nerelerde kullanılıyor?
+string::size_type
+size_t
+    bu nested type indeksin türüdür, yani eğer herhangi bir fonksiyon bizden yazının belirli bir karakterinin indeksini istiyor ise o fonskiyonun o parametresinin türü 
+    string::size_type olmalıdır. 
+    Yine aynı şekilde birçok fonksiyon string sınıfında indeks döndürüyor. C'nin standart kütüphanesindeki arama fonskiyonları(strchr, strrchr, strstr, strpbrk) gibi 
+    fonksiyonlar adres döndürüyor. Fakat string sınıfının arama fonksiyonları index döndürüyor. Dolayısıyla arama fonksiyonlarının hepsinin geri dönüş değeri string::size_type'dır.
+Dolayısıyla indeks değeri string kütüphanesinin interface'inde çok sık kullanılan bir değerdir. Ve indeks parametreleri string::size_type türündendir. Yani bazı durumlarda arama 
+fonksiyonlarında olduğu gibi fonk. geri dönüş değeri indeks türünden olabilir bazı fonksiyonlarda da örneğin insert fonksiyonları gibi fonksiyonun parametresi indeks türünden
+olabilir. size_type'ın kullanıldığı  bir diğer önemli yer ise; bazı fonksiyonlar bizden parametrik yapı olarak tane/adet değeri istiyor. Şu kadar tane bu karakterden gibi;
+böyle parametrelere popüler olarak filled parametre deniliyor. İşte buradaki tane/adet değeride bu tür fonksiyonlarda yine size_type'dır.
+
+Dolayısıyla string'in size_type'ı (string sınıfı için size_t):
+a)indeks gerekecek yerde indeks tutacak tür
+b)tane/adet geren yerde o tane/adet türü
+c)uzunlık ya da kapasite söz konusu olduğunda uzunluk ve kapasite türü
+
+3 tane kullanıldığı yere örnek verelim:
+1)string sınıfının size ya da length fonksiyonları string sınıf nesnesinin tuttuğu yazının uzunluğunu döndürür ve bu fonksiyonların geri dönüş değeri string::size_type türündendir.
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+  string str;
+
+  cout << "str.size() = " << str.size() << '\'; //0
+}
+default initialize edilmiş bir string nesnesinin tuttuğu yazının uzunluğu 0'dır. Burada çağırılan fonksiyonun geri dönüş değeri türü  size_t; ama genel olarak ifade edersek
+geri dönüş değeri string::size_type'dır. Örneğin bu geri dönüş değerini bir değişkende tutsam tipik olarak auto type deduction'ı kullanırım fakat auto type deduction'ı
+kullanmasaydım şu ifadelerden birini yazmalıydım:
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+  string str;
+
+  cout << "str.size() = " << str.size() << '\'; //0
+  auto sz = str.size();
+  string::size_type len = str.size();
+  std::size_t = str.size();
+}
+O halde sınıfın size isimli const üye fonksiyonu string nesnesinin tuttuğu yazının uzunluğunu döndürüyor. 
+
+Uzunluğu get eden 2. bir fonksiyon daha var: length fonksiyonu, string sınıfı için size ve length fonksiyonu arasında hiçbir fark yok:
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+    string str;
+
+    cout << "str.size() = " << str.size() << '\'; //0
+    cout << "str.length() = " << str.length() << '\'; //0
+}
+
+Madem size ve length fonksiyonu arasında hiçbir fark yok, neden length fonksiyonu da define edilmiş?
+string sınıfı bir container; container'ların belirli bir arayüzü vardır yani bir container'ın örneğin belirli fonksiyonları vardır. İşte size fonk. o container'ların 
+ortak arayüzünün bir bileşeni. Yani bir istisna dışında bütün container'ların size üye fonksiyonu vardır. Dolayısıyla string sınıfıda bir container olduğu için string'inde
+size üye fonksiyonu vardır.  Dolayıısyla generic kodlarda size gerekicek fakat eğer ki generic programlama tarafında değilsek
+yazının uzunluğu için length fonksiyonunu da kullanabiliriz. Aslında yazının bir boyutu olmaz yazının uzunluğu olur dizinin boyutu olur; o sebeple length olarak isimlendirilmiştir. 
+
+
+Az önce de bahsettiğimiz gibi bazı fonksiyonlar string sınıfına özel değildir; container'ların genel olarak ortak arayüzünün bir parçasıdır. İşte size fonk. onlardan biriydi.
+Bir diğeri ise container'ların üye fonksiyonu olan empty fonksiyonudur. empty burada make empty anlamında değil is empty anlamındadır. Container'ların empty fonksiyonu 
+string sınıfı içinde vardır, bool döndüren const üye fonksiyondur.  Container'ın boş olup olmadığına cevap verir. Dolayısıyla 
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+    string str;
+
+    if(str.size() == 0)
+    {
+        std::cout << "yazi bos\n";
+    }
+}
+yukarıdaki sorgulamayı yapmakla aşağıdaki eş değerdir:
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+    string str;
+
+    if(str.empty())
+    {
+        std::cout << "yazi bos\n";
+    }
+}
+fakat kesinlikle empty'i kullanmalıyız; nedenini ilerde ele alacağız
+
+
+Sınıfın bir başka get fonksiyonu capacity fonksiyonu adı üzerinde kapasiteyi yani ayrılan bellek miktarı(öğe sayısı cinsinden)'nı verir. Buradada öğeler 
+char olduğu için kapasitenin 40 olması demek string sınıfında 40 karakterlik yazı tutabileceği demektir.
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+    string str{ "Omer Faruk Akyol" };
+
+    std::cout << "str.size() = " << str.size() << '\n';//16
+    std::cout << "str.capacity() = " << str.capacity() << '\n';//31 geldiğini düşünelim her derleyici de farklı olabilir
+
+}
+bu çok öenmlidir; size 31'den büyük olmayana kadar reallocation yapılmayacak
+
+
+size ile capacity arasındaki ilişkiyi ve reallocation'ının önemini gösteren örnek bir kod yazalım:
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string str{ "evet arkadaslar string sinifi..." };
+
+    auto cap = str.capacity();
+    int cnt{};
+
+    for(int i = 0; i < 1'000'000; ++i ) {
+        str.push_back('.');
+        if(str.cap > cap) {
+            std::cout << cnt++ << "size = " << str.size() << "capacity = " << str.capacity() << '\n';
+            cap = str.capacity;
+        }
+    }
+}
+
+çıktı da uzunluk 1000000'a çıkana kadar 25 defa reallocation olduğunu gördük; buradaki durumun ciddiyetini iyi anlamalıyız çünkü örneğin size 15.'de capacity 20292 
+iken 20293 olduğu zaman yeniden reallocation yapılır ve bu da şu demek: eski bellek bloğunda bulunan 20292 tane karakteri yeni bellek bloğuna kopyalar. Bir yerden başka bir yere
+bellek bloğu kopyalamak yüksek maliyetli bir iş; sadece bu da değil eski bellek bloğunun geri verilmesi, dinamik bellek yönetimi ile heap'te yeni bir bellek yeri aranacak bulunucak
+bunların hepsinin ciddi bir mali kaybı vardır. 
+
+Eğer ben bu örnekte baştan 90000 byte'lık alanını allocate etseydim sadece bir defa reallocation oldu o ayrılan kapasite yetmediği zaman; tabii biz 90000 dediğimiz için ayrılan alan 
+tam 90000 olmayabilir ayrılan alan derleyicinin implementasyonuna bağlı 90000 yerine 90016 bayt'lık alan ayırabilir o kendi algoritmasında en yakın rakamı seçer.
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string str{ "evet arkadaslar string sinifi..." };
+
+    str.reserve(90'000);
+
+    auto cap = str.capacity();
+    int cnt{};
+
+    for(int i = 0; i < 1'000'000; ++i ) {
+        str.push_back('.');
+        if(str.cap > cap) {
+            std::cout << cnt++ << "size = " << str.size() << "capacity = " << str.capacity() << '\n';
+            cap = str.capacity;
+        }
+    }
+}
+
+Kapasite artışını(reallocation yapıldığı zaman ayrılacak yeni alanın mikarını) bir şekilde programcının talebine bağlayan herhangi interface'de bir  fonksiyon yok. Eğer böyle 
+bir şey isteniyorsa özel bir string sınıfı kullanılmalıdır(3. parti kütüphanelerde bulunuyor)
+
+DİKKATT!!! 
+yine mülakatlarda da çok sık sorulan bir tanesi: kapasite ihtiyaç oldukça artıyor ama kapasite hiçbir zaman otomaik olarak büzülmez.
+string'de tutulan yazı büyyünce kapasite otomatik olarak artar; fakat yazı küçülünce kapasite küçülmez!
+Örneğin erase fonksiyonu fonksiyona parametre olarak  gönderilen argümanı indeks olarak alır ve o indeksten sonra yazıda bulunan karakterleri siler. Fakat 
+karakterin silinmesi kapasitenin de küçülmesi yani büzülmesi anlamına gelmez. Silmeden önce kapasite ne ise aynı kalır:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    string str{ "mustafa ersoy" };
+
+    str.assign(300'000, 'a');
+    std::cout << "str.size() = " << str.size() << '\n';//300000
+    std::cout << "str.capacity() = " << str.capacity() << '\n'; 
+
+    str.erase(50);
+    std::cout << "str.size() = " << str.size() << '\n';//50
+    std::cout << "str.capacity() = " << str.capacity() << '\n'; 
+}
+
+Bu örnekte programcıların  yanlış yazdığı kodlara ait çok tipik bir örnek çünkü diyelim ki bu string nesnesi program çalıştığı sürece hayatta olucak; yazının uzunluğu 
+50 olmasında rağmen önceden 300000 veya daha fazlası ayrılan bellek alanı boş yere tutulmuş olacak. Boş yere tutulan bellek bloğunu geri vermemiz gerekir; dolayıısyla 
+böyle bir durumda bu string nesnesini kullanacaksak ve tekrar bir daha büyümeyecek ise fazladan kapasiteyi vermemiz gerekir; bunu  sınıfın shrink_to_fit() fonksiyonu ile yapabiliriz;
+bu fonksiyon kapasiteyi size'a büzdürür:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    string str{ "mustafa ersoy" };
+
+    str.assign(300'000, 'a');
+    std::cout << "str.size() = " << str.size() << '\n';//300000
+    std::cout << "str.capacity() = " << str.capacity() << '\n'; 
+
+    str.erase(50);
+    std::cout << "str.size() = " << str.size() << '\n';//50
+    std::cout << "str.capacity() = " << str.capacity() << '\n'; 
+
+    str.shrink_to_fit();
+    std::cout << "str.size() = " << str.size() << '\n';//50
+    std::cout << "str.capacity() = " << str.capacity() << '\n'; 
+}
+
+
+4. parametrik yapı: str.xxx(string::size_type, char) //fill param
+bizden size_type türünden bir değer istiyor ve buna eşlik eden char parametre var. Bu durumda aslında bizden üstünde işlem yapılacak yazı olarak bu kadar tane bu 
+karakter istiyor. Az önce kodda assign'ın bu overload'dur. 1. parametre filled parametre yani karakter sayısı 2. parametresi ise karakterin kendisi.
+
+5. parametrik yapı: str.xxx(const char *p, string::size_type) //data param
+Bu durumda adresini aldığı yazıdan başlayarak 2. parametre ile geçilen kadar karakter üzerinde işlem yapar. Bunun null karakter ile hiçbir alakası yoktur!
+1. parametreye geçtiğimiz adres ile 2. parametreye geçtiğimiz size değeri taşma oluşturuyorsa yani örneğin adrese ait diziyi taşırıyorsa "tanımsız davranış" oluşur!!
+#include <iostream>
+#include <string>
+
+using namespace std;
+int main()
+{
+    string str{ "mustafa ersoy" };
+
+    char ar[] = "cinar gursoy";
+
+    std::cout << "str = " << str << '\n';//mustafa ersoy
+
+    str.assign(ar+6, 3);
+    std::cout << "str = " << str << '\n';//gur
+
+    str.assign(ar, 5);
+    std::cout << "str = " << str << '\n';//cinar
+
+}
+
+6. parametrik yapı: str.xxx(const char *ps, const char *pe); //range param
+aslında range 2 konumdan oluşan bir birim; dikkat edersek 2 konum dedik 2 pointer demedik çünkü bu konumlar pointer olabileceği gibi pointer gibi davranan sınıf türlerinden
+nesnelerin değeri olan örneğin iterator olabilir. (1. konum her zaman 2. konumdan daha öncelikli olucak). 1. konumdaki nesne dahil olmak üzere 2. konuma kadar olan 
+2. konumun gösterdiği nesne dahil değil; aynı veri yapısına ilişkin nesnelerdir; her bir nesne bir sonraki konumda ki nesnedir; bu nesneler adreste olabilir.
+1. ve 2. konum bir range oluşturuyor; yani 1. konum dahil 2. konum hariç burada ki bütün öğeler bu range'e ait. Bunun range olmasından programcı yani bizler sorumluyuz;
+yani örneğin ps'yi ne kadar arttırırsak arttıralım pe'ye ulaşamıyor ise "tanımsız davranış oluşur" veya pe geçerli bir adres değilse yani taşmaya neden oluyorsa 
+yine "tanımsız davranış" olur.
+Sembolik olarak şöyle gösterilir: (bu bir notasyondur C++'a özgü değildir)
+[k1...k2) k1 konumundan k2 konumuna kadar olan nesneler; k2 konumunda ki dahil değil. Örneğin aşağıda verilen örnekte bir fonksiyon benden range istiyor ise aşağıda verilen 
+dizinin elemanlarının tamamını içine alan range'i benden range isteyen fonksiyona ilk öğenin adresi ve son öğeden sonra olmayan öğenin adresini geçmem lazım: bu örnekte a, a+5 olur
+int main()
+{
+    int a[5] = {2, 4, 6, 7, 9};
+
+    //a, a + 5
+}
+
+range param örneği
+
+#include <iostream>
+#include <string>
+
+using namespace std;
+int main()
+{
+
+    char str[] = "berkin kara";
+
+    string word;
+
+    word.assign(str +1, str + 4); //range param
+    cout << word << '\n'; //erk
+    
+}
+
+data param örneği
+
+#include <iostream>
+#include <string>
+
+using namespace std;
+int main()
+{
+
+    char str[] = "berkin kara";
+
+    string word;
+
+    word.assign(str +1, 4); //data param
+    cout << word << '\n'; //erki
+    
+}
+
+7. parametrik yapı: str.xxx(const string &, string::size_type idx); //substring param
+Bizden bir string istiyor, fakat o string'den sonra bir tane de indeks istiyor.
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+    string name{"farukisiker"};
+
+    string s;
+    s.assign(name, 5);
+
+    std::cout << "s = " << s << '\n';//isiker
+}
+
+7. parametrik yapının bir overload'u var:
+8. parametrik yapı: str.xxx(const string &, string::size_type idx, string::size_type n); 
+burada n parametresi string'in o indeksinden başlayarak o kadar tane karakter alıyor:
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+    string name{"farukisiker"};
+
+    string s;
+    s.assign(name, 5, 4);
+
+    std::cout << "s = " << s << '\n';//isik
+}
+
+9. parametrik yapı: str.xxx(char p);
+bu fonksiyonlar char parametreye sahiptir. char parametre kendisine argüman olarak geçilen karaketer üzerinde işlem yapar:
+örneğin operator +='in char parametereli overload'u vardır; bu sadece o karakter üzerinde işlem yaptığı anlamına gelir:
+örneğin elimizde bulunan yazının sonuna ! karakteri eklemek istersek bunu push_back fonksiyonu ile yapabildiğimiz gibi += operator fonksiyonunun char parametreli
+overload'u ile de yapabiliriz:
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+    std::string name {"farukisiker"};
+
+    std::cout << '|' << name << '|'; //farukisiker
+    name += '!';
+    
+    std::cout << '|' << name << '|'; //farukisiker!
+}
+10. parametrik yapı: str.xxx(initializer_list<char>); //initializer_list  param
+Modern C++ ile dile eklenen çok önemli bir sınıf şablonu vardır: initializer_list bunu constructor initializer_list ile karıştırmamalıyız; initializer_list standard 
+kütüphanenin bir sınıf şablonudur. Çok önemlidir; özellikle STL'de çok sık kullanılır. İlerde ele alacağız, fakat şu an için initializer_list sınıfı türünden 
+bir fonksiyonun bir overlaod'u varsa o fonksiyon bizden küme parantezi içinde virgüller ile ayrılmış bir liste istediğini bilmemiz gerekir. Örneğin initializer_list
+int türünden initializer_list istiyor ise int'ler içeren o zaman o fonksiyona şu şekilde {1, 2, 3, 4, 5, 6, 7} virgüller ile ayrılan bir liste geçmeliyiz; listede yer 
+alan elemanların sabit olması zorunlu değildir!
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+    string name{ "farukisiker" };
+    std::cout << '|' << name << '|'; //farukisiker
+    name.assign({'u', 'y', 'g', 'a', 'r'});
+    std::cout << '|' << name << '|'; //uygar
+}
+burada konunun assign fonksiyonu ile doğrudan bir alakası yok, önemli olan parametrik yapıların genel anlamını anlamamız!!!
+
+11. parametrik yapı:str.xxx();
+default ctor ya da parametresi olmayan fonksiyonlar, onlarda boş yazı üzerinde işlem  yaparlar.
+
+
+string sınıfının default ctor'ı uzunluğu 0 olan bir yazı oluşturur. Yani boş yazıdır. default ctor şu şekilde initialize edildiğinde çağırılır:
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+    string s;//dafeult initialize
+}
+veya 
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+    string s{};//value initialize
+}
+
+
+bu örnekte s1 için sınıfın herhangi bir ctor'ı çağırılmaz çünkü burada bir nesne oluşturulmuyor; bir fonksiyon bildirimi olur yani most-vexing-parse' a girer!!!!!
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+    string s();//most-vexing-parse
+    s.size();//sentaks hatası s bir nesne değil bir fonksiyon
+}
+
+string s; //default initialization
+string s{}; //value initialization
+string s{""}; //direct list initialization
+string s("ali"); //direct initialization
+string s(); //function declaration 
+
+string sınıfının cstring parametereli fonskiyonu explicit değildir; bunu anlamının en kolay yolu copy initialization'nın sentaks hatası olup olmadığına bakmak:
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+   string s1 = "bugün günlerden cuma";//copy initialization sentaks hatası değil yani expilicit değil
+   string s2 ("bugün günlerden cuma");
+   string s3 {"bugün günlerden cuma"};
+
+   cout << str1 << '\n'; 
+   cout << str2 << '\n'; 
+   cout << str3 << '\n'; 
+   
+}
+
+data param için yukarıda ki örneği yeniden implemente edelim:
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+int main()
+{
+   string *p = "bugün günlerden cuma";
+
+   string str{p + 6, 6};
+   cout << str << '\n'; //günler
+}
