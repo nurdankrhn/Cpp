@@ -1,0 +1,527 @@
+20 Mart 2023 - Pazartesi
+
+string sınıfının bir sınıf şablonu olduğunu, aslında string'in bir tür eş ismi(type alias) olduğunu konuştuk. Eğer böyle bir tür eş ismi bildirilmiş olmasaydı;
+en basit kodlarda bile string sınıfı türünden bir nesne oluştururken basic_string<char> specialization'ı diye açıkca template argümanını belirtmek zorunda kalıcaktık.
+string sınıfı aynı zamanda bir dinamik dizi container'ıdır. Dinamik dizi veri yapsını öğrenmek, tekrar etmek, pekiştirmek için ve ilerde de gerçek dinamik dizi 
+container'ı olan vector sınıf şablonuna hazırlık olsun diye string sınıfını öğrenmekte fayda vardır. En çok yapılan işlemlerden biri de yazı işlemleridir. Bunu 
+iyi bir şekilde kullanmak için string sınıfı çok önemli ve idealdir.
+
+strig sınıfının constructor'ları
+
+default ctor
+boş bir yazı tutan uzunluğu 0 olan bir string oluşturur. Bir string nesnesinin default initialize ettiğim de veya value initialize ettiğim de uzunluğu 0 olan 
+bir yazı oluşturmuş oluruz. 
+
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string str;
+
+    //
+
+    str.empty();//true döndürür çünkü boş
+    str.length();//0 döndürür çünkü boş
+    str.size();//0 döndürür çünkü boş
+}
+
+range ctor'ın illa bir dizi olması gerekmez; örneğin:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+    const char *p = "arda aras";
+    string s{p, p + 4}; //p başlangıç adresi p + 4 bitiş adresi -->range param
+
+    cout  << s << '\n'; // arda
+}
+
+veya konumlar vector'de olabilir: 
+#include <iostream>
+#include <string>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+    vector<char> cvec{'A', 'S', 'I', 'M'};
+    string s{cvec.begin(), cvec.end()}; //cvec.begin() vektordeki ilk öğenin konumu, cvec.end() vektordeki son öğeden sonraki öğenin konumu demektir, bunlarda bir range oluşturduğu 
+                                        //için buradaki karakterlerin oluşturduğu bir yazı söz konusudur.
+    cout  << s << '\n'; // ASIM
+}
+
+string sınıfının move ctor'ı çok önemlidir. Her ne kadar standartlar açık açık söylemesede move-from state'deki nesneler(standard kütüphaneye ilişkin)
+a)geçerli, tekrar kullanılabilir
+b)değerinin ne olduğu konusunda her ne kadar bir garanti olmasada string ve vector sınıfı için pratikte size'nın tekrar 0 olduğunu ve boş yazı tuttuğunu yani defult construct 
+dediğimiz state'de olduğunu düşünebiliriz. 
+
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string str(100, 'A');
+
+    cout << str << '\n';
+    cout << "str.size() = " << str.size() << '\n';
+
+    string s{std::move(str)};
+
+    cout << str << '\n';
+    cout << "str.size() = " << str.size() << '\n';
+    cout << "str.capacity() = " << str.capacity() << '\n';
+}
+
+std::move(str) ile move ctor'ın çağırılmasını sağladık ve s str'nin kaynağını çaldı, artık str move-from state'de bir nesne olur yani boş ve size'ı 0 olur. Kapasite 
+değeri ise move- from state durumunda olan bir nesne tipik olarak default construct dediğimiz state'e getirildiği için bu değer içindeki buffer'ın uzunluğuna eşit olur.
+string'in copy ctor'ı deep copy yapar, aksini düşnemememiz bile gerekir!! 
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string s1("mustafa yanikdorugu C++ dilinde ilerliyor");
+
+    auto s2 = s1;
+
+    s1 += "hem de çok hizli ilerliyor";
+}
+s2 için copy ctor çağırılır, copy ctor şüphesiz deep copy yapar yani s2'nin bellek alanı ayrı, s1'in bellek alanı ayrıdır. Yani s1 ile s2 birbirinden bağımsızdır!!
+Yani s1 destroy olduğunda s1'in bellek alanı geri verilecek, s2 destroy olduğunda s2'nin bellek alanı geri verilecektir.
+
+char parametreli constructor yok!!!
+örneğin:
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string str{'A'};
+
+}
+legal char parametreli ctor değildir bu; bu initializer_list parametreli ctor'dır.Eğer char parametreli ctor olsaydı örneğin şöyle nesne tanımladığım zaman, legal olurdu:
+örneğin:
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string str('A'); //sentaks hatası
+
+}
+
+Fakat eğer ki string nesnesini tek bir karakterlik yazı ile başlatmak istiyorsak, bunun birçok yolu var:
+
+1)initializer_list parametreli ctor ile
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string s1{'A'};
+    cout << '|' << s1 << '|' << '\'; //A
+}
+
+2)cstring parametreli ctor ile
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string s1= "A"; 
+    //veya string s1("A"); //direct initialization
+    //veya string s1{"A"}; //value initialization
+    cout << '|' << s1 << '|' << '\'; //A
+}
+
+3)fill ctor ile
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string s1(1, 'A'); 
+    cout << '|' << s1 << '|' << '\'; //A
+}
+s1'ler null içermezler. string sınıfında yazının sonunda null karakter var diye bir kural yoktur. 
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    string str(20, '\0'); 
+    cout <<  "str.length() = " << str.length() << '\'; //20
+}
+yani gayet 1'den fazla null karakter içerebilir, sonunda null karakter olma garantisi/zorunluluğu cstring için geçerlidir, string için böyle bir zorunluluk bulunmamaktadır.
+
+C++ mülakatlarında çok sık sorulan henüz tam olarak görmediğimiz initializer_list sınıfı C++'ın  en önemli sınıflarından biridir. Ve container'ların hemen hepsinin 
+initializer_list parametreli bir ctor'ları vardır. Aslında initializer_list şu demek: {1, 3, 5, 7, 9} böyle bir liste ile initializer_list<int> türünden bir nesneye ilk 
+değer verebiliriz. Nasıl string, Myclass birer sınıf ise std namespace'inde initializer_list<int>  bir sınıftır.
+
+initializer_list<int> mylist{1, 3, 5, 7, 9}; derleyici böyleinitializer_list<int> sınıfı türünden mylist{1, 3, 5, 7, 9}; gibi bir nesne tanımladığımız zaman arka planda aslında
+bizim bildiğimiz bir dizi oluşturur; yani burada derleyicinin oluşturduğu kodda arka planda 5 elemanlı bir int dizi vardır. Bu diziyi listedeki öğeler ile initialize ediyor.
+Fakat bizim initializer_list sınfı türünden nesnemiz ile bu dizinin doğrudan bir ilişkisi yoktur. initializer_list nesnesi ise şöyledir: aslında içinde 2 tane pointer vardır.
+pointer'lardan biri listedeki öğler ile hayata getirilmiş dizinin ilk elemanının adresini tutarken diğer pointer ise dizinin bittiği yerin adresini tutuyor. O halde pointer'ın 
+bellekte 4 byte yer kapladığı bir sistemde,  initializer_list nesnesi bellekte 8 byte yer kaplar:
+
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    initializer_list<int> mylist{1, 3, 5, 7, 9};
+
+    cout << "sizeof(mylist) = " << sizeof(mylist) << '\n'; //8   
+}
+
+o halde initializer_list<int> sınıfı türünden bir nesnenin bellekte kapladığı alan listedeki eleman sayısından bağımsızdır; çünkü bu nesne içinde sadece 2 pointer olduğunu
+yukarıda açıklamıştık:
+
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    initializer_list<int> mylist{1, 3, 5, 7, 9, 12, 45, 78, 90, 2, 4};
+
+    cout << "sizeof(mylist) = " << sizeof(mylist) << '\n'; //8   
+}
+
+O zaman ben örneğin bir fonksiyonun parametresini initializer_list yapsam ve bu fonksiyona argüman olarak initializer_list göndersek, sadece örneğin 
+initializer_list int türden nesneler için oluşturulmuşsa 8 bytelık bir kopyalama olur!!!
+o halde burada liste ne kadar çok elemanlı olursa olsun sadece 2 byte'lık bir kopyalama olur:
+#include <iostream>
+
+void func(std::initializer_list<int> x);
+
+int main()
+{
+    initializer_list<int> mylist{1, 3, 5, 7, 9, 12, 45, 78, 90, 2, 4};
+
+    func(mylist);
+}
+bu listede 3, 5, 100000 eleman olsa dahi aslında ben fonksiyona 2 tane pointer'ı sarmalayan bir sınıf nesnesi gönderiyorum. Yani aslında kopyalanan da aslında pointer'lar
+dizi olduğu yerde duruyor. Dizinin herhangi bir şekilde elemanları kopyalanmıyor. Dizinin sadece başladığı adresi, ve bitti  yerin adresini kopyalıyorum.
+
+Ayrıca derleyicinin arkla planda oluşturduğu dizi stack'te tutuluyor. 
+
+
+initializer_list ile ne yapabiliriz?
+1)Burada yer alan kodlar generic olduğu için örneğin initializer_list<int> değilde initializer_list<double> olsaydı:
+initializer_list<double> mylist{1.1, 3., 5.};
+bu durumda derleyicinin arka planda oluşturduğu dizinin elemanlarının türü double olurdu, bu durumda sizeof(mylist)'de hala 8 olurdu çünkü pointer olan int ile pointer olan 
+double bellekte aynı değer yani initializer_list için de ne olursa olsun hangi öğeler olursa olsun   sonuçta için de 2 tane pointer var bu da initializer_list'te tutulan 
+öğelerin türünden bağımsız olarak initializer_list'in sizeof'u 2 tane pointer sizeof'udur. 
+
+#include <iostream>
+
+class Myclass {
+    char buf[1024] {};
+};
+
+int main()
+{
+    initializer_list<int> x{2, 4, 5, 8, 9, 12};
+    initializer_list<double> y{2.1, .4, .5, .8, .9, 1.2};
+    initializer_list<Myclass> z{Myclass{}, Myclass{}, Myclass{}};
+
+    std::cout << "sizeof(Myclass) = " << sizeof(Myclass) << '\n'; //1024
+
+    std::cout << "sizeof(x) = " << sizeof(x) << '\n'; //8
+    std::cout << "sizeof(y) = " << sizeof(y) << '\n'; //8
+    std::cout << "sizeof(z) = " << sizeof(z) << '\n'; //8
+}
+
+initializer_list<int> : initializer_list'in int açılımı diye telafuz ediyoruz burada açılımın ingilizce karşılığı specialization'ıdır.
+
+initializer_list oluşturmanın yolları:
+1)türü açıkca yazmak(yukarıdaki örnekte olduğu gibi)
+2)auto type deduction'dan da faydalanabiliyorum:
+int main()
+{
+    auto x = {1, 2, 3, 4, 5, 6, 7};
+}
+Fakat eğer = token'ını kullanmayıp direct initialize edersek, bu sentaks hatasına neden olur:
+int main()
+{
+    auto x{1, 2, 3, 4, 5, 6, 7}; //syntax error
+}
+burada çıkarım yapılamıyor. C++11'de geçerliydi ve initializer_list<int> türü elde ediliyordu fakat sonradan sentaks hatası olarak değerlendirilme kararı alındı
+
+fakat birden fazla değil de sadece 1 tane öğe olursa sentaks hatası değil fakat tür çıkarımı int olur initializer_list<int> değil!!
+
+int main()
+{
+    auto x{1}; //legal fakat tür çıkarımı int
+}
+
+aşağıda verilen kodda da tür çıkarımı initializer_list<int> olur çünkü ='in sağ tarafın initializer koyulduğu zaman tür initializer_list<eleman türü> şeklinde oluyor:
+
+
+int main()
+{
+    auto z = {1}; //legal fakat tür çıkarımı initializer_list<int>
+}
+
+
+iç içe iki küme parantezi ile tür çıkarımı da sentaks hatası:
+int main()
+{
+    auto x{{1, 2, 3}}; //syntax error
+    auto x = {{1, 2, 3}}; //syntax error
+}
+
+Eğer bir fonksiyonun parametresi initializer_list türünden ise:
+1)bu fonksiyonu şu şekilde call edebiliriz:
+
+void func(initializer_list<int> x);
+
+int main()
+{
+    func({1, 3, 5});
+}
+bu durumda fonksiyonun parametre değişkeni bu listedeki öğeler ile initialize edilicek. Yani bu listeyi gösteriyor olacak.
+
+2)initializer_list'in bazı üye fonksiyonları vardır; bu üye fonksiyonları çağırabiliriz:
+sınıfın size fonksiyonu listedeki öğe sayısını döndürüyor:
+ #include <iostream>
+
+using namespace std;
+
+int main()
+{
+    initializer_list<int> mylist{1, 4, 7, 9, 2};
+
+    cout << "mylist.size() = " << mylist.size() << '\n'; //5
+
+
+}
+
+sınıfın üye fonksiyonları aracılığıyla initializer_list'tedeki öğeleri dolaşabiliriz:
+ #include <iostream>
+
+using namespace std;
+
+int main()
+{
+    initializer_list<int> mylist{1, 4, 7, 9, 2};
+
+    for(auto iter = mylist.begin(); iter != mylist.end(); ++iter) {
+        cout << *iter << " ";
+    }
+
+}
+bu döngüyü böyle yazmakla derleyiciye yazdırmak arasında bir fark yoktur: böyle bir döngü deyimini derleyiciye yazdıran döngü deyimine "range-based-loop" deniliyordu:
+ #include <iostream>
+
+using namespace std;
+
+int main()
+{
+    initializer_list<int> mylist{1, 4, 7, 9, 2};
+
+    for(auto x : mylist ) {
+        cout << x << " ";
+    }
+
+}
+
+daha önce de belirttiğimiz gibi initializer_list'tedeki öğelerin sabit ifadesi olması gerekmez, doğrudan container yerine isimlendirilmemiş initializer_list'te kullanabiliriz:
+
+int bar(int);
+
+void foo(int a, int b, int c, int d)
+{
+    for(auto val : {a, b, c, d}) {
+        bar(val);
+    }
+}
+
+Fakat auto type deduction ile  initializer_list'tedeki öğelerin hepsinin aynı tür olması gerekir, çünkü bir öğe bile farklı olursa tür çıkarımı yapılamaz sentaks hatası meydana gelir.
+int main()
+{
+    auto x = {1, 4, 6, 7, 3.}; //syntax error
+}
+
+fakat aşağıda sentaks hatası oluşmaz çünkü int'den double'a implicit dönüşüm var:
+int main()
+{
+    initializer_list<double> x = {1, 4, 6, 7, 3.}; //legal
+}
+yani listedki öğeler farklı türden olursa auto type deduction ile çıkarım yapamaz, fakat initializer_list ile oluşturmamda bir engel yok.
+
+Sınıfın begin ve end fonksiyonları ilerde ele alacağız; ıterator döndürüyor fakat iteretor konumundaki nesneler const nesnelerdir, 
+okuma amaçlı erişebiliriz. Yani initializer_list ile eriştiğimiz dizi elemanları doğuştan const nesnelerdir. 
+
+using namespace std;
+
+int main()
+{
+    auto x = {1, 4, 6, 7, 3}; 
+
+    auto iter = x.begin();
+    auto& r = *iter; //const int&
+    cout << *iter << '\n'; //1
+
+    iter++;
+
+    cout << *iter << '\n'; //4
+
+    *iter = 45;//syntax error,  *iter is a constant object. 
+}
+
+
+Bir sınıfın biri veya birden fazla ctor'ı initializer_list parametreli olabilir:
+#include <iostream>
+#include <initializer_list>
+
+class Myclass {
+public:
+    Myclass(std::initializer_list<int> x)
+    {
+        for(auto val : x) 
+            std::cout << val << " ";
+    }
+};
+
+int main()
+{
+    Myclass m1{1, 3, 5, 7};
+}
+
+örneğin vector sınıfının da initializer_list parametreli ctor'ı vardır:
+
+#include <vector>
+#include <iostream>
+
+int main()
+{
+    vector<int> ivec{2, 5, 8, 9, 1};
+}
+
+aynı durum string sınıfı içinde geçerlidir: 
+yani stirng sınıfının da initializer_list parametreli ctor'ı vardır:
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    string str{'F', 'A', 'R', 'U', 'K'};
+
+    std::cout << str << '\n';
+}
+
+
+örneğin aşığıda verilen örnekte direct initializaiton ile direct-list initializaiton ile ilk değer verme arasında fark yoktur:
+
+#include <initializer_list>
+
+using namespace std;
+
+class Myclass {
+public:
+    Myclass(int, int);
+}
+
+int main()
+{
+    Myclass m1(12, 34);
+    Myclass m2{12, 34};
+    
+}
+
+parantez ile küme parantezinin fark ettiği bir önemli bir yer var:
+birbirinin overload'u olan 2 ctor'a sahip, küme parantezi ile ilk değer verirsek initializer_list parametreli ctor'ın seçilme üstünlüğü vardır!!!
+#include <initializer_list>
+
+using namespace std;
+
+class Myclass {
+public:
+    Myclass(int, int)
+    {
+        std::cout << "Myclass(int, int)\n";
+    }
+
+    Myclass(initializer_list<int>)
+    {
+        std::cout << "Myclass(int list)\n";
+    }
+}
+
+int main()
+{
+    Myclass m1(12, 45);
+    Myclass m2{12, 45};
+    Myclass m3(20);
+    Myclass m4{20};    
+}
+yani küme parantezi ile ilk değer verirsek initializer_list parametreli ctor'ın seçilme üstünlğü var 
+!!!!Bu da string sınıfı, vector sınıfı ile ilgili mülakatlarda sorulan en tipik soru:
+
+#include <string>
+#include <iostream>
+#include <initializer_list>
+
+
+int main()
+{
+    string s1(52, 'A'); //s1 52 A karakterinden oluşur, burada fill parametreli ctor çağırılır 
+    string s2{52 , 'A'}; //s2 4A karakterlerinden oluşur, burada initializer_list parametreli ctor çağırılır
+
+    std::cout << "s1.size() = " << s1.size() << '\n'; //52
+    std::cout << "s2.size() = " << s2.size() << '\n'; //2
+
+    std::cout << s1 << '\n'; //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+     std::cout << s1 << '\n'; /4A
+}
+
+
+UYARILAR!!!
+range ctor, data ctor, cstring ctor veya diğer hepsinde tanımsız davranış olmaması tamamen programcının sorumluluğundadır:
+
+int main()
+{
+    char str[] = "alican";
+
+    string s(str, 20); //ub diziyi taşırdık
+    string s2(str, str + 20); //ub,range ctor fakat diziyi taşıdırdık
+}
+
+Eğer substring ctor'da yani bu parametrik yapıda (str.xxx(const string &, string::size_type idx, string::size_type n)) eğer bir indeks bir de o indeksten başlayarak
+karakter sayısı verirsek o karakter sayısı geriye kalan karakter sayısından fazla ise tanımsız davranış olmaz!! geriye kalan karakterlerin hepsi kullanılılır!!
+
+int main()
+{
+    string str{ "uygarpinar" };
+
+    string s(str, 5, 67);
+
+    std::cout << s << '\n'; //pinar
+}
+
+initializer_list'i kullanabilmek için #include <initializer_list> başlık dosyasını ekleyebileceğimiz gibi diğer yandan birçok başlık dosyası zaten bunu içerdiğinden 
+her zaman include etmeden de kullanabiliriz.
