@@ -1,0 +1,467 @@
+string sınıfının bir tane constexpr static veri elemanı vardır. Bu veri elemanının adı npos'tur. Dolayısıyla bu veri elemanını 
+kullanmak için sınıfın static veri elemanı olduğuna göre (constexpr olduğuna göre bir compile time sabiti olduğunu unutmayınız!)
+şöyle yazabiliriz:
+string::npos 
+veya elimizde bulunan string nesnesinin npos ile doğrudan alakası olmasa bile o nesnenin npos'u şeklinde niteleyebiliriz,
+çünkü C++'ta hatırlayınız, değişkeni veya pointer'ı isim arama amaçlı kullanabiliriz:
+
+string s;
+s.npos şeklinde kullanabiliriz. s'in npos'u dememiz bu veri elemanını s ile ilgili yapmıyor fakat name lookup açısından bir problem yok.
+
+
+string'in npos'u size_t türünün yani string::size_type türünün olabileceği en büyük değeridir. 
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main() 
+{
+    std::cout << string::npos <<'\n';
+}
+
+string::npos ne işe yarıyor?
+2 tane önemli tipik tema vardır:   
+1)string sınıfının interface'inde bulunan çok fazla arama fonksiyonu vardır, bu fonksiyonar örneğin find, refind, find_first,_of,
+find_last_of, find_last_not_of, find_first_not_of gibi. string sınıfının üye fonksiyonları olan arama fonksiyonlarının hepsi indeks 
+döndürüyor. Bulursa bulduğu yerin indeksini, bulamaz ise string::npos'unu döndürüyor; çünkü string::size_type'nın en büyük değeri
+olduğuna göre bu geçerli bir indeks olamaz. Yani hangi yazı olursa olsun bu değer geçerli bir indeks olamayacağına göre özel bir 
+değer olarak kullanılabilir.
+
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s{"murat yilmaz"};
+
+    //auto idx = s.find('i');
+    //size_t idx = s.find('i');
+    string::size_type idx = s.find('i');
+
+    if(idx != string::npos) {
+        std::cout << "bulundu idx = " << idx << '\n';
+        cout << s[idx] << '\n';
+
+    }
+    else {
+        std::cout << "bulunamadi\n";
+    }
+}
+bu tür kodlarda C++17 ile dile eklenen if with initializer kullanmak 1. tercihimiz olmalıdır, eğer burada find fonksiyonunun geri dönüş
+değeri olan indeksi sadece if deyiminde kullanacaksak yukarıdaki gibi yazarsak scope leakage olur. scope leakgae olmaması için aşağıdaki
+gibi yazmalıyız kodumuzu, burada kullanılan if deyimine if with initializer deniliyordu:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s{"murat yilmaz"};
+
+    //if with initializer C++17
+    if(auto idx = s.find('i'); idx != string::npos) {
+        std::cout << "bulundu idx = " << idx << '\n';
+        cout << s[idx] << '\n';
+
+    }
+    else {
+        std::cout << "bulunamadi\n";
+    }
+}
+
+2)string'in parametrik yapılarından substring parametreli fonksiyon olan:
+str.xxx(const string &, string::size_type idx, string::size_type n);
+fonksiyonun da kural şuydu: eğer 2. parametreye bir indeks geçersek ve 3. parametrede varsa o indeksten başlayarak 3. parametrede 
+geçilen sayı kadar karakter alıyordu. Faka biz bu indeksten başlayarak geriye kalan bütün karakterleri almak istiyorsak, 3. parametreye
+string::npos verebiliriz. Bu durumda yazının uzunluğu ne olursa olsun her durumda indeks ve sonrasının hepsinin işleme sokulmasını
+garanti etmiş oluruz. İşte bazen de string::npos'unun bu amaçla kullanıldığını görürüz. Ve bazı fonksiyonlarda da string::npos'u default
+argüman olarak kullanılıyor. 
+Örneğin: string sınıfının en sık kullanılan fonksiyonlarından biri substr ve sub string göndürüyor
+
+using namespace std;
+
+int main()
+{
+    string str{"mustafa erdem"};
+
+    auto s = str.substr(1, 4); 
+    std::cout << s << '\n'; //usta
+
+    
+    auto s1 = str.substr(1, string::npos); 
+    std::cout << s1 << '\n'; //usta erdem
+
+    //2. parametreye default argüman olarak string::npos geçildi
+    auto s2 = str.substr(1); 
+    std::cout << s2 << '\n'; //usta erdem
+
+    //1. parameterde default argüman olarak 0'ı aldığı için aşağıdaki 3 kod satırı da aynı anlamda
+    
+    auto s3 = str.substr(0, string::npos); 
+    std::cout << s3 << '\n'; //mustafa erdem
+    auto s4 = str.substr(0); 
+    std::cout << s4 << '\n'; //mustafa erdem
+    auto s5 = str.substr(); 
+    std::cout << s5 << '\n'; //mustafa erdem
+}
+
+aynı durum ctor'da da var:
+
+using namespace std;
+
+int main()
+{
+    string str{"mustada erdem"};
+
+    string s(str, 3); //3. indeksten başlayarak geriye kalan karakterler ile s oluşturulacak
+    //string s(str, 3, string::npos); yukarıda ki ile aynı anlama gelir
+}
+
+=====================================================================================================================================
+yazının karakterlerine erişmek için kullanılan fonksiyonlardan 2 tane fonksiyon inceleyelim:
+1)[] operator fonksiyonu
+bu operator fonksiyonu const overload edilmiştir. Yani biri const diğeri non-const olan 2 tane üye fonksiyon var. Birinin geri dönüş 
+değeri char& diğerinin ise const char& 'tir.
+
+using namespace std;
+
+int main()
+{
+    string name{ "zeynep akbalik" };
+
+    name[0] = '!';
+    name.operator[](0) = '!'; //yukarıdaki gibi yazmak yerine bu şekilde açıkça da yazabiliriz.
+}
+
+eğer yukarıda ki nesne const olsaydı [] operatoru const overload edildiğinden const parametreli overloadu çağrıldı, sentaks hatası
+meydana gelirdi:
+
+using namespace std;
+
+int main()
+{
+    const string name{ "zeynep akbalik" };
+
+    name[0] = '!'; //syntax error
+    name.operator[](0) = '!'; //yukarıdaki gibi yazmak yerine bu şekilde açıkça da yazabiliriz. //syntax error
+}
+
+O halde yazının karakterlerini tamamını dolşamak istersek:
+
+using namespace std;
+
+int main()
+{
+    string name{ "zeynep akbalik" };
+
+    for(size_t i{}; i < name.size(); ++i) {
+        cout << name[i] << " ";
+    }
+}
+
+DİKKAT!!!
+[] operator fonksiyonuna geçersiz indeks verdiğimiz zaman exepcition throw etmez; tanımısz davranış olur!!!
+
+using namespace std;
+
+int main()
+{
+    string name{ "zeynep alabalik" };
+
+    try {
+        auto c = name[345]; //ub
+    }
+    catch(const std::exception& ex) {
+        std::cout << exception caught: " << ex.what() << '\n';
+    }
+}
+[] operator fonksiyonunun exception handling mekanizması olmadığı için exception throw etmedi!! ub!! çok tehlikeli!!
+
+at üye fonksiyonu
+at'in yaptığı iş bakımından [] operator fonksiyonundan yaptığı iş bakımından hiçbir farkı yok fakat tek farkı _exception throw
+ediyor olması!!
+
+using namespace std;
+
+int main()
+{
+    string name{ "zeynep alabalik" };
+
+    try {
+        auto c = name.at(345); 
+    }
+    //catch(const std::exception& ex) {
+    //catch(const std::logic_error& ex) {
+    catch(const std::out_of_range& ex) {
+        std::cout << exception caught: " << ex.what() << '\n';
+    }
+}
+standart kütüphanedeki out_of_range sınıfı kalıtım yoluyla logic_error sınıfından o da kalıtım yoluyla exception sınıfından kalıtım
+yoluyla elde edilmiştir.
+
+2)karaktere erişmenin bir diğer yolu ise iterator interface'i:
+
+using namespace std;
+
+int main()
+{
+    string name{ "zeynep alabalik" };
+
+    for(auto iter = name.begin(); iter != name.end(); ++iter) {
+        std::cout << *iter << '\n';
+    }
+}
+eğer biz değilde derleyicinin bizim için kodu yazmasını istiyorsak; range-based for loop ile yazdırabiliriz: 
+
+using namespace std;
+
+int main()
+{
+    string name{ "zeynep alabalik" };
+
+    for(auto c : name) 
+        std::cout << c << '\n';
+    
+}
+
+container'ların ortak arayüzünün bir bileşeni daha var; sequence container dediğimiz container grubunun front isimli bir fonksiyonu 
+vardır; bu fonksiyon conatiner'daki ilk öğeye eriştirir. string'de bir container olduğu için string'deki ilk öğeye erişmenin 
+yollarından biri de sınıfın front fonksiyonunu çağırmaktır. 
+
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s{ "mert" };
+
+    std::cout << "s = " << s << '\n'; //mert
+    s.front() = 'D';
+    std::cout << "s = " << s << '\n'; //Dert
+}
+
+Aynı şekilde yine sequence container'ların bir başka fonksiyonu da container'daki son öğeye eriştirir: back
+tabii son öğeye şu şekilde de erişebiliriz: s[s.size() - 1] 
+
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s{ "mert" };
+
+    std::cout << "s = " << s << '\n'; //mert
+    s.front() = 'D';
+    std::cout << "s = " << s << '\n'; //Dert
+    s.back() = 's';
+    std::cout << "s = " << s << '\n'; //Ders
+}
+
+SORU: aşağıda verilen kodda ekrana yazdırılan adresler aynı mıdır?
+Cevap evet; çünkü x.begin() bize ilk öğenin konumunu döndürür, o halde dereference edersek ilk öğeye erişmiş oluruz(*x.begin())
+fakat bu ilk öğe listede tutulan ilk öğedir yani derleyicinin oluşturduğu dizinin ilk öğesidir, burada auto y = x; dediğimiz 
+zaman derleyici yeni bir dizi oluşturmaz sadece initalizizer_list nesnesi içindeki pointer'ları kopyalar; dizi ise tek bir dizidir.
+Dolayısıyla her 2 adreste derleyicinin oluşturduğu dizinin ilk elemanının adresidir ve aynı adrestir.
+#include <iostream>
+#include <string>
+
+int main()
+{
+    std::initializer_list<int> x{2, 4, 6, 8, 3};
+
+    auto y = x;
+
+    cout << &*x << '\n';
+    cout << &*y << '\n';
+}
+cstring'den string'e dönüşüm vardır; çünkü sınıfın bunun için çağırılan ctor'ı explicit değil dolayısıyla string beklenen yerde 
+her zaman cstring kullanabiliriz.
+#include <iostream>
+#include <string>
+
+void foo(std::string s)
+{
+    std::cout << "|" << s << "|\n";
+}
+
+
+int main()
+{
+    foo("murat yilmaz");
+}
+
+veya şu şekilde bir örnekte verebiliriz:
+#include <iostream>
+#include <string>
+
+std::string bar()
+{
+    //
+    return "cinar gursoy"
+}
+
+
+int main()
+{
+    auto s = bar();
+}
+
+Fakat tam tersi olan string'den cstring'e dönüşüm yoktur:
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std;
+
+int main()
+{
+    string str{ "melik aksoz" };
+
+    puts(str); //syntax error 
+}
+puts fonk. const char* parametreli bir fonk. olduğu için char* argüman geçildiğinde sentaks hatası meydana geldi. Dönüşüm örtülü olarak
+yapılmıyor. Fakat bu dönüşümü yapabilen isimlendirilmiş 2 tane fonksiyon var: c_str ve data
+sınıfın c_str fonksiyonun geri dönüş değeri const char* ve null terminated by stream olarak verir
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std;
+
+int main()
+{
+    string str{ "melik aksoz" };
+
+    puts(str.c_str());  
+}
+
+Bu şu anlama gelir eğer ki bizim bir C API'miz varsa ve bu bizden bir null terminated by stream alarak bizden okuma amaçlı bir yazı adresi istiyor ise; ona sınıfın
+c_str() fonksiyonunun geri dönüş değerini gönderebiliriz. Burada çok ama çok dikkat etmemiz gereken bir durum var: biz yazı üzerinde herhangi bir şekilde bir değişiklik 
+yaptığımız zaman c_str'nin geri dönüş değerini bir pointer'a atadığımız zaman o pointer değişkeni geçerli olmak zorunda değildir:örneğin aşağıda verilen örnekte, c_str'nin
+döndürdüğü adresin değeri reallocation yapılmadığı sürece geçerlidir, aşağıda yazıya yapılan ekleme ile önceden c_str ile elde edilen adres artık dangling pointer haline gelmiştir!!
+
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std;
+
+int main()
+{
+    string str{ "bugün 27. dersimiz C++ kursunda" };
+
+    auto p = str.c_str();
+
+    puts(p);
+
+    str+= "hayirlara vesile olsun";
+
+    puts(p); //ub
+}
+yani c_str'nin döndürdüğü adresteki yazı reallocation yapılmadığı sürece geçerldir.
+
+Aynı şekilde data fonksiyonu da vardır. data fonskiyonu da yine bize doğrudan dinamik bellek bloğunun adresini döndürür. Eğer ki arka planda allocate edilen bellek bloğunu
+kullanacaksak doğrudan data fonksiyonunu kullanabiliriz.  data fonksiyonu constexpr ve const overlaodu olan bir fonksiyondur.
+
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std;
+
+int main()
+{
+    string str{ "omer faruk aksoy" };
+
+    char *p = str.data();
+
+    p[0] = 'A';
+    p[2] = 'i';
+
+    cout << str << '\n'; //Amir faruk aksoy
+}
+dinamik bellek bloğunun adresini döndüren data fonk. vector sınıfında da çok önemlidir. O halde dinamik bellek bloğunun adresini herhangi bir C API'sinde de kullanabiliriz:
+
+aşağıda allocate edilen bellek bloğonun adresini gösteren 3 farklı yöntem verilmiştir:
+
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std;
+
+int main()
+{
+    string str{ "omer faruk aksoy" };
+
+    //yazının ilk karakterinin adresi
+    //(void *)'a cast ettik yoksa 
+    cout << (void *)&str[0] << '\n';
+    cout << (void *)str.data() << '\n';
+    cout << (void *)&*str.begin() << '\n';
+}
+
+string sınıfının bazı üye fonksiyonları 2 ayrı interface'e sahiptir: index interface ve iterator interface olarak isimlendirebiliriz(hocamız o şekilde isimlendirmiştir.)
+Örneğin string sınıfının erase ve insert üye fonksiyonları örnek verilebilir. STL container'larında indeks diye bir şey yoktur, konum gerektiren bütün üye fonksiyonlar 
+iterator parametrelidir. string sınıfı da bir STL container'ı olduğu için STL container'larının iterator parametreli üye fonksiyonları string de de var. Bu da biraz kafa 
+karışıklığına sebep olmaktadır. Çünkü string sınıfı aynı zamanda yazı işlemleri için özelleştirilmiş bir dinamik dizi olduğundan doğal olarak yazılar ile ilgili işlem yapmak
+için de bir indeks interface'i vardır. iterator interface'inide kullanabiliyoruz, indeks interface'inide kullanabiliyoruz. Örneğin:
+erase fonk. str.erase(2); -->2. karakterde başlayıp sonuna kadar tüm karakterleri siler yani sanki son argümanda npos varmış gibi,
+str.erase(2, 3); --->2. karakterden başlayıp 3 karakteri siler
+görüldüğü gibi erase fonksiyonu indeks alıyor, indeks interface'ina aittir:
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+
+    cout << str << '\n';
+    str.erase(2);
+    cout << str << '\n'; //il
+   
+}
+sadece 2. indeksi silmek isteseydim:
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+
+    cout << str << '\n';
+    str.erase(2, 1);//indeks interface
+    cout << str << '\n'; //iler kuzu
+   
+}
+veya fonksiyona iterator vererek bunu yapabiliriz:
+container'ların iterator parametreli erase fonksiyonları vardır, ve iterator parametreli erase fonksiyonu o iterator konumundaki öğeyi siler:
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+
+    cout << str << '\n';
+    str.erase(str.begin() + 2); //iterator interface
+    cout << str << '\n'; //iler kuzu
+   
+}
