@@ -1,0 +1,735 @@
+yazıları değiştirmeye yönelik işlemler
+string sınıfı türünden bir nesnenin değerini değiştirmenin yollarından biri ona başka bir string atamaktır; yani copy assigment veya move assigment
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+
+    string s{  "necati ergin" };
+
+    //str = s; //copy assigment
+   str = move(s); //move assigment
+}
+fakat değişimi tek yolu bu değildir:
+=operator() fonksiyonu ile de yazıları değiştirebiliriz, örneğin string'e karakter atayabiliriz. char parametreli ctor yok fakar char parametreli atama operator fonksiyonu vardır:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+
+    string s{  "necati ergin" };
+
+    s = 'A';
+}
+yani bir string nesnesine bu yolla tek bir karakter atayabiliriz.
+
+diğer atama fonksiyonlarını inceleyelim:
+1)char* parametreli overload'u
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+
+    string name{  "ali kockaya" };
+
+    std::cout << str << '\n';
+
+    str = name;
+    std::cout << str << '\n';
+}
+
+2)cstring param
+yani bir string nesnesine cstring atayabiliriz:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+
+    string name{  "ali kockaya" };
+
+    std::cout << str << '\n';
+
+    str = name;
+    std::cout << str << '\n';
+
+    str = "deniz erbakan"
+    std::cout << str << '\n';
+
+    char s[] = "mustafa karakaya";
+    str = s;
+    std::cout << str << '\n';
+}
+3)initializer_list param
+burada çalışan atama operator fonksiyonuda initializer_list parametreli atama operator fonksiyonudur:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+
+    std::cout << str << '\n';
+
+    str = {'A', 'L', 'P'};
+
+    std::cout << str << '\n';
+
+}
+
+Böylece atama operatorü ile bir string'e bir string, bir string'e bir R value string,  bir string'e bir cstring,  bir string'e bir karakter ve  bir string'e initializer_list
+atabiliriz.
+
+Fakat bunun dışındaki daha kompleks atamalar için sınıfın assign fonksiyonunu/overload'larını kullanabiliriz. assign fonksiyonu ile daha karmaşık atamaları gerçekleştirebiliriz:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+    std::cout << str << '\n';
+    str.assign(12, 'a');
+    std::cout << str << '\n';
+}
+sonuç olarak yukarıdaki gibi bir atamayı operator overloading mekanizması ile yapamazdık, işte böyle daha karmaşık atamaları isimlendirilmiş assign fonk. ile yapabiliriz.
+Doğal olarak gerek atama operator fonksiyonları gerek assign fonksiyonu *this döndürür. O halde str.assign(12, 'a').c_str veya başka bir üye fonksiyon ile flound abi yapabiliriz.
+
+assing diğer yazıyı büyütmeye yönelik bütün fonksiyonlarda olduğu gibi eğer ki kapasite yeterli değilse reallocation yapar, yani yeni bir bellek alanı allocate eder.
+
+data assing, range assign fonksiyonları da vardır:
+data assign:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{ "ilker kuzu" };
+    std::cout << str << '\n';
+
+    string name{"hulusi karaduman"};
+
+    str.assign(name, 7);
+    std::cout << str << '\n';
+    str.assign(name, 7, 4);
+    std::cout << str << '\n';
+
+}
+range assing:
+o range'i assign eder, özellikle STL işlemlerinde çok çok önemlidir:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str;
+    
+    char ar[] = "nurullah demir";
+    str.assign(ar, ar + 3);
+    std::cout << str << '\n'; //nur
+}
+
+genelde bütün overload'ların karakteri aynıdır: örneğin assign için
+cstring
+data 
+fill
+range
+initializer_list
+int main()
+{
+    string str;
+    
+    str.assign({'o', 'n', 'u', 'r'});
+}
+
+sınıfın resize fonksiyonu size'ı değiştirir. resize fonksiyonu  sequence container'larının ortak arayüzüdür. Yani resize'a olduğu size'dan daha büyük bir değer verirseniz size'ı
+o değere büyütür, daha küçük bir değer verirseniz size'ı o değere küçültür. resize hem aslında yazıyı büyütmek için kullanabileceğimiz hem de yazıdan karakter silmek için 
+kullanabileceğimiz bir fonksiyondur. Büyütürken yazının boyutundan fazla büyütme yaptığımız zaman diğer karakterler null karakter olur:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{"murat"};
+
+    std::cout << "str.size() = " << str.size() << '\n';
+
+    str.resize(20);
+    
+    std::cout << "str.size() = " << str.size() << '\n';
+
+    for(size_t i = 0; i < str.size; ++i) {
+        cout << "str[" << i << "] = " << (int)str[i] << '\n';
+    }
+}
+
+resize'ın bir overload'u daha var eğer ki fazladan eklenen karakterlerin null karakter olmasını istemiyorsak eğer istediğimiz karakteri  2. parametreye geçebiliriz; çünkü
+default argüman olarak null karakter alıyor.
+artık geriye kalan karakterler ! karakteri ile değerini aldı:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{"murat"};
+
+    std::cout << "str.size() = " << str.size() << '\n';
+
+    str.resize(20, '!');
+    
+    std::cout << "str.size() = " << str.size() << '\n';
+    std::cout << "str= " << str << '\n';
+
+}
+
+yine bütün büyüten fonksiyonlarda olduğu gibi resize'da yeterli alan olmadığında reallocation yapar. 
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{"murat"};
+
+    std::cout << "str.size() = " << str.size() << '\n';
+    std::cout << "str.capacity() = " << str.capacity() << '\n';
+
+
+    str.resize(50);
+    
+    std::cout << "str.size() = " << str.size() << '\n';
+    std::cout << "str.capacity() = " << str.capacity() << '\n';
+
+}
+
+yazıyı büyütmenin/değiştirmenin yollarından biri de += operator fonksiyonudur, sondan ekleme yapar:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{"kara"};
+
+    cout<< str << '\n';
+
+    str += 'm';
+
+    cout<< str << '\n'; //karam
+
+    //cstrin param += op. fonk.
+
+    str += "olla";
+    cout<< str << '\n'; //karamolla
+
+    string x{ "oglu" };
+
+    //string parametreli += op. fonk.
+    string += x;
+    cout<< str << '\n'; //karamollaoglu
+
+    //initializer_list param += op. fonk.
+    str += {'c', 'a', 'n'};
+    cout<< str << '\n';//karamollaoglucan
+}
+
+sınıfın push_back fonksiyonu sequence container'lardan vector de bag'de string'de vardır; yazının sonuna karakter ekler(1 tane). 
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str{"kara"};
+
+    str += '!';
+    //yukarıda ki ile aynı anlama gelir
+    str.push_back('!');
+
+    cout << str << '\n';
+}
+
+bir diğer örnek:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str;
+
+    str.reserve(500);
+
+    for(char c{'A'}; c <= 'Z'; ++c) {
+        str.push_back(c);
+    }
+
+    cout << str << '\n';
+
+}
+DİKKAT!!!
+Bir string nesnesinin tutacağı yazının maksimum uzunluğu baştan belli ise reverse fonksiyonunu çağırmak birçok durumda daha iyidir, çünkü o bellek alanına erişene kadar 
+çok sayıda reallocation olur ve bu da maliyeti çok arttıran bir durumdur.
+
+reallocation olup olmadığını 2 basit yöntem ile anlayabiliriz:
+1)kapasite değerini kontrel ederek:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string name{"Mustafa Kemal Ataturk"};
+
+    std::cout << "name.capacity() = " << name.capacity() << '\n';
+
+    name.assign(100, 'X');
+
+    std::cout << "name.capacity() = " << name.capacity() << '\n';
+}
+
+2)data fonksiyonu allocate edilen bellek bloğonun adresini döndürdüğü için, yapılan eklemeden önce ve sonra döndürdüğü adreslerin eşit olup olmadığına bakabiliriz:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string name{"Mustafa Kemal Ataturk"};
+
+    auto p1 = name.data();
+
+    name.assign(100, 'X');
+
+    auto p2 =  name.data;
+
+    cout << boolaplha << (p1 == p2) << '\n';
+}
+tabii bulunduğu yerde de büyütme yapabilirdi, o sebeple çok sağlam bir yöntem değildir. Fakat büyüten bütün işlemler kapasiteyi arttırır!!, kapasite yeterli değilse artıyor.
+Hangi işlemler reallocataion'a neden olabilir?
+bütün atama fonksiyonları
+push_back fonksiyonu
+insert fonksiyonları
+assign fonksiyonu
++= fonksiyonu
+append fonksiyonu
+resize fonksiyonu
+
++= ve append fonksiyonları hemen hemen aynı şeyi yapar; sadece += operator oveloading mekanizması olduğu için +='in sağına sadece 1 argüman yazabiliriz, fakat sondan ekleme için
+daha karmaşık append işlemlerini sınıfın append isimli fonksiyonunun overload'ları ile yapmalıyız. 
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("usta");
+
+    s.append(3, '!');
+
+    cout << s << '\n';
+
+    char ar[] = "necati";
+
+    s.append(ar, 3);
+    cout << s << '\n';
+
+    string name{"melisa"};
+    s.append(name, 3, 2);
+    cout << s << '\n';
+
+}
+yani append ile sona ekleme yapıyoruz; fakat range verebiliyoruz, fill parametre verebiliyoruz, data parametre vereviliyoruz, substring parametre verebiliyoruz. append'de dolayısıyla
+büyütebilir/değiştirebilir. 
+
+insert fonksiyonu
+şu ana kadar gördüğümüz fonksiyonlar hep yazının sonuna ekleme yaptı, fakat yazının herhangi bir yerine ekleme de yapabiliriz. Bu arada yazının sonuna yapılan eklemeler 
+amortized constant time'dadır. Fakat sonuna yapılan eklemeler dışındakiler sabit zamanda değildir. Dikkat! insert için 2 ayrı interface vardır. insert işlemini container'larda
+olduğu gibi iterator interface'i ile yapabiliriz. Yani bu bütün container'larda ortaktır.  
+
+//insert iterator interface
+iterator interface'i hep şu şekilde çalışır: 1. parametre bir iterator olur, 2. parametre container'da tutulan öğe cinsinden olur.
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("0123456789");
+    cout << s << '\n';
+
+    s.insert(s.begin(), 'A');
+    cout << s << '\n';
+}
+örneğin 2 ile 3 arasına A'yı eklemek isteseydim:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("0123456789");
+    cout << s << '\n';
+
+    s.insert(s.begin() + 3, 'A');
+    cout << s << '\n';
+}
+
+bu iterator konumuna bir range'i insert edebiliriz(bütün container'larda vardır):
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("0123456789");
+    cout << s << '\n';
+
+    char ar[] = "abcdefghi";
+    s.insert(s.begin(), ar, ar + 5);
+    cout << s << '\n';
+}
+
+veya initializer_list parametreli iterator interfac'li insert fonksiyonunu da kullanabiliriz:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("0123456789");
+    cout << s << '\n';
+
+    s.insert(s.begin() + 5, {'A', 'B', 'C'} );
+    cout << s << '\n';
+}
+en maliyetli case sondan olmayan yere ekleme yapmak yani time _complexity'si lineer olan durumdur. 
+
+insert fonksiyonu için bir de indeks interface'i vardır:
+insert interface'inde insert edilecek konumu indeks olarak ister:
+indeks interface'i ile biz belirli bir indekse bir cstring/karakter/bir yazının substring'ini her şeyi ekleyebiliriz.
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("0123456789");
+    cout << s << '\n';
+
+    s.insert(5, 10, 'a'); // 5. indekse 10 tane a karakteri insert edilir
+    cout << s << '\n';
+}
+
+silme fonksiyonları
+silme fonksiyonlarının adı erase'dir. Silme fonksiyonlarında da yine iterator interface'i ve indeks interface'i var.
+
+//erase (iterator interface)
+ya bir iterator konumu veriyoruz ya da range veriyoruz. itertator konumu verirsek o iterator konumundakini siliyor, range verirsek o range'deki öğeleri siliyor.
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("0123456789");
+    cout << s << '\n';
+
+    s.erase(s.begin()); //123456789
+    cout << s << '\n';
+}
+eğer yazının 2 indisli karakterini silmek isteseydim, oranın iterator konumunu vermem gerekirdi:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("0123456789");
+    cout << s << '\n';
+
+    s.erase(s.begin() + 2); //013456789
+    cout << s << '\n';
+}
+
+yazının son öğesini silmek istersem, (her ne kadar iyi bir fikir olmasa da):
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("0123456789");
+    cout << s << '\n';
+
+    s.erase(s.end() - 1); //01345678
+    cout << s << '\n';
+}
+
+eğer bir range verirsem o range içindeki öğeleri siler:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string s("0123456789");
+    cout << s << '\n';
+
+    s.erase(s.begin() + 1, s.end() -1); //09
+    cout << s << '\n';
+}
+
+pop_back() fonksiyonu yazıdan son karakteri siler, vector'de de vardır. Yani container'dan son öğeyi siler. 
+
+aşğıda verilen örnekte while döngüsünde her turda yazının ilk karakteri silinmiştir:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str;
+
+    cout << "isminizi giriniz: ";
+    getline(cin, str);
+
+    while(!str.empty()) {
+        cout << str << '\n';
+        str.erase(str.begin());
+    }
+}
+her  turda yazının son karakterini silmek isteseydim:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str;
+
+    cout << "isminizi giriniz: ";
+    getline(cin, str);
+
+    while(!str.empty()) {
+        cout << str << '\n';
+        str.erase(str.end() - 1);
+    }
+}
+bunu yaparken str.erase(str.end() - 1); yerine bu işlemi yapan pop_back fonksiyonunu kullanabiliriz:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str;
+
+    cout << "isminizi giriniz: ";
+    getline(cin, str);
+
+    while(!str.empty()) {
+        cout << str << '\n';
+        str.pop_back();
+    }
+}
+
+tabii silme işlemini indeks interface'i ile de yapabiliriz:
+örneğin yazının ilk karakterini silme işlemini indeks interface'i ile yapalım:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str;
+
+    cout << "isminizi giriniz: ";
+    getline(cin, str);
+
+    while(!str.empty()) {
+        cout << str << '\n';
+        str.erase(0, 1);
+    }
+}
+
+container'ların clear fonksiyonu container'daki bütün öğeleri siler!
+
+çok popüler bir mülakat sorusu!!
+yazının bütün karakterlerini silmenin en az 10 - 15 tane yöntemi vardır:
+
+1)ctring param'lı atama operator fonksiyonunu çağırarak:
+böylece null string atadığım için size'ı 0 olur.
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str {"mustafaaksoy"};
+
+    cout << str.size() << '\n';
+    
+    str = "";
+    cout << str.size() << '\n';
+}
+
+2)default construct edilmiş bir string nesnesi atarım:
+default construct edilmiş string atarsam o boş yazı olduğuna göre o da boş yazı olur artık:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str {"mustafaaksoy"};
+
+    cout << str.size() << '\n';
+    
+    str = string{};
+    cout << str.size() << '\n';
+}
+
+3)yukarıdaki default construct edilmiş string'i bu şekilde de atayabiliriz:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str {"mustafaaksoy"};
+
+    cout << str.size() << '\n';
+    
+    str = {};
+    cout << str.size() << '\n';
+}
+
+4)resize fonksiyonu size düşürebilen bir fonksiyondu, resize'a 0 değerini argüman olarak geçersek yazının uzunluğu 0 olur.
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str {"mustafaaksoy"};
+
+    cout << str.size() << '\n';
+    
+    str = resize(0);
+    cout << str.size() << '\n';
+}
+
+5)clear fonksiyonu container'ların ortak arayüzü, container'ın clear fonksiyonunu çağırırsak container'daki tüm öğleri siler:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str {"mustafaaksoy"};
+
+    cout << str.size() << '\n';
+    
+    str.clear();
+    cout << str.size() << '\n';
+}
+
+6)erase fonksiyonuna string'in tüm range'ini verirsek (range erase) o indeksten başlayarak geriye kalan her şeyi sileceği için indeks 0 verilirse yazının hepsi silinir:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str {"mustafaaksoy"};
+
+    cout << str.size() << '\n';
+    
+    str.erase(0);
+    cout << str.size() << '\n';
+}
+
+7)erase fonksiyonu default argüman aldığı için 0 indeksini girmsekte tüm yazıyı siler:
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str {"mustafaaksoy"};
+
+    cout << str.size() << '\n';
+    
+    str.erase();
+    cout << str.size() << '\n';
+}
+
+8)iterator interface ile range erase
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+    string str {"mustafaaksoy"};
+
+    cout << str.size() << '\n';
+    
+    str.erase(str.begin(), str.end());
+    cout << str.size() << '\n';
+}
