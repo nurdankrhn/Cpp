@@ -1,0 +1,483 @@
+22 Mart 2023 - Çarşamba
+
+string'deki karakterlerin silinmesi kapasiteyi otomatik olarak düşürmez!! Kapasiteyi de düşürmek için shrink_to_fit fonksiyonunu çağırmalıyız. Fakat 
+shrink_to_fit fonksiyonu ingilizcesiyle "non binding shrink request" yani implementasyon hemen kapasiteyi düşürmek zorun da değil, ana akım derleyicilerin hepsi kapasiteyi bir 
+sequence point'den sonra  düşürmüş oluyorlar fakat yine de bu garanti altında değildir:
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string str(100'000, 'a');
+
+    cout << "str.length() = " << str.length() << '\n';
+    cout << "str.capacity() = " << str.capacity() << '\n';
+
+    str.erase();
+
+    cout << "str.length() = " << str.length() << '\n';
+    cout << "str.capacity() = " << str.capacity() << '\n';
+
+    str.shrink_to_fit();    
+    cout << "str.capacity() = " << str.capacity() << '\n';
+
+}
+
+C++'ta mülakatta string sınıfı(çoğu vector sınıfı için de geçerlidir) ile ilgili tipik olarak sorulabilecek sorular:
+1)reserve fonksiyonunun işlevinin bilinip bilinmediği, reserve fonksiyonunun çağırılması gerekilen yerde onun yerine gereksiz yere reallocation'a neden olunup olunmadığı
+2)dangling pointer olup olmadığının anlaşıp anlaşılmadığı
+3)reallocation'nın maliyetinin farkında olunup olunmadığının 
+4)taşıma semantiğinden faydalanmanın bilinip bilinmediği: özellikle taşınma semantiğinden faydalanmak için çoğunlukla biizm ekstra bir şey yapmamıza gerek yoktur, çünkü 
+örneğin aşağıda ki örnekte olduğu gibi çoğu zaman farkında olmasakta taşıma semantiğinden faydalanmış oluruz:
+#include <iostream>
+#include <string>
+
+std::string foo();
+
+int main()
+{
+    using namespace std;
+
+    string s;
+
+    //....
+
+    s = foo();
+
+}
+s = foo();  deyiminde taşıma semantiğinden faydalanmış oluruz, fonksiyon çağrı ifadesi bir PR val. expr. olduğu için burada taşıma semantiğinden faydalanmış oluyoruz.
+
+Taşıma semantiğini kullandığımız bir diğer örnek ise şudur:
+
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    ifstream ifs{"necati.txt"};
+
+    if(!ifs) {
+        //code
+        return 1;
+    }
+
+    string sline;
+    vector<string> svec;
+
+    while(getline(ifs, sline)) {
+        svec.push_back(sline);
+    }
+}
+bu kodda 2 tane tipik problem olabilir:
+1)Burada aslında vector sınıfının 2 tane push_back fonksiyonu vardır.Hocamız böyle overload'u taşıma overload'u olarak isimlendirmiştir. Yukarıdaki push_bask fonksiyonu L val. expr.
+aldığı için parametresi const string& olan push_back fonksiyonu çağırılır oysa fonksiyona gönderilen argüman bir R val. expr. olsaydı bu durumda parametresi string&& olan push_back 
+fonksiyonu çağırılırdı. Yani vector sınıfın basit hali şu şekilde:
+class vector {
+public:
+    push_back(const string&);
+    push_back(string&&);
+};
+her iki push_back fonksiyonuda vector'e sondan ekleme yapar arada ki fark ise L val. expr. olan sınıf nesneleri için  push_back(const string&); fonksiyonu çağırılır, ve bu 
+vector'e ekleme yaparken string nesnesinin kopyasını çıkarır yani vector'de oluşturacağı string'i string sınıfının copy ctor'ı ile oluşturur. PR val. expr olan sınıf nesneleri
+için ise push_back(string&&); fonksiyonu çağırılır, vector'de oluşturacağı string'i string sınıfının move ctor'ına çağrı yaparak oluşturur. Dolayısıyla bizim örneğimizde 
+argüman L val. expr. olduğu için push_back(const string&); fonksiyonu çağırılır, satıların 5000/10000 karakterlik olduğunu düşünelim; 5000/10000 karakterlik yazılar için deep copy
+yapılması anlamına gelir. Fakat sağ taraf referansı parametreli fonksiyonun çağırılması daha uygundur, çünkü böylelikle sadece pointer'lar kopyalanır, string'in kendisi kopyalanmaz. 
+O halde burada taşıma semantiğinden faydalanıp, kaynağını çalabiliriz:
+işte burada moved-from state'den de faydalanmış oluyoruz çünkü moved-from state'de olması yeniden  kullanılmasına engel değildir(her turda yeniden kullanıyoruz!)
+yani sline yeniden bir değer yüklemek mümkündür, zaten döngünün her turunda yapılan da budur:
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    ifstream ifs{"necati.txt"};
+
+    if(!ifs) {
+        //code
+        return 1;
+    }
+
+    string sline;
+    vector<string> svec;
+
+    while(getline(ifs, sline)) {
+        svec.push_back(move(sline));
+    }
+}
+bu örnekte taşıma semantiğinden faydalanmak için bizim müdahale etmemiz gerekti, fakat bu tür senaryoların dışında taşıma semantiğinden otomatik olarak faydalanıyoruz.
+
+===================================================================================================================================================================================
+C++20 standardı ile dile yeni bir operator eklendi; dilin sentaksında yapılan bu denli önemli değişikliklere "core syntax değişiklikleri" deniyor. Bu operatorun teknik olarak 
+ismi tree-way comparison operator popüler isimi ise spaceship operator'üdür. Bunun dile eklenmesi önemli bir farktır; çünkü:
+1)Bu operatörün dile eklenmesi ile birlikte standart kütüphanede, standart kütüphanemizin sınıflarının neredeyse tamamının karşılaştırma işlemleri yapan operator grubu değiştirildi.
+Yani hemen hepsine tree-way comparison operator eklendi, eklenmediyse de karşılaştırma == operator fonksiyonu yeni kurallara göre uyarlandı.
+2)tree-way comparison operator'de default edilebiliyor, eskiden sadece special member function'lar default edilebiliyordu bununla beraber default edilebilen operator sayısı artmış oldu.
+Hem == operatorü hem de tree-way comparison operator'ü default edilebilir hale geldi. Ve == operator fonksiyonu ile ilgili kurallar da değiştirildi, örneğin == varsa artık 
+!='i  yazmamız gerekmiyor; !='i derleyici kendisi yazabilir hale geldi yani == varsa != otomatik olarak !(==) şeklinde bildiriliyor.
+
+Dolayısıyla aşağıda karşılaştırma işlemleri ile ilgili ele alınan yapı yerini tree-way comparison operator'a bırakmış durumdadır; fakat biz yine de C++20 öncesindeki gibi 
+ele alalım:
+
+karşılaştırma fonksiyonları 
+operstor overloading mekanizması ile string nesnelerini başka string nesneleri ile karşılaştırabildiğimiz gibi cstring'ler ile de karşılaştırabiliriz. Hem eşitlik/eşitsizlik
+karşılaştırması hem de relational operators(<, > >=, >=) operatorlerini string'lerin karşılaştırılmasında kullanabiliriz. Bütün bu karşılaştırma operatörleri bool döndürüyor.
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string s{"volkan"};
+
+    if(s == "volkan") {
+
+    }
+
+    if(s != "volkan") {
+        
+    }
+
+    if(s < "volkan") {
+        
+    }
+}
+string'in bir cstring ile karşılaştırılabiliceğini görüyoruz. İki string için de aynı karşılaştırma işlemlerini yapabiliriz:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string s{"volkan"};
+
+    string name;
+
+    if(s == name) {
+
+    }
+
+    if(s != name) {
+        
+    }
+
+    if(s < name) {
+        
+    }
+}
+
+karşılaştırma işlemlerini farklı şekillerde yapabiliriz:
+string sınıfının üye fonksiyonu olan compare fonskiyonu ile; bu fonksiyonun geri dönüş değeri int'tir. Tıpkı strcmp gibi compare fonksiyonu karşılaştırmanın kesin sonucunu 
+döndürüyor. Burada hatırlanması gereken yalnızca C'de bulunan strcmo fonksiyonu/konvensiyonu hatırlamaktır.  Çünkü yalnızca strcmp fonksiyonu değil memcmp ya da 3. parti C 
+kütüphanelerinde ki birçok karşılaştırma fonksiyonu da C'nin standart kütüphanesinin sıralam fonksiyonu olan qsort'un istediği callback'te hep aynı karakterdedir: 
+int compare(x ,y)   fonksiyonun geri dönüş değeri işaretli int yapılır, ve 2 varlık karşılaştırılır eğer fonksiyonun geri dönüş değeri pozitif bir tam sayı ise 1. varlık 
+büyüktür, negatif ise 2. varlık büyüktür eğer 0 ise 2 varlık birbirine eşittir. 
+if(!strcmp(s1, s2)) s1 ve s2 eşit ise döngüye girer
+
+İşte bu konvensiyon yani karşılaştırmanın kesin sonucunu int türden bir değer ile döndürmek C'de çok yaygındır. İşte C++'ta da ilk defa karşımıza çıkıyor. string sınıfının 
+compare fonksiyonunun bütün overload'ları böyledir. Yalnız bu üye fonksiyon olduğu için karşılaştırdığımız *this ile argümana konu yazıyı karşılaştırmış oluyoruz. 
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string s{"volkan"};
+
+    if (s.compare("yesim") < 0 ) //yesim yazisi volkan yazisindan büyük mü ? evet
+}
+Bu karşılaştırmayı operator ile de yapabiliyoruz fakat burada karşılaştırmanın geri dönüş değeri int ile elde etmiş oluyoruz!! Bunun bir sürü overlaod'u vardır:
+örneğin substring'leri karşılaştırabilirim:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string s1{"volkan"};
+    string s2{"nuri demirel"};
+
+    int resılt = s1.compare(3, 4, s2, 6, 3);    
+}
+compare'in daha önce gördüğümüz temel parametrik yapılardan neredeyse hepsine destek veren overload'u vardır.
+
+ilerde ele alacağımız karşılaştırma algoritmaları vardır; string sınıfı bir conatiner olduğu için bir range oluşturduğu için algoritma formunda olan yani global fonskiyon 
+şablonlarınıda karşılaştırma işlemlerinde kullanabiliriz:
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    string s1{"volkan"};
+    string s2{"nuri demirel"};
+    lexicographical_compare()
+}
+
+=====================================================================================================================================================================================
+
+arama fonksiyonları
+isminde find geçer, burada ki find fiili search ile aynı anlamda kullanılıyor. Makro düzeyde arama fonksiyonları için şöyle bir ayrım yapabiliriz:
+a)string sınıfının arama fonksiyonları
+b)arama algoritmaları-->veri yapılarında range'lerde arama işlemi yapan algoritmalarde var, STL konusunu incelerken ele alacağız. a seçeneğini b ile karıştırmamalıyız!
+Tabii ki string sınıf nesneleri için yapacağımız aramalarda arama algoritmalarını da kullanabiliriz. 
+
+Önemlibir not: string sınıfının container olması çok önemlidir!! Konuyla yeni tanışanların çok sık yaptığı bir hata da şudur: başka dilde böyle bir fonksiyon var fakat C++'ın string 
+sınıfında bu yok. Böyle bir durumda ilk şüpheleneceğimiz yer: her şey üye fonksiyon ile yapılmıyor. Örneğin string sınıfının reverse etmek için bir üye fonksiyonu yoktur, fakat
+string sınıfı aynı zamanda bir container olduğu için reverse de bir algoritma olduğuna göre reverse algoritmasını string nesnesi için de kullanabiliriz fakat çağrı biçimi farklıdır:
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    std::string name{"cinar gursoy"};
+
+    std::cout << name << '\n';
+    reverse(name.begin(), name.end()); //reverse std ile nitelememe rağmen sentaks hatası olmaz çünkü ADL ile std namespace'inde aranır ve bulunur.
+    std::cout << name << '\n'; 
+}
+veya sıralama fonksiyonu olan sort'u kullanabiliriz:
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    std::string name{"cinar gursoy"};
+
+    std::cout << name << '\n';
+    sort(name.begin(), name.end()); //sort std ile nitelememe rağmen sentaks hatası olmaz çünkü ADL ile std namespace'inde aranır ve bulunur.
+    std::cout << name << '\n'; 
+}
+
+bu ve daha birçok fonksiyonu  örneğin sınıfın trim fonksiyonu da yok fakat trim fonksiyonunu da yine STL algortitmalarına çağrı yaparak implemente edebiliriz. Yani string'in bir 
+container olduğunu  algoritmalarında çoğunlukla kullanıldığını unutmamalıyız!!
+
+aşağıda verilen örnek ile STL algoritmaları ile string'in bir container olduğunun gösterildiği ve STL algoritmalarının ya da STL'de bazı global fonksiyonların string sınıf nesneleri
+ile kullanılabilceğini gösteren bir örnek verilmiştir. Bu örnekte string'de bulunan sesli karakterlerin yazıdan silinmesi isteniyor, string sınıfının böyle bir fonksiyonu yoktur ama 
+aslında yapan algoritma veya algoritmalar var. Örneğin C++20 standartını kullanmazsak eskiden remove_erase isimli idiomik yapı kullanılıyordu. 
+//remove erase idiom'u
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+
+    string str{"buraya bakin burada bu kara mermerin altinda..."};
+
+    str.erase(remove_if(str.begin(), str.end(), []char c) {return string{ "aeoui" }.find(c) != string::npos; }), str.end());
+
+    std::cout << str << '\n'; 
+}
+Her yeni C++  standartı bazı kolaylıklar getiriyor; eğer ki C++20'yi destekleyen bir kod yazarsak:
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+
+    string str{"buraya bakin burada bu kara mermerin altinda..."};
+
+    erase_if(str,  []char c) {return string{ "aeoui" }.find(c) != string::npos;});
+    std::cout << str << '\n'; 
+}
+burada ki erase_if global fonksiyonu C++20 standardı ile dile eklenmiştir. Dolayıısyla C++20 desteği yoksa buradaki erase_if'i çağırmak yerine yukarıdaki gibi açık açık kendimiz
+yani remove erase idiom'u ile yazmalıyız. 
+
+Makro Düzeyde Arama Fonksiyonlarının Özellikleri:
+1)arama fonksiyonlarının isimlerinde hep find geçiyor:
+find
+rfind
+find_first_of
+fnd_last_of
+fnd_last_not_of
+fnd_first_not_of
+     string'de bir arama yapar, aranan öğe farklı şekillerde argümanlarla ifade ediliyor olabilir. Yani örneğin bir string'de bir string arıyor olabilirsiniz, 
+    bir karakter arıyabiliriz, bir cstring arıyabiliriz, bir string'in substring'ini arıyabiliriz yani function overloading ile her türlü arama imkanı verilmiş.
+
+2)arama fonksiyonlarının hepsinin istisnasız geri dönüş değeri indeks yani string::size_type'ıdır. string'in size_type'ıda bizim basic::string<char> açılımı olan string sınıfımız 
+için her zaman size_t'dir. Dolayısıyla find fonksiyonlarının geri dönüş değeri string sınıfı için size_t'dir. 
+3)string   sınıfının find fonksiyonlarının hepsinin ortak özelliği ne arıyorsa bulursa aradığını bulduğu yere ilişkin indeks döndürmesidir. Bulamazsa string::npos'u döndürür.
+Dolayısıyla arananın bulunup bulunmadığının test etmenin yolu her zaman arama fonksiyonu için geri dönüş değerinin npos olup olmadığına bakmaktır. npos'un string sınıfının 
+static constexpr veri elemanı olduğunu unutmamalıyız. 
+
+C++23 ile dile eklenen fonksiyonu
+arama işlemlerinin bir kısmında aslında  biz aslında var mı yok mu'nun cevabını almış oluyoruz. Fakat arama fonksiyonları hep indeks döndürüyor, fakat C++23 ile dile eklenen 
+ismi contains olan global fonksiyonlar (sadece string için değil birçok overload'u ) vardır; eğer aranan varsa boolean true değer döndürüyor yoksa false değer döndürüyor.
+
+4)string'in içinde yaptığımız aramayı string'in tamamında yapmak zorunda değiliz yani yazının tamamında da arama yapabiliriz ya da yazının belirli indeksinden sonraki substring
+içinde de arama yapabiliriz. Böylece birden fazla öğeyide bulabiliriz:
+örneğin yazıdaki bütün i karakterlerini bulmak istesem; arama fonksiyonlarının ilginç özelliklerinden biri de aslında bir parametre hep default argüman olarak 0 indeksini alıyor. 
+Ve aramayı default olarak o parametreye argüman geçmezsek hep 0 indeksinden başlayarak yapar; fakat biz ona istediğimiz indeksi geçebiliriz.
+Örneğin necati ergin yine bize ders anlatiyor yazısında  ilk olarak necati'deki i bulunur ardından arama fonksiyonuna tekrar bulunan indeksten bir sonraki indeksi
+geçersek  ergin yine bize ders anlatiyor yazısını vermiş oluruz, ergin'in içindeki i bulunur böyle böyle yazının sonuna gelerek yazının içindeki tüm i'ler bulunmuş olur.
+
+
+Arama fonksiyonlarının hepsinin overload'ları vardır, yani belirli parametrelere arananı geçiyoruz. Aranan bir karakter olabilir, aranan başka bir string olabilir, aranan başka bir 
+string'in substring'i olabilir. Dolayısıyla aranan varlığı farklı şekillerde overload'lar kullanarak seçebiliyoruz. 
+
+rfind
+arama sondan başa doğru yapılır yani son geçtiği yerin indeksini döndürür. 
+
+find_first_of
+bu fonksiyon ile bir yazının içinde bir karakter grubundaki karakterlerden ilk'inin geçtiği yeri bulabiliriz. Örneğin yazıdaki ilk sesli harfi bulma, yazıdaki şu yazının 
+karakterlerinden herhangi biri olan ilk karakteri bulma, vb. Yani find_first_of örneklerden birinin geçtiği ilk yer anlamındadır.
+find_first_not_of ise bunlardan birinin olmayanın ilk bulunduğu yer; ilk rakam karakteri olmayan karakteri bulduğumuz bir örnek yaptığımızı düşünelim. 
+find_last_of bu karakterlerden birinin son geçtiği yer, find_last_not_of bu karakterlerden biri olmayan karakterin son geçtiği yer.
+
+örneğin kullanıcıdan alınan karakteri yazı içinde bulan kodun yazımı:
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" };
+
+    char c;
+
+    cout << "aranan karakteri giriniz: ";
+    cin >> c;
+
+    if(auto idx = str.find(c); idx != string::npos) {
+        std::cout << "bulundu... idx = " << idx << '\n';
+        str[idx] = '*';
+        cout << str << '\n';
+    }
+    else
+        cout << "bulunamadi\";
+}
+
+karakter değil de yazıda string arayalım:
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" };
+
+    cout << "aranan yaziyi giriniz: ";
+    string searched;
+    cin >> searched;    
+
+    if(auto idx = str.find(searched); idx != string::npos) {
+        std::cout << "bulundu... idx = " << idx << '\n';
+        auto len = searched.length();
+        str.replace(idex, len, len, '*'');
+        cout << str << '\n';
+    }
+    else
+        cout << "bulunamadi\";
+}
+
+veya cstring arayalım ve find ile aramayı gerçekleştirirsek:
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "gel necati dedim ona necati dedim" };
+
+    cout << "aranan yaziyi giriniz: ";
+    string searched;
+    cin >> searched;    
+
+    if(auto idx = str.find("necati"); idx != string::npos) {
+        std::cout << "bulundu... idx = " << idx << '\n';
+        str.replace(idex, 6, 6, '*'');
+        cout << str << '\n';
+    }
+    else
+        cout << "bulunamadi\";
+}
+eğer aynı örneği rfind ile yaparsak son necati'yi bulur:
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "gel necati dedim ona necati dedim" };
+
+    cout << "aranan yaziyi giriniz: ";
+    string searched;
+    cin >> searched;    
+
+    if(auto idx = str.rfind("necati"); idx != string::npos) {
+        std::cout << "bulundu... idx = " << idx << '\n';
+        str.replace(idex, 6, 6, '*'');
+        cout << str << '\n';
+    }
+    else
+        cout << "bulunamadi\";
+}
+
+find_first_of örneği:
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "gel necati dedim ona necati dedim" };  
+
+    if(auto idx = str.find_first_of("atkms"); idx != string::npos) {
+        std::cout << "bulundu... idx = " << idx << '\n';
+    }
+    else
+        cout << "bulunamadi\";
+}
+
+find_first_not_of örneği:
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "gel necati dedim ona necati dedim" };  
+
+    if(auto idx = str.find_first_not_of("elsang "); idx != string::npos) {
+        std::cout << "bulundu... idx = " << idx << '\n';
+    }
+    else
+        cout << "bulunamadi\";
+}
+
+                                                        
