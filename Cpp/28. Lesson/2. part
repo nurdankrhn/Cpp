@@ -1,0 +1,196 @@
+max_size() bis container'ın tutabileceği maksimum öğe sayısını göndürüyor. capacity() ise string'in kapasite değerini döndürür.
+max_size() bütün container'lar içindir:
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "gel necati dedim ona necati dedim" };  
+
+    cout << "str.max_size() = " << str.max_size() << '\n';
+        
+    cout << "str.capacity() = " << str.capacity() << '\n';
+}
+
+string işlemlerinde kullanıla + operator fonksiyonun ile string ile full string/cstring'i/karakteri toplayabiliriz:
+
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string s1{ "ali" };  
+    string s2{ "caner" };
+    cout << s1 + s2 + 'a' + "kman" << '\n';
+}
+toplama işleminin değişme özelliği olduğu için örneğin string ile karakteri de toplayabiliriz
+veya karakter ile string'ide toplayabiliriz. 
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    string s1{ "ali" };  
+    string s2{ "caner" };
+    cout << s1 + s2 << '\n';
+    cout << s2 + s1 << '\n';
+    cout << s1 + "hasan" << '\n';
+    cout << "hasan" + s1 << '\n';
+    cout << s2 + '!' << '\n';
+    cout << '!' + s2 + '!' << '\n';
+}
+burada çok sık yapılan bir hata şudur; C dilinde ve C++ dilinde 2 pointer'ı toplayamayız!!!
+ 
+ 
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    const char *p = "volkan";
+    string name{ "hasan" };
+
+    p + "ali" + name --->toplama işlemi içinde bir tane string olduğu için bu toplamının legal olduğunu düşünmemiz hatadır!!
+}
+toplama operatoru soldan sağa önceliğe sahip olduğu için en sağdaki toplama operatorunun operandı p + "ali" dir. p + "ali"
+ifadesi sentaks hatasıdır, çünkü burada toplanan 2 tane adrestir; 2 tane pointer'ın toplanması C'de de C++'ta da sentaks haatsıdır!!!
+
+Bunu legal kılmanın bir yolu var; henüz incelememiş olsakta ilerde ele alacağımız User Defined Literal(UDL) denilen bir araç var.
+Kendi sabitlerimizi/literallerimizi oluşturabiliyoruz. İşte string sınıfı da böyle bir operator fonksiyonu veriyor:
+"ahmet" bir cstring yani string literali fakat sonuna s ekleyince string nesnesi olur "ahmet"s yani aslında bu şekilde yazdığımız zaman
+şöyle bir fonksiyon çağırmış oluyoruz:
+operator""s("ahmet", 5); bu çok sık kullanılan bir araçtır. O halde aşağıda verilen kod legaldir:
+#include <string>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    cout << ("ahmet" + "can"s) << '\n'; //string ile cstring toplanıyor
+    cout << ("ahmet"s + "can"); //string ile cstring toplanıyor
+}
+
+string işlemleri ile ilgili bir string kütüphanesi var, fakat string işlemleri ile ilgili 2 tane daha standart kütüphanemizin alt 
+kütüphanesi vardır:
+1)regex(regular expression) işlmeleri için std::regex kütüphanesi
+2)string_view C++17 ile dile eklenmiştir!! 
+Bir yazı bellekte ardışık karakterlerin oluşturduğu bir birimdir. Örneğin bir yazı bir string nesnesine bağlı olarak tutulabilir
+yani std::string nesnesi oluşturmuşuzdur onun için arka planda bulunan kodlar heap'te bellek alanı allocate etmiştir dolayısıyla
+bu yazı heap'te tutuluyor olabilir: string str{"bircan ali C++ programcisi"}; veya bu bir 
+string literali'de olabilir:"bircan ali C++ programcisi" bu durumda  statik veri olarak tutulmaktadır; veya bu bir 
+c-style char array'de de tutuluyor olabilir veya elemaları char olan bir containerda da tutulabilir:
+vector<char> cvec(100, 'A'); gibi
+Eğer bizim amacımız bir yazı üzerinde salt okuma amçlı erişim gerçekleştirmek ise amacımız yazıyı değiştirmek değilse o zaman yazının
+kopyasını çıkarmak yerine sadece 2 tane pointer alsak(initializer_list'te olduğu gibi) bu 2 pointer'ı kullanarak yazıyı kullanabiliriz.
+İşte bunun için olşturulmuş ve 2 tane pointer tutan, bu 2 pointer aracılığıyla yazıya erişme amaçlı kullanan bir sınıf vardır. Ve bu 
+sınıf için oluşturulmuş bir interface'de vardır ve buraya string sınıfının bütün okuma amaçlı fonksiyonları bu sınıfa eklenmiştir.
+Böylece kopyalama yapmak yerine sadece 2 tane pointer'ı kopyalayarak herhangi bir bellek alanında tutulan std::string, cstring, 
+vector, string literal bütün yazılar üzerinde işlem yapabiliriz. İşte bu string_view'dır. Bazı yerlerde string sınıfı yerine 
+string_view sınıfını kullanmak olağan üstü bir verim artışı sağlar; çok önemli bir sınıftır. Örneğin:
+run time'da değeri belli olan 200'000 karakterlik bir string nesnesi olsun. 30'000 ile 70'000 arasında bulunan karakterleri substr ile 
+alıyoruz fakat substr ile bunu yaptığımız zaman aslında yazının 40'000 karakterlik kısmının kopyalanmasına neden oluruz. Eğer amacımız 
+bu substring'i salt okuma erişim amaçlı kullanmak ise substr ile almak yerine sadece bu kısmı gösteren 2 tane pointer almak bütün
+işlemleri yapabilmemize olanak tanırdı zaten. İşte bunun için kullanılan sınıf string_view'dır:
+int main()
+{
+    using namespace std;
+
+    string str(200'000, 'A');
+
+    auto s = str.substr(30'000, 70'000);
+}
+string sınıfı yerine string_view sınıfı ile elde etseydik substring'i o zaman hem bir yerden bir yere gereksiz 40'000 karakterlik
+kopyalama yapmazdık hem de artık amacımıza uygun elde edilen substring'in sadece gözlemcisi oluruz:
+int main()
+{
+    using namespace std;
+
+    string str(200'000, 'A');
+
+    string_view sv(str, 30'000, 70'000);
+}
+#include <iostream>
+#include <string>
+#include <string_view>
+
+int main()
+{
+    using namespace std;
+
+    cout << "sizeof(int) = " << sizeof(int) << '\n';
+
+    cout << "sizeof(string_view) = " << sizeof(string_view) << '\n';
+}
+string_view sınıfı initializer_list'e çok benzer fakat initializer_list'te derleyici kendisi arka planda bir (static) dizi oluşturuyor,
+string_view'da oluşturulan bir dizi yok, burada sadece var olan bir bellek alanına 2 tane pointer almış oluyoruz. Dolayıısyla 
+yazının bir kopyasını çıkarmadığımız gibi bir başka yere bunu aktarmak istediğimiz zaman(okuma amaçlı) sadece 2 pointer'lık bellek alanı
+kopyalamış oluyoruz.
+
+void func(std::string_view);
+Buradan çıkarılıcak bir diğer önemli sonuçta şudur; string_view'ın string ile ilgili olmak zorunda olmadığıdır. Yani örneğin bir 
+string'in parametresi string_view ise bu fonksiyona geçilen argümanın bir string olması gerekmez! bellekte ardışık olarak tutulan 
+karakterler'le ilgili her şeyi geçebiliriz: bir char diziye pointer da olabilir, bir string'e pointer olabilir, bir string literali'ne
+pointer olabilir, bir vector'e olabilir yani string olmak zorunda değildir!!!
+
+class StringView {
+public:
+    std::size_t length()
+    {
+        return pe - ps;
+    }
+private:
+    const char *ps;
+    const char *pe;
+};
+yani string sınıfında olan  bütün const fonksiyonlar bu sınıfta da var. Aradaki fark ise string_view  türünden bir nesne bir yazının 
+sahibi değildir. Bir yazının gözlemcisidir sadece!
+
+C++17 ile dile eklenen birçok araç olduğu için bizim kendi biresyel tercih olarak minimal base olarak C++17'yi kabul etmeliyiz.
+
+eğer ki string literali ile aynı işlemleri yapsaydık o zaman yazının bir interface'i olmazdı:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    const char *p = "mustafa yanikdorugu"; //string literals
+
+    string_view(p); //artık bir interface'e sahip
+}
+artık bu yazı üzerindeki bütün işlemleri sınıfın sağladığı fonksiyonlar ile yapabiliriz; string str(p); deseydik o zaman yazının bir 
+kopyasını çıkarmış olurduk.
+
+çok tipik yapılan bir hata!!
+stirng_view sınıfını çok dikkatli kullanmamız gerekir çünkü bu sınıf yazının sahibi değil, mülkiyet onda değildir. Eğer ki adresini
+tuttuğu yazı nesnesinin ömrü biterse string_view nesnesi içindeki pointer/pointer'lar dangling hale gelir:
+
+#include <iostream>
+#include <string>
+#include <string_view>
+
+int main()
+{
+    using namespace std;
+
+    string str = "mustafa yanikdorugu bir soru sordu"; 
+
+    string_view sv{str};
+
+    cout << sv << '\n';
+
+    //ekleme sonucu yüksek olasılıkla reallocation olur ve sv nesnesinin gösterdiği pointer/lar dangling hale gelir
+    str.append(300, 'A');
+    cout << sv << '\n'; //ub
+}
