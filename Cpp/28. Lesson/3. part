@@ -1,0 +1,443 @@
+Sadece string sınıfı için değil bütün  container'lar için hem global swap fonksiyonu vardır hem de sınıfın üye fonksiyonu olan swap fonksiyonu vardır. 
+swap yamak için basic yöntemle şunu yapabiliriz:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string s1(100'000, 'A');
+    string s2(100'000, 'Z');
+
+    string temp = s1;
+    s1 = s2;
+    s2 = temp;
+}
+string temp = s1; ifadesi için copy ctor çağırılır ve 100'000 karakterlik yazının kopyası çıkarılır; s1 = s2; ifadesi için copy assigment çağırılır; s2 = temp; ifadesi için 
+copy assigment çağırılır; oysa sınıfın swap fonksiyonunu  çağırdığımız zaman sınıfın swap fonksiyonu sadece string nesnesinin içindeki pointer'ları takas ediyor, yani sadece
+pointer'ların takas edilme maliyeti var. Dolayısıyla asla ve asla yukarıdaki gibi bir swap işlemi yapmamalıyız!!!! Mutlaka ya global ya da string sınıfının swap fonksiyonunu 
+çağırarak bu işlemi gerçekleştirmeliyiz!! Bu sadece string sınıfı için yapılan swap işlemleri için değil bütün STL container'ları için böyledir. 
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string s1(100'000, 'A');
+    string s2(100'000, 'Z');
+
+    s1.swap(s2);
+    //veya
+    std::swap(s1, s2);
+}
+global fonksiyonun sınıfın içindeki pointerlara erişmesi gayet normal bir durumdur çünkü global fonksiyonda aslında yapılan çağrıyı sınıfın üye fonksiyonuna yapılan çağrıya 
+dönüştürüyor.
+
+string sınıflarının inserter fonksiyonları olduğundan dolayı bir stream'e string nesnesi verebiliriz; bu bir ostream olabilir ya da ostream'den kalıtım yoluyla elde edilmiş 
+başka bir stream nesnesi olabilir. Örneğin:
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "bu bir yazi olsun ornek olarak" };
+
+    cout << str << '\n'; //operator << fonksiyonu ile herhangi bir stream'e verebiliriz bu stream illa std::ostream olmak zorunda değil 
+
+    //dosyaya aynı interface ile bir dosyaya ya da  bir bellek alanına da çıkışını yapabiliriz
+    std::ofstream ofs{ "out.txt" };
+    if(!ofs) {
+        std::cerr << "out.txt dosyasi olusturulmadi\n";
+        exit(EXIT_FAILURE);
+    }
+    ofs << str; //string out.txt dosyasına yazıldı
+}
+
+extraction için yani bir giriş akımından gelen karakterlerini string'e yüklemek için operator >> fonksiyonu vardır; fakat burada şuna dikkat edilmelidir; operator >> fonksiyonları
+white space karakterleri ayıraç olarak alıyor!!; eğer boşluk karakterlerini de string'e almak istersek global ismi getline olan bir fonksiyon vardır onu kullanmalıyız:
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string name;
+
+    cout << "ismin ne birader : ";
+    cin >> name; //ahmet han girersek boşluk karakterini ayraç olarak ele aldığı için name'e ahmet atanır
+
+}
+
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string name;
+
+    cout << "ismin ne birader : ";
+    getline(cin, name); //ahmet han girersek boşluk karakterini ayraç olarak ele almadığı için name'e ahmet han atanır
+}
+getline 3. parametre'yi default argüman olarak '\n' karakterini alıyor yani ayraç olarak '\n' ı kullanıyor; fakat biz kendi delimeter'ımızı fonksiyona argüman olarak geçebiliriz;
+örneğin 3. parametreye argüman olarak '!' karakteri geçersek string'e atanan değer '!' karakteri görene kadarki kısmın hepsi atanır:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string name;
+
+    cout << "bir yazi giriniz : ";
+    getline(cin, name, '!'); //giriş olarak kullanıcı "  ali hakan!denizhan" girdiğini varsayarsak
+    //name:  ali hakan olur
+}
+yani delimeter'ın/sınırlandırıcı karakterin newline karakteri olması gerekmiyor; newline sadece default argüman'dır. 
+delimeter sonrası buffer'da kaldığ için bir başka okuma işlemi yapsak buffer temizlenmez ise oradaki karakterler kullanılır!
+
+string sınıfına dönüşüm için ismi to_string  olan fonksiyonların overload'u vardır:
+to_string'in bütün tam sayı ve gerçek sayı türleri için overload'u olduğu için dönüşümlerde herhangi bir problem olmaz; tabii standart kütüphanede başka dönüşüm
+fonksiyonları da vardır.
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    int ival{ 3534612 };
+    string name{ "zeynep" };
+
+    cout << name + to_string(ival) << '\n'; //zeynep3534612
+
+}
+örneğin tıpkı C'de bulunan atoi fonksiyonunda olduğu gibi yazının tuttuğu tamsayıyı elde etmek istersek:
+1)C'nin atoi fonksiyonu ile bunu yapmak
+
+#include <iostream>
+#include <string>
+#include <cstdlib>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "928353murathan"};
+
+    int ival = atoi(str.c_str());
+
+    cout << ival << '\n';
+
+}
+fakat  bunu yapacak stoi fonksiyonu vardır; aslında her tür(stod, stoll, stol, vb.) için böyle bir fonksiyon vardır. 
+stoi'nin 1. parametresi dönüştürülücek stringi(referans semantiği ile), 2. parametresi default argüman olarak null pointer alıyor(size_t türünden bir pointer), 3. parametresi de
+int türden sayı sistemi tabanını istiyor ve 10 default değerini alıyor:
+#include <iostream>
+#include <string>
+#include <cstdlib>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "928353murathan"};
+
+    int ival = stoi(str);
+
+    cout << ival << '\n';
+
+}
+16'lık sistemde karşılığını istersek:
+#include <iostream>
+#include <string>
+#include <cstdlib>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "928353murathan"};
+
+    int ival = stoi(str, nullptr, 16);
+
+    cout << ival << '\n';
+
+}
+fakat burada 2. parametre çok önemlidir; default argümanı kullanmazsak size_t türünden bir elemanın adresini istiyor ve adresini aldığı size_t türünden değişkeni set ediyor.
+Kullanılmayan ilk karakterin indeksi ile set ediyor; böylece yazının ne kadarlık kısmının kullanıldığını ne kadarlık kısmının tam sayıya ilişkin olduğunu da test edebiliyoruz.
+Örneğin:
+#include <iostream>
+#include <string>
+#include <cstdlib>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "928ali353murathan"};
+
+    size_t idx;
+
+    int ival = stoi(str, &idx);
+
+    cout << ival << '\n'; //928
+    cout << idx << '\n'; //3
+
+}
+
+
+bu tür dönüşüm işlemlerini yapmanın bir başka yolu da belleğe yazma işlemleri; C'deki printf standart output'a yazıyor, sprintf ise belleğe yazıyor, fprintf ise dosyaya 
+yazıyor. C++'ta ise belleğe yazım için  ayrı sınıflar kullanıyoruz, bu sınıflar sstream başlık dosyasındadır:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    int x{ 34365 };
+
+    double dval = 234.96;
+    string name{ "alican" };
+
+    ostringstream oss;
+
+    oss << x << '&' << dval << '!' << name;
+
+    cout << oss << '\n'; 
+
+}
+
+burada oss aslında bellekte bir alanı kullanıcak, biz çıkışı bir bellek alanına yapacağız ama sınıfın str fonksiyonu bellekte tutulan bu yazıyı doğrudan bize bir string olarak
+verir.  Dolayısıyla örneğin bir tam sayıyı bir gerçek sayıyı string'e dönüştürmenin  bir başka yolu da buradaki ostringstream sınıfıdır.
+
+Sayı sistemi olarak 9'uda kullanabiliriz bu C'nin standart fonksiyonlarında da sorun olmaz fakat 16'lık sistemden sonrası standart bir sembole sahip olmadığı için onlar doğru çalışmaz.
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string s{ "8723487" };
+
+    int ival = stoi(s, nullptr, 9);
+
+    cout << ival << '\n'; //4680583
+
+    
+}
+sayı sığmaz ise bazı işlemler exception throw ediyor; örneğin:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string str{ "alican" };
+
+    try {
+        int ival = stoi(str);
+    }
+    catch(const std::exception& ex) {
+        cout << "exception caught: " << ex.what << '\n';
+    }
+
+    
+}
+
+Bazı işlemler için algoritmaları kullandığımızı söylemiştik; çok tipik işlemler:
+1)bir yazidan belirli karakterlerin hepsini silmek
+2)bir yazidan belirli koşulu sağlayan karakterleri silmek
+3)bir yazıdaki karakterleri saymak
+4)bir yazının başındaki sonundaki karakterleri atmak
+5)bir yazıyı ters çevirmek
+6)bir yazıyı dönüştürmek(küçük harften büyük harfe dönüştürmek gibi)
+vb. string'in üye fonksiyonunu kullanarak bu işlemi yapamayız; bunu  global bir fonksiyon ile yaparız;  bunların hepsi algoritmalar ile yapılıyor.
+
+C++'ın çok önemli bir ilkesi vardır; bu ilkeyi şu şekilde formalize ediyorlar: "avoid raw loops"  kötü kodların en tipik özelliklerinden biri ham döngü kullanılması.
+Programcılar genel olarak C++'ta belirli bir yetkinlik seviyesine gelene kadar standart kütüphaneyi kullanma becerisine tam sahip olmadıkları için standart kütüphanenin
+bileşenleri ile çok kolay okunabilir, test edilebilir, değiştirilebilir, anlaşılabilir kod yazmak yerine ve sadece bu özelliklere sahip olan değil belirli bir karmaşıklık
+garantisi olan kod ya da kodlar yazmak yerine bir sürü for loop yazıyorlar. Normalde ham döngü sadece alt seviyeli kodlarda olmalı; asla ve asla üretimdeki normal katmandaki 
+bir kodda ham döngü kullanmamalıyız!! Ham döngüler aslında fonksiyon çağrıları içinde gizlenmiş olmalıdır. Eğer biz standart kütüphanenin bir fonksiyonunu/algoritmasını 
+kullanmak yerine ham döngü kullanırsak:
+1)koda bakanın o kodun o döngünün ne yaptığını anlaması gerekir
+2)daha iyi anlaşılması için belki yorum satırları koymam gerekicek
+3)verim konusunda yine bir kaygı olabilir, örneğin bizim yazdığımız kod O(n2) karmaşılığına sahiptir aslında o işlem O(n) karmaşıklığında yapılıyordur. O halde biz orada 
+ciddi bir verim kaybına neden olmuş oluruz. 
+Tüm bu nedenlerden dolayı mümkün olduğu kadar ham döngülerden kaçınmamız gerekir. Örneğin   kullanıcıdan alanan bir karakterin yazı içerisinde kaç tane olduğunu bulan bir kodu
+raw loop ile yaparsak:
+#include <iostream>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string str{"yarin mubarek ramazan ayinin ilk gunu olacak, hayirlara vesile olsun"};
+
+    char  c;
+
+    std::cout << "sayilacak karakteri girin: ";
+    cin >> c;
+
+    int count{};
+
+    for(size_t idx{}; idx != str.size(); ++idx ) {
+        if(str[idx] == c)
+            ++count;
+    }
+}
+
+fakat bunun yerine zaten aynı işi yapan bir algoritma var, onu kullanmalıyım artık bu fonksiyon standart kütüphanenin bir bileşeni olduğu için herkes bunu bilmek zorunda olduğu 
+için koda bakan herkes burada ne olduğunu direk anlar:
+
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    string str{"yarin mubarek ramazan ayinin ilk gunu olacak, hayirlara vesile olsun."};
+
+    char  c;
+
+    std::cout << "sayilacak karakteri girin: ";
+    cin >> c;
+
+    int count{};
+
+    cout << count(str.begin(), str.end(), c) << "tane\n";
+}
+
+
+her zaman doğru olmasada hocamızın for ile while arasındaki tipik seçim kriteri: döngü bir döngü değişkeni ile kontrol ediliyorsa ya da bir iterator ile kontrol ediliyorsa
+o zaman for döngüsünü tercih ediyoruz. Fakat döngü eğer bir döngü değişkeni ile kontrol edilmiyorsa o zaman while döngüsünü kullanmak daha okunabilir bir yapı oluşturur. 
+Yani tipik olarak 1. tercihimiz for döngüsü 2. tercihimiz ise while döngüsü. do while'dan ise mümkün olduğunca kaçınmakta fayda vardır. Yani do while'ın görünür bir fayda
+sağlaması dışındaki senaryolarda do while'ı kullanmamakta fayda vardır.
+
+bazı algoritmalar:
+transform 
+for_each
+copy
+
+
+bazı işlemler tamamen iterator interface'i ile yapılıyor:
+
+#include <iostream>
+#include <string>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<char> cvec{'a', 'h', 'm', 'e', 't'};
+
+    string str;
+
+    str.assign(cvec.begin(), cvec.end());
+}
+
+yazının tüm karakterlerini büyük harfe dönüştüren algoritma:
+
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    string str{"yarin  ramazan ayinin ilk gunu"};
+
+    cout << str << '\n';
+
+    transform(str.begin(), str.end(), str.negin(), &std::toupper);
+    cout << str << '\n';
+}
+
+C++20 ve C++23 standardı ile eklenen bazı fonksiyonlar da vardır:
+yazı işlemlerinde çok sık karşılaştığımız bir ihtiyaçta bir yazının başında ya da bir yazının sonunda bir yazının olup olmadığını saptamaktır. Örneğin bir dosya isimleri tutan 
+bir string nesnesi olsun biz dosyanın uzantısının .jpeg olup olmadığını bulmak isteyelim ya da yazının belirli bir yazı ile başlayıp başlamadığını öğrenmek isteyelim. Bunu yapmak 
+için string sınıfının üye fonksiyonlarından faydalanabiliriz; fakat bunu yapmak için çok daha kolay bir arayüz dile eklendi:
+
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    string str{"alican345.jpeg"};
+
+     
+  if(str.starts_with("alican"))
+
+}
+veya
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    string str{"alican345.jpeg"};
+
+     
+  if(str.ends_with("jpeg"))
+
+}
+starts_with'inde ends_with fonksiyonun da geri dönüş değeri bool'dur.
+
+C++23 ile arama fonksiyonlarına alternatif olan contains fonksiyonu dile eklendi:
+örneğin yazının için de can yazısı var mı? normalde şöyle yazabiliriz find fonksiyonunu çağırıp aranacak varlık olan can'ı  cstring olarak verip geri dönüş değerini string::npos 
+olup olmadığını sorgulayabiliriz fakat artık onu yazmak yerine doğrudan dile eklenen contains fonksiyonunu kullanabiliriz:
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    string str{"alican345.jpeg"};
+
+     
+  if(str.contains("can"))
+
+}
+veya karakteri içerip içermediğine bakabiliriz:
+#include <iostream>
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    string str{"alican345.jpeg"};
+
+     
+  if(str.contains("j"))
+
+}
+contains'in geri dönüş değeri bize sadece aranan öğenin olup olmadığı bilgisini verir.
