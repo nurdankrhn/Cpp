@@ -1,0 +1,125 @@
+24 Mart 2023 - Cuma
+
+INHERITANCE
+Sınıflar arasındaki temel ilişki biçimlerinden biri nesne yönelimli programlama da özellikle "kalıtım" dır. Daha öncesinde composition denilen ve popüler olarak 
+has-a releationship(sahiplik ilişkisi) denilen ilşki biçimini gördük; yani bir nesne bir nesnenin sahibi; onun sahibi olarak onu kullanıyor ve işini görürken 
+kısmen ya da tamemen sahibi olduğu nesneyi kullanıyor(araba-motor, bilgisayar-anakart ilişkisi vb.).
+
+inheritance ise ingilizcede popüler olarak "is-a relationship" denilen sınıflar arası ilişki biçimini  vurguluyor. Bir sınıf türünden bir nesne aynı zamanda bir başka sınıf türünden  
+nesne olarak kullanılabilir. (Her bilgisayar bir elektronik cihazdır, her futbolcu bir sporcudur o halde sporcu gereken her yerde bir futbolcu da kullanılabilir çünkü o da bir sporcu)
+Yani bir varlığın aynı zamanda daha önce belirlenmiş bir varlık gibi o türdenmiş gibi kullanılabileceğini ilişki biçimidir. Burada da bizim bir sınıfımız olucak o sınıfın  
+interface'ini tamamen kendi interface'ine katan yeni bir sınıf oluşturmaktan bahsediyoruz. Bu programlamada gerçekten çok sık kullanılan bir araçtır. Burada makro düzeyde bazı 
+konuları anlamamız gerekiyor:
+1)Nesne yönelimli programlama tarafındaki kalıtım ile  C++ dilinde araç seti olarak yer alan kalıtım birebir  aynı değildir; C++'taki kalıtım araçları nesne yönelimli 
+programlamada  popüler olarak is-a relationship  denilen ilişki biçimini vurgulayan onu implemente eden kalıtımın üstünde bir araç setidir hocamızın tabiriyle onu aşkın bir
+araç setidir. Çok daha  geniş bir kullanım alanı vardır. Yani C++'ta örneğin her kalıtım is-a relationship oluşturma amaçlı değildir. Kalıtımın:                                                                                          
+a)türden bağımsız programlama tarafında önemli bir kullanım alanı var, tamamen oop ile kısmen ilgili fakat generic programlama paradigması ile daha çok ilgili kullanım alanları var
+b)is-a relationship'in tamamen dışında tamamen composition'a yönelik şekilde kullanımı da söz konusudur. O yüzden konuyu 2 ayrı bakış açısına ayrımakta fayda vardır. 
+
+
+is-a relationship ilişkisi
+var olan bir sınıf var o sınıfın interface'ini başka bir sınıf oluşturup; oluşturulan sınıfın var olan interfac'i kendi interface'ine katmasıdır. Örneğin benim sınıfımda sporcu 
+sınıfının bütün özelliklerine sahip olsun ama diğer taraftan yeni özellikler'de ekleyebileyim böylece her futbolcu bir sporcudur önermesi doğrulansın. Sporcu gereken her yerde 
+futbolcu kullanabileyim. 
+
+Bunu neden yapmalıyım?
+1)code reuse, her ne kadar ilk izlenim bu olsada asıl önemi bu değildir. Büyük resim aslında:
+2)farklı türden olan varlıkların ortak özelliklerini kullanarak bunları aynı türdenmiş gibi kullanabilmekte!!! Bu bize birçok avantaj sağlar fakat hiçbir araç mutlak avantaj
+sağlamaya yönelik değildir; avantajları olduğu gibi dezavantajları da vardır. Burada kalıtımın ana faydası şudur eski kodların yeni kodları kullanması yani değişime ve gelişmeye 
+daha açık hale getirmek fakat aynı zamanda üst katmandaki kodları alt katmandaki kodlara bağımlı olmaktan çıkarmaktır. 
+
+SOLID yazılım prensipleri diye adlandırılan ve dünya üzerinde, OOP nesne tabanlı yazılım geliştirirken kullanılan standartlaştırılmış 5 önemli tasarım ilkesi vardır.
+Bu 5 tasarım ilkesi, Robert C. Martin (Bob Amca) tarafından Design Principles and Design Patterns kitabında tanıtılmıştır.
+S is single responsibility principle (SRP)
+O stands for open closed principle (OCP)
+L Liskov substitution principle (LSP)
+I interface segregation principle (ISP)
+D Dependency injection principle (DIP)
+
+Yani kalıtımın aslında büyük resmi eski kodların yeni kodları kullanabilmesi; sınıflar arasındaki ortak özelliklere dayanarak bunları aynı türdenmiş gibi yönetmek/kullanmaktır.
+Böylece üst katmandaki kodların alt katmandaki kodlara bağımlılığını ortadan kaldırmaktır.  Örneğin doküman yönetim sistemini düşünürsek pdf, exel, word, hepsi birer ayrı formattır.
+1. yaklaşımda biz word'ü pdf'i exel'i bunları oluşturup ve bunları bir şekilde yöneten üst katmandaki kodu yazıyoruz. Fakat diğer yaklaşımda diyoruz ki dokümanın ne olduğu önemli 
+değil sonuçta benim için döküman yazdırılabilen txt'e dönüştürülebilen vb bir varlık. Dolayısıyla ben tamamen bu soyutlamaya yönelik olarak ana çatımı oluşturabiliyorum. Böylece alt
+katmandaki kodları bilmek zorunda kalmıyorum; herhangi bir sınıfın implementasyonuna bağlı olmak zorunda kalmıyorum. 
+
+TERMİNOLOJİ
+
+Kalıtım dediğimiz ilişki de 2 tane sınıf vadır; biri zaten var olan onun interface'ini kendi interface'ine katıcak yeni bir sınıf oluşturmak söz konusu. Dolayısıyla konunun adeta 
+2 tane oyuncusu var; biri zaten var olan sınıf(sporcu, tetris_shape, araba, vb.) diğeri de bu var olan sınıfın interface'ini kendi interface'ine katacak gerekirse o interface'e 
+birtakım eklemeler yapacak o var olan sınıf nesneleri gibi nesneleri davranabilecek oluşturacağımız yeni sınıf. İşte o zaten var olan kalıtımda kaynak olarak kullanılan sınıfa
+karşılık kullanılan terim özellikle oop tarafında super class ya da parent class deniliyor yani biz super/parent class'tan kalıtım yapıyoruz. Örneğin BMW sınıfını car sınıfından 
+kalıtım yoluyla elde ediyorsak car parent class BMW ise subclass/child class'tır. Kalıtım yoluyla elde edilen sınıfa da subclass ya da child class deniliyor bunu oop'nın kullandığı
+terminolojidir. Bu sürecin oluşumun kendisine de inheritance deniliyor.
+
+Fakat C++'ta farklı bir terminoloji var; yani bu terimleri kullanmak yerine özellikle de kalıtım
+is-a relationship'i aşkın onun üstünde çok daha genel amaçlı bir araç olduğu için terminoloji C++'ta biraz farklıdır. super/parent class terimi yerine biz base class terimini
+kullanıyoruz. base class(taban sınıf)'ın interface'ini kendisine ekleyerek elde ettiğimiz yeni sınıfa derived class(türemiş sınıf) deniliyor. Kalıtımın kendisine inheritance
+deniliyordu C++'ta ise türetme anlamında kullanılan terim derivation deniliyor. Örneğin animal sınıfı base class line sınıfı ise derived class'tır.
+
+
+OOP                                     C++
+super class  or parent class            base class
+subclass     or child class             derived class
+inheritance                             derivation
+
+
+Geleneksel olarak modelleme dillerinde sınıflar arasındaki ilişkileri gösteren sınıf diyagramlarında örneğin UML'de bu kalıtım ilişkisi türemiş sınıftan taban sınıfa doğru
+çizilen bir ok ile temsil ediliyor.Yani subclass'tan super class'a doğru gibi. Eğer kalıtım sadece taban sınıftan türemiş sınıfların oluşturulması biçiminde ise bu şekildeki 
+kalıtımı özellikle vurgulamak için single level inheritance deniliyor. Fakat birçok durumda biz super class'tan elde ettiğimiz subclass'ın kendisinide yine bir base class
+olarak kullanıp ondan da kalıtım yoluyla tekrar sınıf elde ediyoruz. İşte kalıtım bu şekilde gerçeklendiğinde buna da popüler olarak multi level inheritance deniliyor. 
+
+Dikkat!!
+C++ dilinde bir araç olarak sunulan fakat birçok programlama dilinde doğrudan olmayan ve programcılar tarafından başlangıçta multi level inheritance ile karıştırılan bir de 
+multiple inheritance vardır. multiple inheritance bambaşka bir araçtır. multiple inheritance bir sınıfın tek bir kalıtım süreci ile birden fazla parent class'tan oluşturulmasıdır.
+Yani birden fazla farklı sınıfın interface'ini alarak yeni bir sınıf elde edilmesidir.
+
+Çoğunlukla kalıtımın kullanıldığı programlarda birden fazla sınıf bir hiyerarşi içinde ve çoğunlukla da mılti level inheritance'ıda içeren bir hiyerarşi şeklinde bir arada 
+bulunacaklardır. İşte bu sınıfların oluşturduğu silsileye de çok sık kullanılan yine popüler bir terim olan class hierarchy deniliyor. Yani çoğunlukla kullandığımız kütüphanelerde
+böyle sınıf hiyerarşileri olucak ve hatta birçok durumda biz bu var olan sınıf hiyerarşisini kullandığımız gibi biz var olan hiyerarşiye eklemeler de yapacağız kendi sınıflarımızı
+bu hiyerarşiye ekleyebileceğiz.
+
+C++'ta 3 farklı kalıtım kategorisi vardır:
+
+1)public interitance ---> is-a relationship
+2)private interitance
+3)protected interitance
+
+Kalıtımın C++'taki Sentaksı
+Kalıtım gerçekleştirebilmek için bizim bir taban sınıfa ihtiyacımız vardır ve bu sınıf complite type olması gerekir!!
+class Car;
+
+class Audi : public Car {
+
+}; //syntax error
+
+kalıtımın  biçimini gösteren inheritance speicifier public, private veya protected sözcüklerinden olabilir:
+class Base {
+
+}; 
+
+class Der : public Base {
+
+};
+
+veya 
+class Der : protected Base {
+
+};
+
+veya
+class Der : private Base {
+
+};
+
+hiçbir zaman anahtar sözcük kullanmadığımız zaman yine geçerlidir;  fakat en sık kullanılan kalıtım biçimi public kalıtımı olmasına rağmen default'u private kalıtımıdır:
+
+class Der :  Base {
+
+};
+
+yani böyle yazmak ile class Der : Base{}; ile class Der : private Base{}; yazmak arasında fark yoktur. Fakat bu kuralında yine bir istisnası vardır;  eğer kalıtım yoluyla 
+oluşturduğunuz sınıfı oluştururken class anahtar sözcüğü yerine  struct anahtar sözcüğünü kullanırsak bu durumda default kalıtım biçimi public'tir. Yani  struct Der : Base{};
+ile  struct Der : public Base{};  Bu birazda class anahtar sözcüğü ile sınıf oluşturulduğu zaman default erişim bölgesinin private olması, struct anahtar sözcüğü ile sınıf 
+oluşturulduğu zaman default erişim bölgesinin public olmasıdır. 
+
+public kalıtımı en çok kullanılan kalıtım biçimidir(%90'ı)!!                
