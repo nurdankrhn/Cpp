@@ -122,4 +122,129 @@ oluşturduğunuz sınıfı oluştururken class anahtar sözcüğü yerine  struc
 ile  struct Der : public Base{};  Bu birazda class anahtar sözcüğü ile sınıf oluşturulduğu zaman default erişim bölgesinin private olması, struct anahtar sözcüğü ile sınıf 
 oluşturulduğu zaman default erişim bölgesinin public olmasıdır. 
 
-public kalıtımı en çok kullanılan kalıtım biçimidir(%90'ı)!!                
+public kalıtımı en çok kullanılan kalıtım biçimidir(%90'ı public %7'si protected %3'ü private şeklinde genelleme yapabiliriz)!!
+
+aksi yönde bir belirleme yapmadıkça ve o konuya kadar ilerlemedikçe artık biz inheritance dediğimiz zaman her zaman public inheritance'yi kastetmiş olacağız.
+
+Bir taban sınıftan bir türemiş sınıfı elde ettiğimizde aslında hem kodu okuyan hem kodu yazan hem de derleyici buradan şu anlamı çıkarıyor: taban sınıf ayrı bir sınıf
+türemiş sınıf ayrı bir sınıf fakat türemiş sınıf türünden nesneler base türünden nesneler gibi kullanılabilir. Türemiş sınıfın interface'ine taban sınıfın public interface'i
+dahil edilmiş durumdadır. Taban sınıfın interface'i sanki türemiş sınıf o interface'i yazmış gibi türemiş sınıfın onu yazmış gibi türemiş sınıfın public interface'ine ekleniyor.
+Bu şu anlama gelir türemiş sınıfın client'ları türemiş sınıfı kullanarak türemiş sınıfın taban sınıftan kalıtım yoluyla edindiği bu fonksiyonları çağırabilir; bu sadece fonksiyonlar 
+için geçerli olan bir durum değildir; tüm member'lar için geçerlidir. Örneğin nested type, static veya non-static data member'lar için de geçerlidir.
+class Base {
+public:
+    void foo();
+    void bar();
+    void baz();
+    int mx;
+    class Nested{};
+};
+
+class Der : public Base {
+
+};}
+
+int main()
+{
+    Der myder;
+
+    myder.foo();
+    myder.bar();
+    myder.baz();
+
+    myder.mx = 10;
+
+    Der::Nested
+}
+
+Çok temel soruların cevabını bularak konuya devam edelim:
+Soru 1)Derleyici kalıtım karşılığı nasıl bir kod üretiyor?
+Soru 2)Nasıl oluyorda türemiş sınıf nesnesi ile biz taban sınıfın üye fonksiyonunu çağırabiliyoruz?
+Soru 3)Taban sınıfın belirli öğelerini istemiyorum deme hakkım var mı bu araçta?
+Soru 4)Türemiş sınıf taban sınıfın private bölümüne erişebilir mi? erişim kontrolü nasıl olacak?
+Soru 5)Taban ve türemiş sınıfta aynı isimli bileşenler olabilir mi? olursa ne olur?
+Soru 6)Türemiş sınıf taban sınıftan aldığı interface'e yeni öğeler ekleyebilir mi?
+Soru 7)Türemiş sınıf nesnesi nasıl taban sınıf nesnesi olarak kullanılıyor?
+
+Soru 1)Derleyici kalıtım karşılığı nasıl bir kod üretiyor?
+
+Arka planda ne olduğunun anlamanın 1. basamağı kalıtımda türemiş sınıf ile taban sınıf arasındaki derleyicinin ürettiği kod açısından durum ne?
+Kalıtım yoluyla bir sınıfı bir başka sınıftan elde etiiğimizde aslında bir sınıf nesnesinin içinde yine bir sınıf nesnesi yer alıyor. Yani bu açıdan baktığımız zaman composition'dan 
+bir farkı yoktur. Kalıtım dil tarafındaki bir katman fakat fiziksel olarak ele alırsak tıpkı composition'da olduğu gibi kalıtımda da türemiş sınıf nesnesi içinde bir taban sınıf 
+nesnesi vardır. 
+
+#include <iostream>
+
+class X {
+    int a, b;
+};
+
+class Y : public X{
+
+};
+
+int main()
+{
+    using namespace std;
+
+    cout << "sizeof(X) : " << sizeof(X) << '\n'; //8
+    cout << "sizeof(Y) : " << sizeof(Y) << '\n'; //8
+}
+yani aslında biz kalıtım uyguladaığımız zaman türemiş sınıf içinde derleyicinin ürettiği kodda bir taban sınıf nesnesi vardır. Bir sınıfın non-static üye fonksiyonlarının gizli
+bir parametresi vardır; örneğin:
+class Base {
+public:
+    void foo();
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+    myder.foo();
+
+}
+base'in foo fonksiyonunun parametresi Base*'dır. Bu fonksiyonu çağırmak için derleyicinin oluşturacağı assembly kodda bir Base nesnesi adresi gerekir. İşte kalıtım yoluyla elde 
+edilmiş türetilmiş sınıfı elde ettiğimde; türetilmiş sınıf türünden bir değişken tanımladığımda bu değişken için taban sınıfın foo fonksiyonunu nasıl çağırabiliyorum? İşte burada
+derleyici bu sınıfların layout'unu kendi oluşturduğu için biliyor; aslında ürettiği assembly kodda bu fonksiyonun parametresi Base*'a türemiş sınıfın içindeki Base nesnesinin 
+adresini geçiyor. Yani assembly kod olarak bakarsak; aslında türemiş sınıf nesnesi ile taban sınıf'ın üye fonksiyonunun çağırılması demek taban sınıfın üye fonksiyonun parametresi 
+olan taban sınıf pointer'ına aslında türemiş sınıf nesnesi içindeki taban sınıf nesnesinin adresini geçemek demektir.
+Eğer composition olsaydı eleman olan nesneye poüler olarak member object deniliyor ama kalıtımda türemiş sınıf nesnesi içindeki taban sınıf nesnesine base class object diyeceğiz.
+
+Örneğin:
+Y
+-----------------
+|      ----     | 
+|     | X  |    |
+|      ----     |
+|               |
+|               |
+|               |
+|               |
+|               |
+-----------------
+Y bir sınıf olsa X'de bir sınıf olsa  ve bir sınavda bize yukarıdaki gibi bir şekil olduğunu söyleyip Y nesnelerinin içinde X nesnelerinin
+olduğunu belirtip; bunun kod karşılığı nedir diye soru sorsalar: Sadece buraya bakarak Y bir sınıf X bir sınıf, Y'nin X türünden bir elemanı 
+vardır diyemeyiz!! Çünkü bu şekilde de olabilir Y X'ten kalıtım yoluyla da elde edilmiş olabilir çünkü kalıtım yoluyal elde edildiğinde yine 
+Y'nin içinde bir X olucak. Ve burada X'in adresinin ne olacağı hakkında net bir şey söyleyemeyiz; bir belirleme yoktur. Yani ne composition'da
+ne de kalıtımda Y nesnesinin adresi ile onun içindeki taban sınıf nesnesinin adresi fiziksel olarak aynıdır diyemeyiz, böyle bir garanti yoktur.
+
+Bir türemiş sınıf nesnesi construct olduğunda tıpkı o zaman composition'da olduğu gibi nasıl Y sınıfı türünden bir nesne hayata geldiğinde 
+önce onun içinde bulunan X sınıfı hayata gelmek zorundaysa  kalıtımda da durum aynıdır! Kalıtımda da biz türemiş sınıf türünden bir nesne 
+oluşturduğumuz zaman türemiş sınıfın oluşabilmesi için önce onun taban sınıf nesnesinin hayata gelmesi gerekicek. Bunun içinde taban sınıfın 
+ctor'ına çağrı yapılması gerekicek. Yani biz türemiş sınıfı türünden bir nesneyi ctor ettiğimizde türemiş sınıf nesnesi içindeki taban sınıf 
+nesnesinide ctor etmiş oluyoruz. 
+
+Soru 2)Taban sınıfın belirli öğelerini istemiyorum deme hakkım var mı bu araçta?
+Hayır böyle bir hakkımız yok!! Bunu herhangi trick ile yapmakta doğru değildir. :SOLID ilkelerinden liskov substitution principle(Barbara 
+Liskov'un kaleme aldığı bir makeleden kaynaklanıyor) çok önemli bir ilkedir. Burada her şey Base'in kullanıldığı her yerde Base'miş gibi
+DEr'de kullanılabilmeli'ye yöneliktir. Ve burada çok temel bir ifade biçimi var; şöyle diyor türemiş sınıflar için "requires no more promise no less"
+yani türemiş sınıflar taban sınıfın taleplerinden daha talepkar olmayacaklar ama taban sınıfın vatettiklerinden de daha azını vatetmeyecekler.
+Bu da taban sınıfı türünden bir nesne gereken yerde türemiş sınıf nesnesi kullanılabilecek anlamına gelir. Öreğin taban sınıfın kısıtlamaları varsa 
+ama türemiş sınıf daha fazla kısıtlama öneriyorsa o zaman bütün kodlar taban sınıfın kısıtlamalarına göre yazıldığında oraya türemiş sınıf nesnesi
+geldiğinde onun kısıtlaması daha fazlaysa halk tabiri ile orası patlayacak ya da bütün kod taban sınıfın interface'ine dayalı olarak yazılmış ise 
+türemiş sınıf o interface'i desteklemiyorsa o interface kullanıldığında run time'da sorunlarla karşılaşmamız çok yüksek olasıdır. Bu ilke türemiş
+sınıflar için söylenen çok önemli bir ilkedir!!
