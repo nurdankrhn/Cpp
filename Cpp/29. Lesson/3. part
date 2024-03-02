@@ -1,0 +1,1032 @@
+up-casting yapıldığı zaman yani türemiş sınıf nesnesinin adresi taban sınıf pointer'ına atanırsa  taban sınıf pointer'ı ile sadece taban sınıf kısmına erişebiliriz;
+yabi taban  sınıf pointer'ı ile türemiş sınıfın diğer elemanlarına erişme şansımız olmaz.
+
+yani Base pointer'ı Der sınıfı türünden bir nesneyide gösterebilir fikriyle isim arama Base pointer'ı ile yapılamsı durumunda Der sınıında  ya da kalıtım ile elde edilmiş 
+sınıflarda gerçekleştirilmez!!!
+class Base {
+public:
+    int a, b;
+};
+
+class Der : public Base {
+public:
+    void foo();
+private:
+    int x, y;
+};
+
+void func(Base* baseptr)
+{
+    baseptr->... ... yerine a, b gelebilir fakat x,y gelemez!
+}
+evet böyle bir fonksiyona Der sınıfı türünden bir nesnenin adresini gönderebiliri(up-casting) fakat burada baseptr pointerını veya referansta olabilirdi isim arama amaçlı kullanırsam
+sadece taban sınıftaki isimleri buldurabiliriz, türemiş sınıfta isim araması söz konusu değildir! Fakat eğer ki biz bu fonksiyona Der sınıfı türünden bir adres geldiği bilgisine 
+sahipsek tür dönüştürme operatoru ile Base*'dan Der*'a dönüşüm  (static_cast operator'ünü kullanabiliriz) yapabiliriz.
+
+Türemiş Sınıf Nesnesinin İçindeki Taban Sınıf Nesnesinin Hayata Gelmesi
+Eğer türemiş sınıf için default ctor implicitly declared durumdaysa ve derleyici default ediyorsa derleyici her zaman türemiş sınıf nesnesi içindeki taban sınıf nesnesi için 
+(member'da da böyleydi) default ctor'ı çağırır. Yine aynı şekilde türemiş sınıfın dtor'ının sonunda taban sınıfın dtor'ına çağrı yapılır. Yani bu bir türemiş sınıf nesnesi hayata 
+geldiğinde mutlaka önce onun içindeki taban sınıf nesnesinin hayata gelmesi gerektiğinin anlamına gelir. Türemiş sınıfın dtor'ının kodu çalıştıktan 
+sonra türemiş sınıf nesnesi içindeki taban sınıf nesnesi onun dtor'ına yapılan çağrı ile destroy edilir. 
+
+Örneğin aşağıda örnekte Der nesnesinin construction sürecinde Der'in içindeki Base hayata gelicek ve Der sınıfının dtor'ının ana bloğunun
+sonunda da Der içindeki Base nesnesinin dtor'ı çağırılıcak:
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base default ctor\n";
+    }
+    ~Base()
+    {
+        std::cout << "Base  dtor\n";
+    }
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+}
+Der'in ctor'ını derleyici yazdı; derleyicinin yazdığı Der'in default ctor'ı Base'in default ctor'ını çağırdı.
+
+Eğer Base sınıf için int parametreli bir ctor tanımlarsam:
+class Base {
+public:
+    Base(int) {}
+    ~Base()
+    {
+        std::cout << "Base  dtor\n";
+    }
+};
+
+class Der : public Base {
+
+};
+bu durumda sentaks hatası olmaz ama derleyici türemiş sınıf için yazdığı default ctor'ı delete eder. Çünkü burada kural şuydu: eğer 
+derleyici bir sınıf için bir special member function kodu yazdığında dilin kurallarını çiğneyen bir yapı oluştuğundan derleyici yazması
+gereken special member func. delete ediyordu. Şimdi derleyici Der için default ctor yazıcak ama Der için yazdığı default ctor'da taban 
+sınıfın default ctor'ını çağırıcak ama taban sınıfın default ctor'ı olmadığı için türemiş sınıf için yazdığı default ctor derleyici 
+tarafından delete edilicek!! Eğer Der sınıfı türünden bir nesne oluşturursam sentaks hatası meydana gelir:
+int main()
+{
+    Der myder; //syntax error
+}
+
+yine aşağıda da sentaks hatası yok ama Der sınıfının default ctor'ı delete edilmiş durumda çünkü derleyicinin default ettiği Der sınıfının 
+default ctor'ı Base'in private default ctor'ına çağrı yaptığı için sentaks hatası oluşuyor ama bu durumda derleyici sentaks hatası vermek
+yerine default etmesi gereken special member function'ı bu örnekte Der sınıfının default ctor'ını delete ediyor:
+class Base {
+private:
+    Base();
+public:
+    ~Base()
+    {
+        std::cout << "Base  dtor\n";
+    }
+};
+
+class Der : public Base {
+
+};
+ama Der sınıfı türünden bir nesne tanımlarsam sentaks hatası meydana gelir:
+int main()
+{
+    Der myder; //syntax error
+}
+Der'in içindeki Base'i hayata getirmek için derleyicinin default ctor'ı çağırddığını görüyoruz. Tabii biz istersek default ctor'ın 
+çağırılması yerine parametreli ctor'ın çağırılmasını sağlayabiliriz:
+
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Der : public Base {
+public:
+
+};
+
+ int main()
+{
+    Der myder; 
+}
+fakat  eğer ctor initializer_list ile taban sınıf nesnesini initialize etmezsek bu durumda derleyici taban sınıfın default ctor'ına yapılan 
+default ctor'ı türemiş sınıfın default ctor tanımına ekliyor; yani 
+Der()
+{
+
+} şeklinde yazmakla 
+Der() : Base()
+{
+
+} aynı şeydir.
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der()
+    {
+
+    }
+};
+
+ int main()
+{
+    Der myder; 
+}
+
+eğer Der'in ctor ya da ctor'larını biz yazıyorsak Base'in herhang, bir ctor'ını çağırmak istiyorsak yine ctor inilializer_list
+kullanacağız. 
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der() : Base(3) //Base'in int parametreli ctor'ı çağırılır/ double değer verirsek double parametreli ctor'ı çağırılır
+    {
+
+    }
+
+};
+
+ int main()
+{
+    Der myder; 
+}
+
+ctor initializer_list ile değer vermede küme parantezi kullanımı Modern C++ ile mümkün eski C++'ta taban sınıf nesnesini initialize 
+etmek için küme parantezi kullanılamıyordu:
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der() : Base{1, 1} 
+    {
+
+    }
+
+};
+
+ int main()
+{
+    Der myder; 
+}
+
+En sık yazacağımız kodlar arasında şöyle kodlarda var: türemiş sınıfın parametreli ya da parametreli ctor'larından biri aldığı argümanlardan 
+birini ya da birden fazlasını türemiş sınıf nesnesinin ctor'ına pas etmek için kullanıcak. 
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der(int x, int y) : Base(x, y) 
+    {
+
+    }
+
+};
+ya da 
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der(int x, int y) : Base(x + y) 
+    {
+
+    }
+
+};
+
+veya
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der(int x, int y) : Base((x + y) / 2.) 
+    {
+
+    }
+
+};
+bu çok sık karşımıza çıkan bir  senaryodur. Türemiş sınıfın kendi ctor'ının aldığı argümanları taban sınıfı nesnesini set etmek için 
+kullanması. Burada kritik bir nokta daha şudur; bir sınıfın hem kalıtım ile elde edilmesi hem de aynı zamanda başka bir sınıf türünden 
+elemana sahip olması da mümkün:
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Member {
+public:
+    Member(int) {
+        std::cout << "Member(int)\n";
+    }
+}
+
+class Der : public Base {
+private:
+    Member mx;
+};
+burada Der sınıfının nesnesi içinde hem taban sınıf nesnesi hem de Member sınıfı türünden bir nesne vardır.Yani hem composition var hem de
+inheritance var.
+
+Soru: Böyle bir sınıfta hangisi daha önce hayata gelir? Önce member sonra base class object mi yoksa önce base class object sonra member'mı
+hayata gelir? Kesinlikle önce base class object hayata gelir!!! ve bu bizim ctor initializer_list'e farklı bir sıralama uygulamamız 
+durumunda değişmez!Her zaman önce base class nesnesi ondan sonra member object'ler bildirimdeki sıra ile hayata gelicek.
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Member {
+public:
+    Member(int) {
+        std::cout << "Member(int)\n";
+    }
+}
+
+class Der : public Base {
+public:
+    Der() : mx(12), Base(1, 2) {}
+private:
+    Member mx;
+};
+
+ctor initializer_list ile daha önce mx'i tanımlamamız Der nesnesi hayata geldiğinde önce elemanın ctor'ı çağırılıcak sonra Base'in
+ctor'ı çağırılır anlamına gelmez böyle yazsakta önce taban sınıf nesnesi yani Base hayata geldiğine göre en önce onun ctor'ı çağırılır.
+O nedenle bu şekilde yazmak teorik olarak yanlış olmasada uygulamada bu şekilde yazmamalıyız, böyle yazmalıyız:
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base()\n";
+    }
+    Base(int)
+    {
+        std::cout << "Base(nt)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+};
+
+class Member {
+public:
+    Member(int) {
+        std::cout << "Member(int)\n";
+    }
+}
+
+class Der : public Base {
+public:
+    Der() : Base(1, 2), mx(12) 
+    {
+        std::cout << "Der ctor\n";
+    }
+private:
+    Member mx;
+};
+Bu arada daha önceden de söylediğimiz gibi programın akışı Der'in ctor'ının ana bloğuna girmişse artık Der'in içindeki Base nesnesi de
+elemanda hayata gelmiş olurlar. Yani artık taban sınıf nesnesini de elemanı da kullanmamızda hiçbir sakınca yoktur.
+Der::Der()
+{
+    //burada taban sınıf nesnesini kullanabilirim
+    //burada eleman olan sınıf nesnesini de kullanabilirim    
+}
+
+İlk taban sınıf nesnesi yani bu örnekte Base hayata geliyor çünkü türemiş sınıf çoğu zaman kendi ctor'ının ana bloğu içinde taban sınıf 
+nesnesini kullanıyor. Bura da tabii ki dtor'lar da ters sırayla çağırılacak. 
+=======================================================================================================================================
+
+Kalıtımda Özel Üye Fonksiyonlar
+1)Eğer bir sınıfın copy ctor'ını derleyici yazarsa ve derleyicinin copy ctor yazdığı sınıf kalıtım yoluyla elde edilmiş bir sınıf ise
+derleyici türemiş sınıf için yazdığı copy ctor'ın içinde taban sınıf nesnesini copy construct eder.
+2)Derleyici türemiş sınıf için move ctor yazıyorsa hayata getireceği türemiş sınıf nesnesi içindeki taban sınıf nesnesi içinde move 
+ctor'ın çağırılmasını sağlar. 
+3)Eğer derleyici türemiş sınıf için copy assigment fonksiyonunu yazarsa derleyicinin türemiş sınıf için yazdığı copy assigment
+kodu türemiş sınıf nesnesi içindeki taban sınıf nesnesi içinde copy assigment'ın çağırılmasını sağlar.
+4)Eğer derleyici türemiş sınıf için move assigment fonksiyonunu yazarsa derleyicinin türemiş sınıf için yazdığı move assigment
+kodu türemiş sınıf nesnesi içindeki taban sınıf nesnesi içinde move assigment'ın çağırılmasını sağlar.
+
+Bu kuralların neredeyse tamamen aynısı composition'da da geçerliydi yani member object içinde geçerliydi.
+
+
+class Base {
+public:
+    Base() = default;
+    Base(conts Base&)
+    {
+        std::cout << "Base copy ctor\n";
+    }
+    Base(Base&&)
+    {
+        std::cout << "Base move ctor\n";
+    }
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der  dx;
+    Der dy = dx;
+}
+Der'in bütün special member function'larını implicitly declared ve dy için copy ctor çağırılır. copy ctor'ıda derleyici yazdığı için 
+derleyicinin yazdığı copy ctor dy'nin içindeki Base'i dx'in içindeki Base ile hayata getirdi yani Base sınıfının copy ctor'ınında çağırılmasını
+sağladı.
+
+aşağıdaki örnekte Der sınıfı türünden bir nesneye sağ taraf değeri olan bir Der nesnesi ile ilk değerini verirsem bu durumda dy
+nesnesi için move ctor çağırılır. Bu da derleyicinin yazdığı move ctor olduğu için dy'nin içindeki taban sınıf nesnesi için de 
+move ctor'ı çağırdı:
+class Base {
+public:
+    Base() = default;
+    Base(conts Base&)
+    {
+        std::cout << "Base copy ctor\n";
+    }
+    Base(Base&&)
+    {
+        std::cout << "Base move ctor\n";
+    }
+};
+
+class Der : public Base {
+};
+
+int main()
+{
+    Der  dx;
+    Der dy = std::move(dx);
+}
+
+Der'in copy ctor'ını kendimiz yazıp ve ctor initializer_list'ide kullanmasaydık bu durumda Der sınıf nesnesi copy ctor çağırılacak şekilde 
+hayata getirilseydi Der'in içindeki Base'in durumu Base için default ctor çağılır şeklinde olur.
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base default ctor\n";
+    }
+    Base(conts Base&)
+    {
+        std::cout << "Base copy ctor\n";
+    }
+    Base(Base&&)
+    {
+        std::cout << "Base move ctor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der() = default;
+    Der(const Der&)
+    {
+
+    }
+};
+int main()
+{
+    Der  dx;
+    Der dy = dx;
+}
+
+Tıpkı composition'da olduğu gibi burada da (bu çok sık yapılan bir hata programcılar tarafından) eğer bir türemiş sınıf için copy ctor
+yazıyorsak artık türemiş sınıf nesnesi içindeki taban sınıf nesnesinin copy ctor'ının çağırılmasından biz sorumluyuz!! ctor initializer_list 
+ile böyle bir çağrıyı tetiklemezsek o zaman derleyici bizim yazdığımız copy ctor'a taban sınıf nesnesi için default ctor'a yapılan çağrıyı
+ekleyecektir. 
+
+türemiş sınıf nesnesi için kendim yazdığım copy ctor'a çağrı yapıldığı zaman taban sınıfında copy ctor'ını çağrımak istiyorsam:
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base default ctor\n";
+    }
+    Base(conts Base&)
+    {
+        std::cout << "Base copy ctor\n";
+    }
+    Base(Base&&)
+    {
+        std::cout << "Base move ctor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der() = default;
+    Der(const Der& other) : Base(other)
+    {
+        
+    }
+};
+int main()
+{
+    Der  dx;
+    Der dy = dx;
+}
+taban sınıfın ctor'ını fiilen çağırdık ama argüman olarak other'ı gönderdik, yine burada up-casting oluyor. Bu durumda taban sınıf nesnesi 
+için copy ctor çağırılmış olucak. move ctor'da aynı şekildedir; ama çok dikkat etmeliyiz çünkü ctor initializer_list ile 
+Base(other) dersek argüman olarak R val. expr. geçilse de copy ctor çağırılır çünkü other L val expr. o sebeple Base(std::move(other))
+şeklinde olmalıdır:
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base default ctor\n";
+    }
+    Base(conts Base&)
+    {
+        std::cout << "Base copy ctor\n";
+    }
+    Base(Base&&)
+    {
+        std::cout << "Base move ctor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der() = default;
+    Der(const Der& other) : Base(other)
+    {
+        
+    }
+    Der(Der&& other) : Base(std::move(other))
+    {
+        
+    }
+};
+int main()
+{
+    Der  dx;
+    Der dy = std::move(dx);
+}
+yine ctor initializer_list ile move ctor'ın çağırılmasını sağlamasak o zaman türemiş sınıf nesnesi için move ctor çağırıldığı zaman
+onun içindeki taban sınıf nesnesi için default ctor çağırılır:
+class Base {
+public:
+    Base()
+    {
+        std::cout << "Base default ctor\n";
+    }
+    Base(conts Base&)
+    {
+        std::cout << "Base copy ctor\n";
+    }
+    Base(Base&&)
+    {
+        std::cout << "Base move ctor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    Der() = default;
+    Der(const Der& other) : Base(other)
+    {
+        
+    }
+    Der(Der&& other) : 
+    {
+        
+    }
+};
+int main()
+{
+    Der  dx;
+    Der dy = std::move(dx);
+}
+
+Eğer 2 tane Der nesnesi varsa bu nesneler birbirine atanırsa; bu atama için Der'in copy assigment'ı çağırılır; derleyici tarafından 
+yazılan copy assigment Der nesnesi dx içindeki Base nesnesi içinde copy assigment'ı çağırıcak:
+class Base {
+public:
+    Base& operator=(const Base&)
+    {
+        std::cout << "Base copy assigment\n";
+        return *this;
+    }
+    Base& operator=(Base&&)
+    {
+        std::cout << "Base move assigment\n";
+        return *this;
+    }
+};
+ 
+
+class Der : public Base {
+public:
+};
+int main()
+{
+    Der  dx, dy;
+    dx = dy;
+}
+tabii derleyici copy assigment'ın çağırılması herhangi bir nedenden sentaks hatasına neden oluyor olsaydı delete edicekti. Aynı şekilde 
+sağ taraf değeri ile atama yapılsaydı bu durumda da Base için move assigment çağırılıcaktı:
+class Base {
+public:
+    Base& operator=(const Base&)
+    {
+        std::cout << "Base copy assigment\n";
+        return *this;
+    }
+    Base& operator=(Base&&)
+    {
+        std::cout << "Base move assigment\n";
+        return *this;
+    }
+};
+ 
+
+class Der : public Base {
+public:
+};
+int main()
+{
+    Der  dx, dy;
+    dx = std::move(dy);
+}
+
+Fakat eğer bu fonksiyonları ben yazıyorsam tıpkı member'larda olduğu gibi eğer bu atamayı gerçekleştiricek kodu yazmazsam hiçbir fonksiyon 
+çağırılmaz yani türemiş sınıf nesnesi içindeki taban sınıf nesnesi sentaks hatası olmaz ama atanmamış olarak eski değerinde kalır:
+class Base {
+public:
+    Base& operator=(const Base&)
+    {
+        std::cout << "Base copy assigment\n";
+        return *this;
+    }
+    Base& operator=(Base&&)
+    {
+        std::cout << "Base move assigment\n";
+        return *this;
+    }
+};
+ 
+
+class Der : public Base {
+public:
+    Der& operator=(const Der&)
+    {
+        std::cout << "Der copy assigment\n";
+        return *this;
+    }
+};
+int main()
+{
+    Der  dx, dy;
+    dx = dy;
+}
+Peki taban sınıf nesnesi için de copy assigment'ın çağırılmasını  nasıl sağlayacağız? Şu şekilde:
+class Base {
+public:
+    Base& operator=(const Base&)
+    {
+        std::cout << "Base copy assigment\n";
+        return *this;
+    }
+    Base& operator=(Base&&)
+    {
+        std::cout << "Base move assigment\n";
+        return *this;
+    }
+};
+ 
+
+class Der : public Base {
+public:
+    Der& operator=(const Der&)
+    {
+        std::cout << "Der copy assigment\n";
+        Base::operator=(other); //Base sınıf nesnesi içinde copy assigment çağırılır
+        return *this;
+    }
+};
+int main()
+{
+    Der  dx, dy;
+    dx = dy;
+}
+hocamız  operator fonksiyonlarının bazen direk ismi ile çağırılması gerekebiliyor demişti; işte burada da taban sınıf nesnesi içinde
+copy assigment'ının çağırılmasını sağlamak amacıyla Base::operator=(other); yapılan çağrıda buna örnektir. Çünkü ismiyle çağırmasaydık
+şu şekilde olurdu *this = other ; derdik o da recursive bir çağrı olurdu hep türemiş Der sınıf'ının copy assigment'ı çağırılırdı.
+Bunu yapmak için tür dönüştürme operator'ünü de kullanabiliriz: 
+class Der : public Base {
+public:
+    Der& operator=(const Der&)
+    {
+        std::cout << "Der copy assigment\n";
+        ((Base*)this)->operator=(other); //Base sınıf nesnesi içinde copy assigment çağırılır
+        return *this;
+    }
+};
+veya referans semantiği ile de yapabiliriz
+class Der : public Base {
+public:
+    Der& operator=(const Der&)
+    {
+        std::cout << "Der copy assigment\n";
+        *(Base*)this =other; //Base sınıf nesnesi içinde copy assigment çağırılır
+        return *this;
+    }
+};
+veya
+class Der : public Base {
+public:
+    Der& operator=(const Der&)
+    {
+        std::cout << "Der copy assigment\n";
+        (Base&)*this =other; //Base sınıf nesnesi içinde copy assigment çağırılır
+        return *this;
+    }
+};
+tabii en basit ve mantıklı yolu Base::operator=(other); ile bunu gerçekleştirmektir.
+
+move assigment için ise:
+class Base {
+public:
+    Base& operator=(const Base&)
+    {
+        std::cout << "Base copy assigment\n";
+        return *this;
+    }
+    Base& operator=(Base&&)
+    {
+        std::cout << "Base move assigment\n";
+        return *this;
+    }
+};
+ 
+
+class Der : public Base {
+public:
+    Der& operator=(const Der&)
+    {
+        std::cout << "Der copy assigment\n";
+        Base::operator=(other); //Base sınıf nesnesi içinde copy assigment çağırılır
+        return *this;
+    }
+    Der& operator=(Der&&)
+    {
+        std::cout << "Der move assigment\n";
+        Base::operator=(std::move(other)); //Base sınıf nesnesi içinde copy assigment çağırılır
+        return *this;
+    }
+};
+int main()
+{
+    Der  dx, dy;
+    dx = std::move(dy);
+}
+
+=====================================================================================================================================
+Sınıf İçinde Yapılan using Bildirimleri
+Özel bir bildirim ile taban sınıfın isimlerini türemiş sınıf kapsamı içinde visible kılabiliriz; işte bu bildirimi using anahtar sözcüğü
+ile yapılıyor. using anahtar sözcüğünü:
+tür eş ismi bildirimi için
+using namespcae bildirimi 
+enum'larda  ve şimdi de yukarıdaki anlamı için kullanıyoruz:
+class Base {
+public:
+protected:
+    void foo(int);
+    int mx;
+};
+
+class Der : public Base {
+public:
+    using Base::foo;
+    using Base::mx;
+};
+
+using bildirimi yapmanın faydası:
+a)isim çakışması varsa
+b)taban sınıfın protected bölümündeki bir ismi türemiş sınıfın public bölümünde görünür kılmak istiyorsak o zaman using bildirimini 
+kullanabiliriz.
+
+eğer buradaki bildirimler olmasaydı foo ve mx türemiş sınıf içinde isim arama ile bulunacaktı ama sınıfın protected bölümü olduğu için erişim kısıtı olacaktı:
+class Base {
+public:
+protected:
+    void foo(int);
+    int mx;
+};
+
+class Der : public Base {
+public:
+    //using Base::foo;
+    //using Base::mx;
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo(12); //syntax error
+    myder.mx= 4; //syntax error
+};
+
+using bildirimi yapılırsa
+class Base {
+public:
+protected:
+    void foo(int);
+    int mx;
+};
+
+class Der : public Base {
+public:
+    using Base::foo;
+    using Base::mx;
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo(12); //legal
+    myder.mx= 4; //legal
+};
+
+sınıf içinde yapılan using bildirimi farklı farklı amaçlar ile yapılabilir örneğin bazen amaç taban sınıfın protected bölümündeki bazı isimleri türemiş sınıfın public
+bölümüne eklemek olabilir ama bir başka neden türemiş sınıf ile taban sınıfın üye fonksiyonları arasında bir function overloading ilişkisi oluşturmaktır:
+class Base {
+public:
+protected:
+    void foo(int);
+   
+};
+
+class Der : public Base {
+public:
+    void foo(double);
+};
+int main()
+{
+    Der myder;
+
+    myder.foo(9);
+    myder.foo(.9);
+}
+şu an foo fonksiyonları birbirine overload değildir çünkü aynı skopta değillerdir using  bildirimi olmasaydı overload oluşturmak için şöyle bir şey yapabilirdik:
+class Base {
+public:
+protected:
+    void foo(int)
+    {
+        std::cout << "Base::foo(int)\n";
+    }
+   
+};
+
+class Der : public Base {
+public:
+    void foo(double)
+    {
+        std::cout << "Der::foo(double)\n";
+    }
+
+    void foo(int x)
+    {
+        Bar::foo(x);
+    }
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo(9);
+    myder.foo(.9);
+}
+fakat bunu yapmak yerine çok daha pratik olan türemiş sınıf içinde using bildirimini yapmak:
+class Base {
+public:
+protected:
+    void foo(int)
+    {
+        std::cout << "Base::foo(int)\n";
+    }
+   
+};
+
+class Der : public Base {
+public:
+    void foo(double)
+    {
+        std::cout << "Der::foo(double)\n";
+    }
+    using Base::foo;
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo(9);
+    myder.foo(.9);
+}
+
+using bildirimi ile taban sınıfta aynı isimde bulunan bütün fonksiyonlar visible olur!!
+class Base {
+public:
+protected:
+    void foo(int)
+    {
+        std::cout << "Base::foo(int)\n";
+    }
+    void foo(int, int)
+    {
+        std::cout << "Base::foo(int, int)\n";
+    }
+    void foo(int, int, int)
+    {
+        std::cout << "Base::foo(int, int, int)\n";
+    }
+   
+};
+
+class Der : public Base {
+public:
+    void foo(double)
+    {
+        std::cout << "Der::foo(double)\n";
+    }
+    using Base::foo;
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo(9);
+    myder.foo(.9);
+    myder.foo(9, 6);
+    myder.foo(9, 6, 5);
+}
