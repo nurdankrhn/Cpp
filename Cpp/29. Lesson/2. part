@@ -1,0 +1,430 @@
+
+is-a relationship'in yani taban sınıfın interface'ini devralma ilişkisi türemiş sınıf türünden bir nesnenin aynı zamanda taban sınıfı türünden bir 
+nesneymiş gibi kullanılmasına olanak sağlıyor. Dilin kuralları da bunu destekliyor; türemiş sınıftan taban sınıfa doğru örtülü dönüşüm vardır!!!
+Türemiş sınıftan taban sınıfa doğru yapılan ve programlama dilinin örneğin C++'ın izin verdiği implicit olarak yapılan dönüşümlere up-casting
+deniliyor.  
+
+class Base {
+public:
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+    Base* baseptr = &myder; //up-casting
+}
+
+bu dönüşüm pointer semantiği ile yapılabildiği gibi referans semantiği ile de yapılabiliyor:
+class Base {
+public:
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+    Base* baseptr = &myder; //up-casting
+    Base& baseref = myder;
+}
+
+Burada çok dikkat etmemiz gereken bir konu var:up-casting'i pointer ya da referans semantiği ile yapabildiğimiz gibi doğrudan nesne semantiği ile de
+yani kopyalama semantiği ile de yapabiliyoruz: Base x = myder; gibi. Fakat bunun legal olması yapmamız anlamına gelmez! asla asla çok çok özel bir 
+durum olmadıkça böyle bir şey yapmayacağız!! Yani yukarı doğru dönüşümü her zaman pointer semantiği ile ya da referans semantiği ile yapacağız. Yani
+türemiş sınıf nesnesini taban sınıf nesnesine atamayacağız; nedenini ilerde ele alacağız. İşte böyle bir atamaya böyle bir kopyalamaya bu tarz 
+programlama dillerinde özelliklede C++'ta object slicing(nesne dilimlenmesi) deniliyor.
+class Base {
+public:
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+    Base* baseptr = &myder; //up-casting
+    Base& baseref = myder;
+    Base x = myder; //object slicing(nesne dilimlenmesi)
+}
+
+Bu dönüşüm yani türemiş sınıftan taban sınıfa örtülü deönüşüm var ama bu taban sınıftan türemiş sınıfada örtülü dönüşüm olduğu anlamına 
+kesinlikle gelmez (her mercedes bir arabadır ama her araba bir mercedes değildir). Yani bu dönüşüm tek yönlüdür; up-casting örtülü olarak yapılıyor
+ama taban sınıftan türemiş sınıfa doğru dönüşüm yani down casting deniliyor ancak bir operator ile gerçekleştirilebiliyor.
+class Base {
+public:
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Base mybase;
+
+    Der* derptr = &mybase; //syntax error
+    Der& derptr =  mybase; //syntax error
+}
+
+up-casting'i çok iyi anlamalıyız çünkü aşağıdaki örneklerde açıkça bunun önemli olduğu görülmektedir:
+örneğin parametresi taban sınıfı türünden bir pointer/referans veya direk o sınıf türünden ise sınıfın kendisini geçmekle beraber o sınıf'tan türemiş
+herhangi bir nesnenin adresini veya kendisini argüman olarak geçebileceğimiz anlamına gelir, çünkü türemiş sınıftan taban sınıfa doğru örtülü dönüşüm
+vardır(up-casting):
+class Car {
+public:
+
+};
+
+class Audi    : public Car {};
+class Volvo   : public Car {};
+class Bmw     : public Car {};
+class Dogan   : public Car {};
+
+void car_game(Car* p);
+void car_game2(Car& p);
+
+int main()
+{
+    car_game(new Audi);
+    car_game2(*new Bmw);
+}
+artık car_game gibi bir fonksiyon  gördüğümüzde yeni bir algı ile bakmamız lazım çünkü böyle bir fonksiyon demek bu bir araba üzerinde işlem yapan 
+bir fonksiyon; bir araba nesnesinin adresini istiyor demek bu da kalıtım yoluyla elde edilmiş veya edilecek bir sınıf türünden nesne adresi ile de 
+çağırabilir, ya da  car_game2 fonksiyonunu da direk o nesnelerin kendisiyle çağırabiliriz.
+
+. operatorü ile sınıfın bir üye fonksiyonunu çağırdığımız zaman aslında derleyicinin ürettiği kodda . operatorunun solundaki nesnenin adresini
+bu fonksiyonun gizli parametresine argüman olarak gönderiyorum. Eğer ki çağırılan üye fonksiyon türemiş sınıf nesnesinin taban sınıfının üye 
+fonksiyonuna yapılan bir çağrı ise bu durumda biz gizli parametre olarak taban sınıfı türünden adres olan bir parametreye türemiş sınıf türünden 
+bir nesnenin adresini göndermiş oluyoruz. Yine burada da up-casting olur yani biz türemiş sınıf nesneyle taban sınıfın üye fonksiyonunu çağırdığımız
+zaman derleyicinin bakış açısıyla yine bir up-casting oluşturmuş oluyoruz. Çünkü derleyici aslında bu kodu fonksiyon çağrısı yapan türemiş sınıf 
+nesnesinin adresini taban sınıfın üye fonksiyonun gizli parametre değişkeni olan o this pointer'ı olarak kullanılan taban sınıfı türünden adrese 
+dönüştürüyor:
+class Car {
+public:
+    void run();
+};
+
+class Bmw : public Car {
+    //...
+};
+
+int main()
+{
+    Bmw mybmw;
+
+    mybmw.run();
+}
+
+====================================================================================================================================================
+
+Kalıtım ve İsim Arama
+Kalıtımda taban ve türemiş olmak üzere 2 tane sınıf vardır. Tabii eğer multi-level inheritance söz konusu ise 4-5 tane de sınıf olabilir. Acaba ben Der sınıfı türünden nesne ile
+ya da pointer'la .operator'ünü ya da ok operator'ünü kullanarak bir ismi aratırsam bu isim nasıl aranır?
+class Base {
+public:
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+    Der* ptr = &myder;
+    myder.x
+    //ptr->x
+}
+x ismi için yapılan aramada kural şöyledir: . operator'ünün solundaki nesnenin türünün kendi tanımında aranır yani önce Der sınıfının skobunda aranır. Eğer orada bulunamazsa 
+taban sınıfta aranır eğer multi-level inheritance varsa orada da bulunamazsa onun taban sınıfında aranır. Bu türemiş sınıf içindeki aynı isim taban sınıftaki ismi gizlemesi
+yani name hiding, name masking, name shadowing anlamına gelir. 
+class Base {
+public:
+    void foo(int);
+};
+
+class Der : public Base {
+public:
+    void foo(int);
+};
+bunlar function overload'ing değildir!! taban sınıfın aynı isimli fonksiyonu ile türemiş sınıfın aynı isimli fonksiyonu birbirini gizlerler; skopları farklı olduğu için birbirlerini
+gizlerler bu asla function overloading değildir!!
+
+int main()
+{
+    Der myder;
+
+    myder.foo(12);
+}
+foo için yapılan çağrı gayet legaldir burada Der sınıfının  double parametreli fonksiyon çağırlır çünkü . operator'ünün solundaki isim önce Der sınıfında aranır ve isim bulunucak ve 
+isim bulunduğu için isim arama sona erer. 
+
+Dikkat!! türemiş sınıftaki fonksiyonu private bölüme alırsak bu durumda taban sınıftaki int parametreli int fonk. çağırılmaz çünkü access control en son yapılıyordu; isim arama ile 
+yine türemiş sınıfın foo fonk. seçilir fakat access control'de erişim hatası vereceğinden sentaks hatası meydana  gelir:
+class Base {
+public:
+    void foo(int);
+};
+
+class Der : public Base {
+    void foo(int);
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo(12); //syntax error
+}
+
+Ben taban sınıfın int parametreli fonksiyonunu da çağırabilirim  bunu yapabilmek için ismi nitelememiz gerekir:
+class Base {
+public:
+    void foo(int);
+};
+
+class Der : public Base {
+public:
+    void foo(int);
+};
+
+int main()
+{
+    Der myder;
+
+    myder.Base::foo(12); //foo(int) çağırılır
+}
+burada çözünürlük operator'ünün . operator'ünden  daha yüksek öncelikli olduğuna dikkat ediniz.
+myder.Base::foo(12); şeklinde çağırmak gayet legal çünkü kalıtımdan elde edilmemiş bir sınıfta bile bu şekilde çağrı yapabiliriz:
+
+class Myclass {
+public:
+    void foo();
+};
+
+int main()
+{
+    m.foo();
+    m.Myclass::foo();
+}
+
+
+ADL sayesinde bir namespace içinde bulunan fonksiyona çağrı yaparken argüman olarak geçtiğimiz isim için ismi nitelemeden de yazabiliriz:
+namespace nec {
+    class Base {
+
+    };
+
+    class Der : public Base {
+
+    };
+
+    void foo(Base&);
+}
+
+int main()
+{
+    nec::Der x;
+
+    foo(x); //ADL
+}
+
+Yani taban sınıf ile türemiş sınıfın aynı isimli fonksiyonları birbirinin overload'u değildir!! Benzer şekilde türemiş sınıfın üye fonksiyonları söz konusu olduğunda
+class Base {
+
+public:
+    void func(int, int);
+};
+
+class Der : public Base {
+    void func(int)
+    {
+
+    }
+    void foo()
+    {
+        func(1, 1,);//syntax error
+    }
+};
+foo fonk. içinde fun(1, 1); çağrısı sentaks hatasıdır çünkü isim önce blokta aranır nitelenmediği için blokta bulunamadığı zaman türemiş sınıfın tanımında aranır ve bulunur ve 
+isim arama biter. Ve isim arama sonucu seçilen fonk. 1 parametreli olan fonk. olduğu için biz de 2 tane argüman geçtiğimiz için sentaks hatası meydana gelir!
+Bunun legal olması için ismi nitelemeliyiz:
+class Base {
+
+public:
+    void func(int, int);
+};
+
+class Der : public Base {
+    void func(int)
+    {
+
+    }
+    void foo()
+    {
+        func(1); //Der'in foo'su çağırılır
+        //aşağıda yapılan her çağrı Base'in foo'sunu çağırır:
+        Base::func(1,1);
+        ((Base*)this)->func(1,1);
+};
+
+Dikkat!!!
+Özel bir durum söz konusu değilse türemiş sınıfın taban sınıfın fonksiyonu ile aynı isimli bir fonksiyon tanımlamamalıyız!
+
+Mülakatlarda da buna çok benzer sorular sorulur:
+
+class Base {
+
+public:
+    void foo(int);
+};
+
+class Der : public Base {
+    void foo()
+    {
+        foo(12); //syntax error
+        foo();  //recursive call
+        this->foo(); //recursive call
+        Base::foo(12); // taban sınıfın foo'su çağırılır
+    }
+};
+
+Kalıtım multi-level inheritance de  olabilir:
+
+class Base {
+public:
+};
+
+class Der : public Base {
+
+};
+
+class Nec : public Der {
+
+};
+
+int main()
+{
+    Nec mynec;
+
+    mynec.x
+}
+x önce Nec definition içinde bulunamazda Der definition içinde bulamazsa Base definition içinde arar; burada özellikler erişim kontrolünün en son yapıldığını unutmayanız!!!!!
+İsim arama da erişim kontrolü söz konusu değildir yani erişim kontrolü isim arama gerçekleştirildikten sonra gerçekleştirilir. 
+==================================================================================================================================================================================
+Kalıtım ve Erişim Kontrolü
+Sınıfların erişim ayrıcalıklı 3 tane bölümü vardı: public, private ve protected. Şimdiye kadar protected bölüm bizim için bir önem taşımıyordu. Çünkü bir sınıfın private bölümüne de 
+protected bölümüne de client'lar erişemiyordu. Yani kalıtım söz konusu değilse bir sınıfın private bölümü ile protected bölümü arasında sınıfın client'ları açısından bir fark yoktu.
+protected bölüm kalıtım yoluyla elde edilen sınıfların erişebildiği bir bölümdür ancak kalıtımla bir önem kazanır ve kalıtım olmadığı sürece protected bölümün bizim için bir önemi
+yoktur demiştik. 
+
+Kalıtım yoluyla elde edilen türemiş sınıf asla taban sınıfın private bölümüne erişemez bu sadece  friend bildirimi ile legal olabilir!!
+class Base {
+
+private:
+    void foo( );
+};
+
+class Der : public Base {
+    void func()
+    {
+        foo(); //syntax error
+    }
+};
+
+türemiş sınıf için friend bildirimi yaparsam; o zaman foo fonk. yapılan çağrı legal olur:
+class Base {
+
+private:
+    void foo( );
+    friend class Der;
+};
+
+class Der : public Base {
+    void func()
+    {
+        foo(); //legal
+    }
+};
+bu durumda foo fonksiyonuna func'ın çağrı yapması legaldir. Yani taban sınıfın private bölümü kendi client'larına kapalı olduğu gibi türemiş sınıfın üye fonksiyonlarına yani 
+implementasyonuna da kapalıdır. 
+
+Sınıfın protected bölümü kalıtımla önem kazanıyor, protected bölüm türemiş sınıfların erişebildiği ama taban sınıfın kendi client'larının erişemediği bölümdür.
+class Base {
+protected:
+    void bar(); 
+private:
+    void foo( );
+};
+
+class Der : public Base {
+    void func()
+    {
+        bar(); //legal
+    }
+};
+int main()
+{
+    Base mybase;
+
+    mybase.bar(); //syntax error
+}
+yani taban sınıfın protected interface'i kalıtım ile elde edilmiş sınıflara yönelik olarak oluşturulmuş interface'dir. Bu aslında çok önemli bri bilgiyide iletiyor. Hemen her zaman 
+kalıtım yoluyla kullanılacak sınıflar özel bir tasarım ile oluşturuluyor. Yani herhangi bir sınıftan kafamıza göre bir sınıf elde etmemeliyiz! Örneğin string sınıfından gidip 
+special_string adında bir isim oluşturmamalıyız; çünkü sınıfların tasarımı ya kalıtıma uygunluk kriteri ile ya da kalıtım yapılmayacağı fikriyle oluşturuluyor. Yani sınıfın kalıtımda 
+kullanılacağını gösteren bir dökümantasyon ya da bir işaret olabilir(ilerde ele alacağız) o zaman onun kalıtımda taban sınıf olacağını düşünebiliriz. Dolayısıyla durup dururken 
+başka sınıftan kalıtım yoluyla sınıf elde etmemeliyiz. Yani kalıtım herhangi bir sınıf için kullanılan bir mekanizma değildir. 
+Örneğin vector sınıfından kalıtım yapmak çok çok özel bir durum yoksa doğru değildir çünkü vector sınıfı kalıtıma uygun oluşturulmuş bir sınıf değildir; fakat vector sınıfını örneğin 
+composition yoluyla kullanmak gayet normaldir yani bir sınıfın veri elemanı bir vector/string olabilir. 
+
+Eğer bir sınıfın protected bölümü varsa yani en az 1 protected elemanı varsa kesinlikle kalıtımda kullanılabilsin amacını taşır yoksa neden protected bölümü olsun! Yani bir sınıfın 
+protected bölümünün olması onun kalıtıma uygunluğunu, kalıtımda kullanılabilirliğini bazen de kalıtım yoluyla tam tersi kullanılması konusuda duruma göre bir zorunluluğu içerebilir.
+Ama bu demek değildir ki kalıtımda taban sınıf olacak bütün sınıfların protected bölümü olmak zorundadır. 
+
+Örneğin STL'in stack sınıfı kalıtımda taban sınıf olabilen ve 1 tane c isimli protected elemana sahip sınıftır:
+#include <stack>
+
+class Mystack : public std::stack<int> {
+    void foo()
+    {
+        c.push_back(12); //c taban sınıf olan stack sınıfının protected bölümünde bulunan bir elaman
+    }
+};
+
+int main()
+{
+    std::stack<int> x;
+
+    x.c;//syntax error client code cannot reach the protected interface of the base class!!!
+}
+
+türemiş sınıfın taban sınıfıda içerdiğini söylemiştik dolayısıyla türemiş sınıfın sizeof'una taban sınıf nesnesi ve kendisinin eklediği öğeler dahildir:
+yani türemiş sınıfın sizeof'una dahil olanlar sadece erişebildiği nesneler değil taban sınıfın kendisidir!
+class Base {
+private:
+    int a, b;
+};
+
+class Der : public Base {
+private:
+    int x, y;
+};
+int main()
+{
+    std::cout << "sizeof(Base) = " << sizeof(Base) << '\n'; //8
+    std::cout << "sizeof(Der) = " << sizeof(Der) << '\n'; //16
+}
+up-casting yapıldığı zaman yani türemiş sınıf nesnesinin adresi taban sınıf pointer'ına atanırsa  taban sınıf pointer'ı ile sadece taban sınıf kısmına erişebiliriz;
+yabi taban  sınıf pointer'ı ile türemiş sınıfın diğer elemanlarına erişme şansımız olmaz.
