@@ -1,0 +1,573 @@
+27 Mart 2023 - Pazartesi
+
+İleride using anahtar sözcüğü ile yapılan tür eş bildiriminlerinin template hale getirilebileceğini göreceğiz buna da ingilizcede "template alias" deniliyor.
+
+türemiş sınıf içinde taban sınıftaki bir isme yönelik using bildirimi yaptığımızda o ismi türemil sınıf içinde görünür kılıyoruz, yani sanki o türemiş sınıf içinde bildirilmiş 
+gibi görünür duruma gelir. Fakat parametrik yapısı örneğin o bir üye fonksiyon ise yine taban sınıf türünden pointer'dır. 
+
+using bildirimi ile taban sınıfta aynı isimde bulunan bütün fonksiyonlar visible olur!!
+class Base {
+public:
+protected:
+    void foo(int)
+    {
+        std::cout << "Base::foo(int)\n";
+    }
+    void foo(int, int)
+    {
+        std::cout << "Base::foo(int, int)\n";
+    }
+    void foo(int, int, int)
+    {
+        std::cout << "Base::foo(int, int, int)\n";
+    }
+   
+};
+
+class Der : public Base {
+public:
+    void foo(double)
+    {
+        std::cout << "Der::foo(double)\n";
+    }
+    using Base::foo;
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo(9);
+    myder.foo(.9);
+    myder.foo(9, 6);
+    myder.foo(9, 6, 5);
+}
+dolayısıyla artık bir function overloading durumu söz konusudur. Normalde taban sınf ile türemiş sınıf fonksiyonları isimleri ayrı skopta olduğu için overload'luk söz konusu değildir.
+
+DİKKAT!!!
+Burada taban sınıfta bulunan foo fonksiyonları ile ilgili birkaç önemli nokta;
+1)sınıfın protected bölümünde olsaydı using bildirimini türemiş sınıfın public bölümünde yapabilirdim böylece taban sınıfın protected bölümde olan isimlerini türemiş sınıf kendi 
+public bölümüne doğrudan katabilirdi. 
+2)Türemiş sınıfta taban sınıfta bulunan foo fonksiyonu ile aynı parametrik yapıya sahip bir fonksiyon olsaydı; ambiguity olmazdı bu durumda türemiş sınıfın seçilebilirliği var!!
+class Base {
+public:
+protected:
+    void foo(int)
+    {
+        std::cout << "Base::foo(int)\n";
+    }
+    void foo(int, int)
+    {
+        std::cout << "Base::foo(int, int)\n";
+    }
+    void foo(int, int, int)
+    {
+        std::cout << "Base::foo(int, int, int)\n";
+    }
+   
+};
+
+class Der : public Base {
+public:
+    void foo(double)
+    {
+        std::cout << "Der::foo(double)\n";
+    }
+    void foo(int)
+    {
+        std::cout << "Der::foo(int)\n";
+    }
+    using Base::foo;
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo(12); //Der sınıfının  int parametreli fonksiyonu çağırılır
+}
+Belki şöyle olduğunu düşünebiliriz: birinin parametresi Base* diğerini Der*  olduğu için Der* olan exact match olduğundan o seçiliyor!!
+
+3)foo'lar sınıfın private üye fonksiyonu olsaydı yani taban sınıfın private üye fonksiyonlarını türemiş sınıfın public bölümüne enjekte edebilir miyiz?
+HAYIR, bu durumda zaten using bildiriminin kendisi sentkas hatası olur, yani bu durumda using bildiriminde sınıfın private bölümüne erişmenin kendisi sentaks hatası olur:
+class Base {
+private:
+    void foo(int)
+    {
+        std::cout << "Base::foo(int)\n";
+    }
+    void foo(int, int)
+    {
+        std::cout << "Base::foo(int, int)\n";
+    }
+    void foo(int, int, int)
+    {
+        std::cout << "Base::foo(int, int, int)\n";
+    }
+   
+};
+
+class Der : public Base {
+public:
+    void foo(double)
+    {
+        std::cout << "Der::foo(double)\n";
+    }
+    void foo(int)
+    {
+        std::cout << "Der::foo(int)\n";
+    }
+    using Base::foo; //syntax error
+};
+
+Buraya kadar kuralların modern C++ ile bir alakası yoktur yani buradaki kurallar modern C++ öncesinde de var olan kurallardır. Yani sınıf içinde yapılan using bildiirmi modern C++ ile 
+dile eklenen bir araç değildir; C++98'den beri zaten var olan bir araçtır. Fakat modern C++'ın eklediği bir özellik vardır: inherited constructor
+===================================================================================================================================================================================
+
+inhertited constructor 
+using bildiriminin taban sınıfın ctor'ı için yapılması böylece taban sınıfın ctor'ının türemiş sınıfta doğrudan visible olması demektir. Özellikle generic kütüphanelerde çok sık 
+kullanmak zorunda  kalırız bu aracı. Kimi zaman özellikle generic programlama tarafında ama sadece onunla sınırlı değil, kalıtımı kullanma nedenimiz sadece taban sınıfın  
+interface'ini kendi interface'imize katmak bazen de bir şeyler eklemektir. 
+
+Modern C++ öncesinde taban sınıftan türemiş bir sınıf örneğin taban sınıf int parameterli ctor'a sahipse türemiş sınıfın da ctor'ını bildirerek ctor initializer_list ile 
+taban sınıf'ın ctor'ına da çağrı yapmamız gerekiyordu. 
+class Base {
+public:
+    void foo();
+    void baz();
+    void bar();
+    Base(int);
+    Base(int, int);
+    Base(double);
+};
+
+class Der : public Base {
+public:
+    void func();
+};
+
+int main()
+{
+    Der myder(12); //syntax error
+}
+bu örnekte türemiş sınıfın int parametreli ctor olmadığı ve  ctor initializer_list ile  taban sınıf'ın ctor'ına da çağrı yapmadımız için sentaks hatası meydana gelir! Bunu legal 
+kılmak için:
+şimdi bu durumda taban sınıfın bütün ctor'ları doğrudan visible olmadığından her ctor'ın türemiş sınıf tarafından kullanılmasını istiyorsak birer adeta eşleniğini yazmamız gerekir:
+class Base {
+public:
+    void foo();
+    void baz();
+    void bar();
+    Base(int);
+    Base(int, int);
+    Base(double);
+};
+
+class Der : public Base {
+public:
+    Der(int x) : Base(x) {}
+    Der(int x, int y) : Base(x, y) {}
+    Der(double x) : Base(x) {}
+    void func();
+};
+
+int main()
+{
+    Der myder(12); //legal
+}
+Fakat modern C++ ile birlikte gelen inhertited constructor aracı ile artık bu özelliğe böyle bir fonksiyon yazma zorunluluğunu ortadan kaldırdı; tıpkı üye fonksiyonlarda yapabildiğim
+sınıf içinde using bildiriminin aynısını taban sınıfın ctor'ı içinde yapabilir hale geldik:
+class Base {
+public:
+    void foo();
+    void baz();
+    void bar();
+    Base(int)
+    {
+        std::cout << "Base(int)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+};
+
+class Der : public Base {
+public:
+    using Base::Base;
+    void func();
+};
+
+int main()
+{
+    Der myder1(12); 
+    Der myder2(1, 2); 
+    Der myder3(1.5);
+}
+
+tabii örneğin Der sınıfının kendi int parametreli ctor olsaydı o zaman int parametre için o çağırılırdı.
+
+İlerde sınıfın bir fonksiyonunun olup olmadığını ya da sınıfın örneğin copy constructible veya move constructible olup olmadığını type_traits kütüphanesinde ki bazı meta 
+fonksiyonlarla  compile time'da kontrol edebileceğimizi de görüceğiz:
+örneğin Der sınıfı copy constructible bir sınıf mı, değil mi?
+#include <iostream>
+#include <type_traits>
+
+class Base {
+public:
+    void foo();
+    void baz();
+    void bar();
+    Base(int)
+    {
+        std::cout << "Base(int)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+};
+
+class Der : public Base {
+public:
+    using Base::Base;
+    void func();
+};
+
+int main()
+{
+    using namespace std;
+
+    is_copy_constructible_v<Der>; //true yani copy constructible
+    is_copy_assignable_v<Der>; //true yani copy assignable
+
+}
+
+DİKKAT!!
+Burada hocamızında eleştirdiği bir kural var: sınıfın protected ctor'larını türemiş sınıfa aktaramıyoruz:
+class Base {
+public:
+    void foo();
+    void baz();
+    void bar();
+protected:
+    Base(int)
+    {
+        std::cout << "Base(int)\n";
+    }
+    Base(int, int)
+    {
+        std::cout << "Base(int, int)\n";
+    }
+    Base(double)
+    {
+        std::cout << "Base(double)\n";
+    }
+};
+
+class Der : public Base {
+public:
+    using Base::Base; 
+};
+
+int main()
+{
+    Der myder(12); //syntax error
+}
+
+=================================================================================================================================================================================
+
+run time polymorphism
+Nense yönelimli programlamada kalıtımda çoğu zaman olmazsa olmaz araç run time polymorphism (çalışma zamanı çok biçimliliği) araç setidir. Eski kodların yeni kodları kullanabilmesi
+üst katmandaki kodların alt katmandaki kodlara bağımlı olmamasını asıl sağlayan bu araçtır. 
+
+Kalıtımda taban sınıfların üye fonksiyonlarını C++ dilinde ve C++'a benzer birçok programlama dilinde 3 tane temel kategoriye ayırıyoruz:
+1)Türemiş sınıflara hem bir interface veren hem de implementasyon veren fonksiyon(lar)
+Eğer bir fonksiyon bu kategorideyse türemiş sınıflara şunu söyler: sizinde bu fonksiyonunuz olucak ve sizin fonksiyonunuzun kodu benim tarafımdan verilmiş kod olucak, yani 
+ben hangi implementasyonu verirsem türemiş sınıf nesneleri için bu fonk. çağırıldığında benim implementasyonum çalışıcak diyor.
+
+2)Türemiş sınıflara hem bir interface veren hem de default implementasyon veren fonksiyon(lar)
+Taban sınıf diyor ki türemiş sınıflara benim bu fonksiyonum sizinde fonksiyonunuz olucak ama ben size bu fonksiyon için bir implementasyon veriyorum siz dilersiniz bu implementasyonu 
+kullanacaksınız dilerseniz kendiniz kendinize özel ayrı bir implementasyon vericeksiniz buna taban sınıfın fonksiyonunu override etmek deniliyor. override(function overriding)'i
+function overloading ile karıştırmamalıyız!! Eğer bir sınıfın bu kategoride en az bir fonskiyonu varsa böyle sınıflara polymorphic class deniliyor.
+
+3)Türemiş sınıflara hem bir interface veren ancak bir implementasyon vermeyen fonksiyon(lar)
+Bu durumda taban sınıf türemiş sınıfları bir implementasyon vermeye zorluyor. Eğer türemiş sınıf bir implementasyon vermezse bu durumda böyle sınıflarla ilgili bazı kısıtlamalar var.
+Buna da yine o fonksiyonu override etmek deniliyor.
+
+Bir sınıfın en az bir tane 3. kategoride bir fonksiyonu varsa böyle sınıflara C++ dilinde ve C++'a benzer birçok programlama dilinde abstract class denir. Soyut sınıf olmanın yaptırımı 
+vardır; soyut sınıflar türünden nesne oluşturulmaz! (pointer veya referans oluşturulabilir)!
+
+Eğer bir sınıf abstract class ise bu sınftan kalıtım yoluyla sınıf elde ettiğimizde eğer taban sınıf olan soyut sınıfın bütün 3. kategorideki fonksiyonları için istisnasız bütün 
+fonksiyonlarını bu durumda override etmek zorundayız nesne oluşturmak için. Bir tane bile taban sınıfın 3. kategorideki sınıfını override etmezsek o zaman kalıtım yoluyla elde 
+ettiğimiz sınıfta  abstract oluyor, o zaman benim elde ettiğim sınıf türünden nesne oluşturmakta sentaks hatası olur.
+
+O zaman bir sınıf abstract değilse o sınıf türünden nensne oluşturma imkanı vardır bunu vurgulamak için kullanılan terimde  concrete(somut) class'tır. O halde abstract class'tan 
+kalıtım yoluyla elde edilen sınıfın concrete olabilmesi için taban sınıfın bütün 3. kategorideki fonksiyonlarını ististanız hepsini override etmesi gerekir. 
+
+
+C++'ta 1. Kategorinin Sentaks Karşılığı
+Sınıfın üye fonkları bu anlama gelir:
+
+class Airplane {
+public:
+    void takeoff();
+};
+
+class Airbus : public Airplane {
+
+};
+taban sınıfda takeoff gibi bir fonksiyon görürsek bu fonksiyon bize der ki her Airplane kalkar ve her Airplane Airplane sınıfının verdiği kodla kalkar. Yani böyle bir fonksiyon 
+görürsek çok özel bir durum olmadıkça hiç dokunmamalıyız. Bizde Airplane sınıfından Airbus sınıfını kalıtım ile elde ettiğimizde Airbus sınıfınında takeoff fonksiyonu olucak
+ve takeoff için ayrı bir kod çok marjinal bir durum yoksa vermeyeceğiz. Yani burada ayrı bir implementasyon verme hakkı verilmemiş. Yani her Airplane aynı takeoff kodunu kullanıcak.
+
+C++'ta 2. Kategorinin Sentaks Karşılığı
+2. kategoride olduğunu gösteren bir anahtar sözcük var C++'ta: virtual, bu anahtar sözcük C++'a özgüdür. Bundan sonraki konular C#, Java farklı farklı programlama dillerinde 
+farklı sentakslardır. Böyle fonksiyonlara teknik olarak virtual function denir(sanal fonksiyon).  
+class Airplane {
+public:
+    void takeoff();
+    virtual void land();
+};
+
+class Airbus : public Airplane {
+
+};
+Eğer land için  Airplane'nin kodu istiyorsak bir şey yapmamıza gerek yoktur fakat land fonkiyonu için kendimiz kod oluşturucaksak işte bu eylemi yapmaya fonksiyonu override etmek 
+deniliyor. O zaman Airbus sınıfını implemente eden programcı olarak artık bir seçeneğe sahibiz ya land'i override ederiz ya da etmeyiz. Artık land'e sahip olduğu için sınıf
+polymorphic class olur. Çünkü en az bir tane land gibi fonksiyona sahip sınıf polymorphic class olur.
+
+C++'ta 3. Kategorinin Sentaks Karşılığı
+Birçok programlama dilinde bu kategoriyi belirleyen bir keyword'dür: abstract ama C++'ta abstract anahtar sözcüğü yoktur onun yerine sentaksı şöyle implemente edilmiş:
+class Airplane {
+public:
+    void takeoff();
+    virtual void land();
+    virtual void fly = 0;
+};
+
+class Airbus : public Airplane {
+
+};
+burada yapılan herhangi bir atama yoktur tamamen semboliktir aslında şöyle bir sentaks uydurmak istenmiş bunun implementasyonu null yani yok anlamında. Bu fonksiyonlara da terim 
+olarak "pure virtual function (saf sanal fonksiyon). Bu fonksiyon yani örnekte fly fonksiyonu türemiş sınıflara der ki ya beni override edeceksin ya da sen de benim gibi abstract
+olacaksın. Airplane sınıfı şu an pure virtual function'a sahip olduğu için abstract bir class. Yani türemiş sınıfın concrete olabilmesi için taban sınıfın tüm pure virtual 
+function'larını override etmesi gerekir.
+class Airplane {
+public:
+    void takeoff();
+    virtual void land();
+    virtual void fly = 0;
+};
+
+class Airbus : public Airplane {
+
+};
+
+int main()
+{
+    Airplane x; //syntax error Airplane cannot instantiate abstract class 
+    Airbus n_ab; //syntax error concrete olabilmesi için taban sınıfın pure virtual func. olan fly'yı override etmeliydik
+}
+
+Bir sınıfın sanal fonksiyonu public'de private'da protected'da olabilir.
+
+Bir fonksiyonun sanal olmadığını özellikle vurgulamak istersem burada kullanılan terim "non-virtual" dır. 
+
+
+Taban sınıf default implementasyon verirken bunu yani virtual fonksiyonların kodunu inline olarak sınıf tanımı içinde verebilir fakat bunu sınıfın dışında veya .cpp dosyasında 
+inline olarak tanımlayacaksam virtual keyword'u tanımda yer almayacak!
+//class.h
+class Base {
+public:
+    virtual int foo(int, int)
+    {
+        //...
+    }
+};
+
+veya 
+//class.h
+class Base {
+public:
+    virtual int foo(int, int);
+};
+
+//class.cpp
+int Base::foo(int x, int y)
+{
+
+}
+
+Bir Fonksiyonu Nasıl Override Ediyoruz?
+Bir sınıfın sanal ya da saf sanal fonksiyonunu override etmek istiyorsak eğer tek yapmamız gereken aynı imzaya sahip aynı geri dönüş değeri türüne sahip bir fonksiyon bildirmektir.
+class Base {
+public:
+    virtual int foo(int, int); 
+};
+eğer ki foo virtual olmasayı ve ben türemiş sınıfta aynı isimde geri dönüş değeri farklı bir fonksiyon bildirseydim (çok anlamlı olmasada) 
+türemiş sınıftaki isim taban sınıftaki ismi maskelerdi ve sentaks hatası olmazdı:
+class Base {
+public:
+    int foo(int, int); 
+};
+
+class Der : public Base {
+public:
+    double foo(int, int); 
+};
+Fakat foo virtual olduğundan artık aynı imza da fakat geri dönüş değeri farklı bir fonksiyon bildirmek ilerde göreceğimiz bir istisna haricinde sentaks hatasıdır!! Yani bu taban 
+sınıfın fonksiyonunnu override etmek olmadığı gibi geçersizde!! 
+class Base {
+public:
+    virtual int foo(int, int); 
+};
+
+class Der : public Base {
+public:
+    double foo(int, int); //syntax error
+};
+Eğer taban sınıfın bir sanal fonksiyonu ile aynı isimli aynı imzaya sahip ancak geri dönüş değeri türü farklı bir fonksiyon bildirirsek sentaks hatası oluşur!
+
+
+Eğer parametrik yapısı aynı değilse sentaks hatası değil fakat override'da değildir yani başka bir fonksiyon bildirilmiş oluyor.
+class Base {
+public:
+    virtual int foo(int, int); 
+};
+
+class Der : public Base {
+public:
+    double foo(int, double); //gecerli ama taban sınıfın sanal fonksiyonunu override etmiyor
+};
+
+Eğer aynı imzaya sahip aynı geri dönüş değeri türünde aynı isimli bir fonksiyon bildirirsem o zaman taban sınıfın fonksiyonunu override etmiş olurum:
+class Base {
+public:
+    virtual int foo(int, int); 
+};
+
+class Der : public Base {
+public:
+    int foo(int, int); //Der::foo Base::foo'nun override
+};
+
+Taban sınıfın sanal fonksiyonu const olsaydı türemiş sınıfta tanımlanan foo için sentaks hatası olmazdı çünkü imzası farklı ama artık taban sınıfın fonksiyonunu override 
+etmemiş olurdu ayrı bir fonksiyon bildirimi olurdu çünkü const'da imzanın bir bileşenidir:
+class Base {
+public:
+    virtual int foo(int, int)const; 
+};
+
+class Der : public Base {
+public:
+    int foo(int, int); 
+};
+eğer türemiş sınıfta bildirilen fonksiyonda const olsaydı o zaman override etmiş olurdu:
+class Base {
+public:
+    virtual int foo(int, int)const; 
+};
+
+class Der : public Base {
+public:
+    int foo(int, int)const; //Der::foo Base::foo'nun override
+};
+imzalar aynı geri dönüş değerleri farklı olduğunda sentaks hatası meydana gelir:
+class Base {
+public:
+    virtual int foo(int, int)const; 
+};
+
+class Der : public Base {
+public:
+    unsigned int foo(int, int)const; //syntax error
+};
+
+Modern C++'a kadar bir fonksiyonu override etmemin yolu buydu başka seçenekte yoktu, fakat modern C++ ile hala böyle override edebilsekte bu şekilde override etmemeliyiz çünkü bu 
+şekilde override ettiğimizde bazı hataların oluşma riski çok yüksektir. İşt bu nedenden dolyaı modern C++ ile dile:
+a)yeni bir anahtar sözcük sentaksı eklendi
+b)override ederken kullanacağımız bir anahtar sözcüktür bu: override
+override anahtar sözcüğünü kullanmanın çok sayıda faydası var ama kullanmamakta bir sentaks hatası değildir.  Eğer gerçekten override etmek niyetiyle yazıyorsak override
+contextual keyword'ünü mutlaka kullanmalıyız!!
+
+Modern C++ ilginç bir anahtar sözcük statüsü dile ekledi: contextual keyword(bağlamsal anahtar sözcük)
+Böyle anahtar sözcüklere ingilizcede contextual keyword deniliyor. Yani bir keyword var bir de contextual keyword var. contextual keyword demek özel bir bağlamda anahtar sözcük 
+etkisine sahip ama o bağlamın dışında identifier olabiir. Bağlamsal anahtar sözcük statüsünde 2 tane sözcüğümüz vardır; bunlar: override ve final
+
+override'ın keyword etkisine sahip olduğu bağlam:
+class Base {
+public:
+    virtual int foo(int, int)const; 
+};
+
+class Der : public Base {
+public:
+    int foo(int, int)const override; 
+};
+
+veya 
+class Base {
+public:
+    virtual int foo(int, int); 
+};
+
+class Der : public Base {
+public:
+    int foo(int, int)override; 
+};
+
+override'ın keyword etkisine sahip olmadığı bağlam:
+identifier olarak kullanımı
+class override {
+
+};
+veya
+int override(int override)
+{
+
+}
+
+override ve final contextual keyword olarak dile eklenmesinin nedeni bacward compability içindir. Çünkü eski kodlarda bunlar birer identifier olarak kullanılmış olabilir düşüncesi 
+dikkate alınmalıdır. 
+
+override yazmak ile yazmamak arasındaki fark nedir?
+override yazdığımız zaman derleyici override edilecek taban sınıfın böyle bir sanal fonksiyonu olduğunu kontrol etmek zorunda!
+Eski C++'ta programcıların sanal fonksiyon ve function overriding konusunda yaptı çok tipik hatalar vardı:
+1)Sınıfların interface'inde çok sayıda fonksiyon olduğu için aslında sanal olmayan bir fonksiyon için sanalmış gibi override etme hatası, yeni C++'ta contextual keyword olan 
+override anahtar sözcüğü ile bunu override ettiğimiz zaman artık derleyici override edilecek bu imzada bir fonksiyon olup olmadığını kontrol eder, yoksa sentaks hatası verir:
+class Base {
+public:
+    int foo(int, int); 
+};
+
+class Der : public Base {
+public:
+    int foo(int, int)override; //syntax error
+};
+
+2)Çok sık yapılan bir diğer hata ise şuydu; taban sınıf fonksiyonu virtual fakat biz bunu override ettiğimizi sanıyoruz yanlışlıkla farklı bir imza verdiğimiz için farklı bir 
+fonksiyon bildirimi anlamına geldiği için bunu anlayamazdık da fakat override anahar sözcüğü ile override ettiğimiz zaman derleyici yine kontrol yapacağı için sentaks hatası verir:
+class Base {
+public:
+    virtual int foo(int, int)const; 
+};
+
+class Der : public Base {
+public:
+    int foo(int, int)override; //syntax error 
+};
+
+YANİ EĞER override keyword'ünü kullanırsam derlayiciye bir kontrol yükümlülüğü gelir; derleyici override edilecek bir fonksiyon olup olmadığını kontol ediyor böylece yanlışlıkla
+eğer override ettiğimizi düşünüyorsak:
+a)imza farklılığı 
+b)sanal olmayan fonksiyonun override edilmesi gibi, bir sentaks hatası oluşuyor. Bu nedenle override kullanmamanın bize bir faydası yokken kullanmanın bize birçok faydası vardır.
+O sebeple sentaks olarak zorunluluk olmasada kod kalitesi açısından taban sınıfın override etmek için override contextual keyword'ünü kesinlikle kullanmalıyız!!!
