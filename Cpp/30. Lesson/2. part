@@ -1,0 +1,1219 @@
+Taban sınıfın sananl fonksiyonu reference qualifiers ise onu override eden fonksiyonun da aynı şekilde reference qualifiers olması gerekiyor.
+
+Ne demek sanal fonksiyon olmak ve ne demek sanal fonksiyonu override etmemiz?
+Bir sanal fonksiyonun olması ve sanal fonksiyonun türemiş sınıf ya da sınıflar tarafından override edilmesi virtual dispatch(sanal gönderim) dediğimiz bir mekanizmayı tetikliyor.
+#include <iostream>
+
+class Base {
+public:
+    void func()
+    {
+        std::cout << "Base::func()\n";
+    }
+};
+
+class Der : public Base {
+public:
+    void func()
+    {
+        std::cout << "De::func()\n";
+    }
+};
+
+int main()
+{
+    Der myder;
+
+    Base *baseptr = &myder;
+
+    baseptr->func();
+}
+isim arama önce gerçekleşir func ismi taban sınfta aranır ve taban sınıfın func fonksiyonu çağırılır yani taban sınıf pointer'ı türemiş sınıf nesnesini göstermesine rağmen doğal 
+olarak dilin kuralları gereği burada isim arama taban sınıf pointer'ına göre yapıldığı için taban sınıfın func fonksiyonu çağırılıcak.
+
+
+#include <iostream>
+
+class Base {
+public:
+    virtual void func()
+    {
+        std::cout << "Base::func()\n";
+    }
+};
+
+class Der : public Base {
+public:
+    void func()
+    {
+        std::cout << "De::func()\n";
+    }
+};
+
+int main()
+{
+    Der myder;
+
+    Base *baseptr = &myder;
+
+    baseptr->func();
+}
+eğer func sanal fonksiyon olsaydı çağırılan kod türemiş sınıfın func fonksiyonu olurdu bunu sağlayan sanal gönderim mekanizmasıdır.
+
+Aslında mekanizmayı şu şekilde özetleyebiliriz:
+Eğer bir sanal fonksiyon;
+a)Taban sınıf pointer'ı ile
+b)Taban sınıf refaransı ile çağırıldığında
+1)Hangi fonksiyonun çağırıldığı derleme zamanında değil programın çalışma zamanında anlaşılır(bir fonksiyon çağrısının hangi fonksiyona bağlanacağı derleme zamanında anlaşılıyorsa 
+buna early binding ya da static binding deniliyordu ama bir fonksiyonun çağırılması durumunda çağırılan fonksiyonun hangi fonksiyon olduğu programın çalışma zamanında anlaşılıyorsa
+run time'da anlaşılıyorsa run time'da koşan bir kod hangi fonksiyonun çağırıldığını anlıyor ve fonksiyon çağrısı bu şekilde fonksiyona bağlanıyorsa buna da late binding ya da dynamic
+binding deniliyordu)
+2)O pointer ya da referans o çağrı yapıldığında run time'da hangi türemiş sınıf türünden nesneyi gösteriyorsa veya referans ise hangi türemiş sınıf türünden nesneye bağlanmışsa onun
+fonksiyonu çağırılır!!
+
+Bu şu anlama gelir; 
+class Airplane {
+public:
+    virtual void takeoff();
+    virtual void land();
+    virtual void fly();
+
+};
+
+void fly_game(Airplane *p)
+{
+    p->takeoff();
+    p->land();
+    p->fly();
+}
+ben bu şekilde bir kod yazdığımda Airplane sınıfından kalıtım yoluyla hangi sınıfların elde edileceğini bilmek zorunda değilim. Biliyorum ki bu fonksiyonlar sanal olduğu için 
+run time'da bu fonksiyon çağırıldığında buraya gelen Airplane sınıfından kalıtım yoluyla elde edilmiş bir Airbus'ın adresi ise Airbus'ın takeoff, land ve fly'ın override'ı 
+çağırılacak. Yani bu fonksiyon öyle bir fonksiyon ki diyor ki buraya gelen Airplane olsun ama buradaki fonksiyonlar çağırıldığında ilgili override'lar çağırılacak yani 
+virtual dispatch uygulanacak. Örneğin biz bu kod yazıldıktan yıllar sonra başka bir sınıfı bu sınıftan kalıtım yoluyla elde etsek ve bu sınıf Airplane sınıfının 
+takeoff, land ve fly fonksiyonlarını override etse o zaman tekrar bu kod derlense fly_game'e bu sefer o sınıfın takeoff, land ve fly fonksiyonlarını çağırıcak. Ve burada
+hangi fonksiyonun çağırıldığı programın çalışma zamanında anlaşılır. 
+
+//car.h
+#include <iostream>
+#include <random>
+
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+}; 
+
+class Volvo : public car {
+public:
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+//programın çalışma zamanında rastgele sayı üretiminden faydalanarak programın çalışma zamanında yukarıdaki arabalardan birini rastgele oluşturacak fonksiyon
+//up-casting ile( ile türemiş sınıf nesnesi adresi taban sınıf pointer'ına dönüştürülebiliyordu) fonk. geri dönüş değeri olarak üretilen araba türünü döndürür
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,6 };
+
+    switch(dist(eng)) {
+        case 0: std::cout << "Volvo..."; return new Volvo;
+        case 1: std::cout << "Opel..."; return new Opel;
+        case 2: std::cout << "Audi..."; return new Audi;
+        case 3: std::cout << "Honda..."; return new Honda;
+        case 4: std::cout << "Fiat..."; return new Fiat;
+        case 5: std::cout << "Mercedes..."; return new Mercedes;
+        case 6: std::cout << "Togg..."; return new Togg;
+    }
+
+    return nullptr;
+}
+
+//main.cpp
+#include "car.h"
+#include <iostream>
+
+void car_game(Car* p)
+{
+    p->start();
+    p->run();
+    p->stop();
+    (void)getchar();
+}
+
+int main()
+{
+    for(int i = 0; i < 100; ++i) {
+        Car *p = create_random_car();
+        std::cout << '\n';
+        car_game(p);
+    }
+}
+
+create_random_car'ın ne oluşturduğu run time'da belli oluyor ve oluşturulan sınıf hangisiyse onun start, run, stop fonksiyonları 
+car_game aracılığıyla çağırılıyor işte bu virtual dispatch mekanizması sayesinde oluyor. Başta da belirttiğimiz gibi eğer bir sanal 
+fonksiyona yapılan çağrı taban sınıf türünden pointer'la yapılıyorsa normalde bu fonksiyon sanal olmasaydı tabii ki isim aram ile 
+start, run, stop isimleri taban sınıfta bulunucaktı ve taban sınıfın yani Car sınıfının start, run, stop fonksiyonları çağırılıcaktı.
+Fakat şu an çağrı taban sınıf pointer'ı ile yapılmasına rağmen hangi fonksiyonun çağırıldığı car_game fonksiyonuna gelen Araba'nın ne 
+olduğu ile belirleniyor örneğin Mercedes ise Mercedes'in override'ı  Opelse Opel'in override'ı işte bu virtual dispatch mekanizmasıdır.
+virtual dispatch mekanizması fonksiyon çağrısı pointer ya da referans ile yapıldığında devreye giren bir mekanizmadır.
+
+Fonksiyonda pointer semantiği yerine referans semantiğine geçersek:
+//main.cpp
+#include "car.h"
+#include <iostream>
+
+void car_game(Car& r)
+{
+    r.start();
+    r.run();
+    r.stop();
+    (void)getchar();
+}
+
+int main()
+{
+    for(int i = 0; i < 100; ++i) {
+        Car *p = create_random_car();
+        std::cout << '\n';
+        car_game(*p);
+    }
+}
+yine virtual dispatch mekanizması devreye girer.
+
+Eğer fonksiyon parametresi direk sınıfın kendi türü olsaydı:
+//main.cpp
+#include "car.h"
+#include <iostream>
+
+void car_game(Car r)
+{
+    r.start();
+    r.run();
+    r.stop();
+    (void)getchar();
+}
+
+int main()
+{
+    for(int i = 0; i < 100; ++i) {
+        Car *p = create_random_car();
+        std::cout << '\n';
+        car_game(*p);
+    }
+}
+bu kodun yani car_game için yazılan kodun geçerli olması için öncelikle Car sınıfının concrete olması gerekir çünkü eğer Car sınıfı 
+abstract sınıf olsaydı abstract sınıfı türünden nesne oluşturmam sınıfın parametresi de o türden olduğu için fonksiyonun parametre 
+değişkeninin tanımının kendisi sentaks hatası olurdu. Bu örnekte de fonksiyona ne gönderirsem göndereyim hep taban sınıfın run, start
+stop fonksiyonları çağırılır yani virtual dispatch devreye girmiyor. Yani . operatorünün solundaki nesnenin compile time'daki türü
+ne ise onun start, run, stop fonksiyonları çağırılır.
+
+Taban sınıf türünden bir pointer'a türemiş sınıf türünden bir nesne adresi verebiliriz, taban sınıf türünden pointer'ı türemiş sınıf 
+türünden nesne adresi ile initiazlize edebiliriz. Taban sınıf referansını türemiş sınıf nesnesine bağlayabiliriz fakat taban sınıf 
+nesnesini türemiş sınıf nesnesi de atayabiliriz fakat bunu hiçbir zaman yapmayacağımızı söylemiştik. Buna karşılık gelen bir terim 
+var object slicing; işte yukarıdaki örnekte object slicing'dir. Eğer object slicing olursa virtual dispatch mekanızması devreye girmez!!
+
+Dolayısıyla virtual dispatch mekanizmasının devreye girebilmesi için fonksiyon çağrısının mutlaka ve mutlaka pointer ya da refarans 
+semantiği ile yapılması gerekir!!
+
+Taban sınıfın sanal fonksiyonunu override eden fonksiyon virtual keyword'ü olsa da olmasa da virtual'dır. Yani virtual fonksiyon olması
+onun override edilebileceği anlamına geliyor bu da şunu gösterir eğer multi-level inheritance söz konusu olursa yeni bir sınıf elde 
+edilebileceğini gösterir. 
+
+Örneğin Volvo türemiş sınıfından kalıtım yoluyla VolvoXC90 sınıfını elde edelim:
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+}; 
+
+class Volvo : public car {
+public:
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,7 };
+
+    switch(dist(eng)) {
+        case 0: std::cout << "Volvo..."; return new Volvo;
+        case 1: std::cout << "Opel..."; return new Opel;
+        case 2: std::cout << "Audi..."; return new Audi;
+        case 3: std::cout << "Honda..."; return new Honda;
+        case 4: std::cout << "Fiat..."; return new Fiat;
+        case 5: std::cout << "Mercedes..."; return new Mercedes;
+        case 6: std::cout << "Togg..."; return new Togg;
+        case 7: std::cout << "VolvoXC90..."; return new VolvoXC90;
+    }
+
+    return nullptr;
+}
+böylece VolvoXC90'da Volvo'nun sanal fonksiyonunu override etti, işte virtual keyword'ü olsa da olmasada artık taban fonksiyonun sanal
+fonksiyonu override eden virtual'dır. 
+//main.cpp
+#include "car.h"
+#include <iostream>
+#include <cstdlib>
+
+void car_game(Car* p)
+{
+    p->start();
+    p->run();
+    p->stop();
+    (void)getchar();
+    std::system("cls");
+}
+
+int main()
+{
+    for(int i = 0; i < 100; ++i) {
+        Car *p = create_random_car();
+        std::cout << '\n';
+        car_game(p);
+    }
+}
+
+Burada dikkate alınması gereken birkaç soru vardır:
+1)VolvoXC90 örneğin run fonksiyonunu override etmeseydi ne olurdu?
+Sentaks hatası olmaz bu durumda override etmediği için taban sınıfın implementastonuna razı olmuş olurdu. Yani artık sanal fonksiyon çağırıldığında gelen VolvoXC90 olduğunda
+çağırılan fonksiyon Volvo'nun sanal fonksiyonu olur eğer o da fonksiyonu override etmemiş ise onun taban sınıfının sanal fonksiyonu çağırılır. Yani ilk hangi taban sınıf override
+etmişse onunki çağırılır.
+
+Birçok programlama dilinde farklı tür kavramları vardır. Bunlardan birine statik tip'leme anlamında:
+static typing veya static type deniliyor. 
+
+Diğerine ise:
+dynamic type deniliyor. Bazı programlama dillerinde sadece dinamik tür kavramı var fakat C++ başta olmak üzere C++, Java, C# gibi dillerde hem statik hem de dinamik tür kavramı 
+vardır. Statik tür derleyicinin koda bakarak gördüğü anladığı tür demektir. Örneğin:
+ void car_game(Car* p)
+{
+    p->start();
+    p->run();
+    p->stop();
+    (void)getchar();
+    std::system("cls");
+}
+fonksiyonun da *p'nin türü Car, eğer ben *p türünün Car olduğunu söylüyorsam bu tür koda bakarak anlaşılan tür yani *p ifadesinin static türü Car'dır. Ve derleyici kontrolleri
+static türe göre yapıyor. Dolayısıyla ben Volvo türemiş sınıfına bir fonksiyon eklersem:
+class Volvo : public car {
+public:
+    void open_sunroof()
+    {
+         std::cout "VOLVO sunroof opened!!!\n";
+    }
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+}; 
+ve car_game fonksiyonu içinde bunu çağırırsak sentaks hatası olur:
+ void car_game(Car* p)
+{
+    p->start();
+    p->run();
+    p->stop();
+    p->open_sunroof();//syntax error
+    (void)getchar();
+    std::system("cls");
+}
+sentaks hatası çünkü bunun run time ile hiçbir ilgisi yoktur, isim arama static türe göre yapılır, derleyici p'nin türüne bakar Car* olduğunu görür. Dolayısıyla open_sunroof
+ismini Car sınıfının definition'ın içinde arar, fakat buraya gelen Volvo ise Volvo'nun start, run, stop fonksiyonları çağırılır yani davranışı belirleyen tür dinamik türdür.
+Programın çalışma zamanında davranışı belirleyen tür dinamik tür, derleyicinin compile time'da yaptığı kontrolleri belirleyen tür ise static tür'dür. 
+
+Dinamik türen bahsedebilmemiz için polymorphic class olması gerekir aksi halde dinamik türden bahsemedeyiz!!  Çünkü zaten davranış değişmeyecek, davranışın bu şekilde değişebilmesi
+için run time polymorphism söz konusu olabilmesi için polymorphic bir sınıf olması gerekiyor. 
+
+
+run time polymorphism'nin devreye girdiği ilginç bir biçim daha var uygulamada/üretimde belki de en çok kullanılan biçimlerden biri olabilir:
+ Car sınıfının non-static üye fonksiyonu olan ismi de test_car olan bir fonksiyonu olsun:
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+    void test_car()
+    {
+        start();
+        run();
+        stop();
+    }
+};
+hatırlatma: bir sınıfın üye fonksiyonu örnekte olduğu gibi sınıfın başka bir non-static member function'nını çağırdığı zaman aslında biz burada göstermesekte çağrılar bir 
+gizli parametre olan pointer ile yapılıyor, this pointer'ı ile yapılıyor. Yani aslında test_car'ın Car* parametresi var, start, run ve stop'unda Car* parametresi var aslında 
+derlyeicinin ürettiği assembly kodda biz start'ı çağırdığımızda start'ın gizli parametresine aslında test_car'ın gizli parametresi olan Car*'ı geçiyoruz. Bu şu demek;
+bu durumda start, run ve stop fonksiyonları da yine Car* ile çağırılıyor. O zaman virtual dispacth mekanizması devreye girer hatta en çok bu şekilde karşımıza çıkar. Yani 
+aslında biz birçok durumda burada olan test_car örneğinde  olduğu gibi aslında sınıfın non-virtual fonksiyonuna çağrı yapıp onun virtual fonksiyonu çağırarak virtual dispatch
+mekanizmasını kullanmamıza olanak tanır!!
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+    void test_car()
+    {
+        start();
+        run();
+        stop();
+    }
+};
+
+class Volvo : public car {
+public:
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,7 };
+
+    switch(dist(eng)) {
+        case 0: std::cout << "Volvo..."; return new Volvo;
+        case 1: std::cout << "Opel..."; return new Opel;
+        case 2: std::cout << "Audi..."; return new Audi;
+        case 3: std::cout << "Honda..."; return new Honda;
+        case 4: std::cout << "Fiat..."; return new Fiat;
+        case 5: std::cout << "Mercedes..."; return new Mercedes;
+        case 6: std::cout << "Togg..."; return new Togg;
+        case 7: std::cout << "VolvoXC90..."; return new VolvoXC90;
+    }
+
+    return nullptr;
+}
+
+//main.cpp
+#include "car.h"
+#include <iostream>
+#include <stdlib>
+
+void car_game(Car* p)
+{
+    p->test_car();
+    (void)getchar();
+    std::system("cls");
+}
+
+int main()
+{
+    for(int i = 0; i < 100; ++i) {
+        Car *p = create_random_car();
+        std::cout << '\n';
+        car_game(p);
+    }
+}
+kodu çalıştırdığımız zaman yine virtual dispatch mekanizmasının devreye girdiğini görüyoruz. 
+
+Burada bir diğer önemli nokta şu eski kod derken kasettiğimiz car_game yazılırken benim Car sınıfından nasıl bir kalıtım hangi kalıtımların yapılacağını bilmem gerekmiyor; 
+yani bu fonksiyonu yazarken tamamen car sınıfının interface'ine göre yazdım dolayısıyla daha sonradan kalıtımla hangi sınıfların elde edileceği car_game fonksiyonunu yazarken 
+beni ilgilendirmiyor; ama eskiden yazılan/yazdığım car_game fonksiyonun kodu daha sonra yazılmış kodu kullanacak/kullanabilecek. İşte bunu sağlayan kalıtımdır.
+
+Örneğin aradan baya zaman geçti bu seferde Dacia araba türünü de sınıfa eklemeye karar verdim:
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+    void test_car()
+    {
+        start();
+        run();
+        stop();
+    }
+};
+
+class Volvo : public car {
+public:
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+
+
+override keyword'ünün bir diğer faydası ise şudur:
+
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+    void test_car()
+    {
+        start();
+        run();
+        stop();
+    }
+};
+Yazdığımız taban sınıf için örneğin Car sınıfı; farklı farklı kaynak dosyalarda farklı kalıtımlar yapıldı. Fakat proje ilerlerken örneğin Car sınıfının run fonksiyonu için 
+bir değişikliğe gidildi:
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run(double speed)
+    {
+        std::cout "Car is running at the speed of "<< speed << '\n';
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+    void test_car()
+    {
+        start();
+        run();
+        stop();
+    }
+};
+bu durumda eğer override keywordu kullanılmamış olsaydı ben bütün projeyi re-compile ettiğimde bir sentaks hatası olmazdı! Bu da şu demek diğer kodların bu değişiklikten haberi 
+olmayacak ama override olanlar override olmaktan çıkacak çünkü onlar override olduğunda parametre yoktu şimdi aslında onların yine override olması için onların da parametrik 
+yapısının değişmesi gerekir fakat override keyword'ü ile override edilmediği için programcının bunu anlaması çok zordur; fakat eğer ki override keyword'ü ile override edilseydi 
+derleyici her biri için ayrı bir sentaks hatası verircekti. Böylece biz çalışır hale getirmek için bütün sentaks hatalarını ortadan kaldırmamız gerekecekti bunu yapmak için de 
+fonksiyonların parametreik yapılarını tek tek değiştirmemiz gerekicekti; bir tanesini bile ihmal etme ihtimalimiz yoktur. Genelde kitaplar da bu yazmaz ama bu override'ın en 
+önemli faydalarından biridir. İşte tüm bu nedenlerden dolayı override'ı mutlaka koymalıyız!!
+
+================================================================================================================================================================================
+
+C++ mülakatlarında programcıya sorulan temel sorulardan bazıları:
+
+1)Virtual dispatch mekanizması nasıl implemente ediliyor?
+Diğer derste ele alacağız. Fakat şunu belirtmekte fayda var; C++ standartı hiçbir zaman implementasyona karışmaz yani bu sorunun cevabını C++ standartından öğrenemeyiz.
+C++ standartı her zaman bit soyut makine üstünde modeli anlatır buna C++ abstract machine denir. Yani C++'ın standartı ne stack bilir ne heap bilir ne de virtual dispatch nasıl
+uygulanır onu bilir. C++ standartı sadece sağlanması gereken şartlar bunlarla ilgilenir; yani soyut makine üstünde  anlatır. Dolayısıyla virtual dispatch mekanizması nasıl 
+implemente ediliyor onu incelediğimiz zaman bu şu anlama gelir aslında tipik bir derleyici en kolay yolu bu olduğu için bu şekilde implemente edildiği anlamına gelir. Yani tipik 
+bir derleyici böyle implemente eder ama böyle implemente etmek zorunda değildir. Yani ilerde çok farklı bir implementasyon tekniği ile de implemente edilebilir. Tabii en kolay en 
+pratik yolu genelde tüm derleyiciler seçtiği için hemen hemen hepsinde implementasyon aynıdır. 
+
+Taban sınıfın sanal fonksiyonunu priavte bölümde override edebilir miyim?
+Evet, sentaks hatası değildir
+class Base {
+public:
+    virtual void foo()
+    {
+        std::cout << "Base::foo()\n";
+    }
+};
+
+class Der {
+private:
+    void foo()override;
+};
+
+Taban sınıf adresini parametre olarak tanımlayan global bir fonkiyon tanımlayıp, sanal fonksiyonunu çağırabilir miyim?
+Evet, bu durumda taban sınıfın sanal sınıfı olan foo çağırılır:
+class Base {
+public:
+    virtual void foo()
+    {
+        std::cout << "Base::foo()\n";
+    }
+};
+
+class Der {
+private:
+    virtual void foo()
+    {
+        std::cout << "Der::foo()\n";
+    }
+};
+
+void gf(Base *p)
+{
+    p->foo();
+}
+
+!!!!Aşağıda verilen main fonksiyonun içinde ki çağrı sentaks hatası değildir, 
+1)access control static tür ile ilgili bir araçtır dolayısıyla p->foo(); çağrısında foo ismi Base türünden pointer'ın sağ operandı; erişim kontrolünün programın çalışma zamanı 
+ile ilgili hiçbir ilişkisi yoktur erişim kontrolü derleme zamanına ilişkindir dolayısıyla eğer foo fonksiyonu Base sınıfının public bölümünde olmasaydı sentaks hatası olurdu.
+Yani bir fonksiyonu türemiş sınıfın private bölümünde override etmemiz run time'da o fonksiyonun çağırılmayacağı anlamına kesinlikle gelmez!! Yani virtual dispatch'in erişim
+kontrolü ile bir ilgisi yoktur:
+class Base {
+public:
+    virtual void foo()
+    {
+        std::cout << "Base::foo()\n";
+    }
+};
+
+class Der {
+private:
+    virtual void foo()
+    {
+        std::cout << "Der::foo()\n";
+    }
+};
+
+void gf(Base *p)
+{
+    p->foo();
+}
+
+int main()
+{
+    Der myder;
+
+    gf(&myder); //Der::foo 
+
+    myder.foo();//syntax error
+}
+türemiş sınıfta override edilen foo fonksiyonu sınıfın private bölümünde olduğu için bu fonksiyon çağrısını Der nesnesi ya da pointeri ile yaparsam sentaks hatası olur: erişim 
+hatası
+
+
+Taban sınıfın private fonksiyonunu override edebiliriz:
+hatta en çok karşımıza çıkan idiomik yapıdır.
+class Base {
+private:
+    virtual void foo()
+    {
+        std::cout << "Base::foo()\n";
+    }
+};
+
+class Der {
+public:
+    virtual void foo()
+    {
+        std::cout << "Der::foo()\n";
+    }
+};
+biraz daha ilerlediğimiz zaman bu idiomik yapıya ya da tekniğe Herb Sutter'ın uydurduğu bir terim olan NVI(Non Virtual Interface) denir!!
+
+şimdi foo taban sınıfın private bölümünde olduğu için:
+static tür ile ilgili olduğu için artık erişim kontrolüne takılır;
+void gf(Base *p)
+{
+    p->foo(); //syntax error
+}
+
+NVI
+taban sınıfın interface'inde non-virtual fonksiyon var ama non virtual fonksiyon private virtual fonksiyonu çağırıyor:
+class Base {
+public:
+    void bar()
+    {
+        foo();
+    }
+private:
+    virtual void foo()
+    {
+        std::cout << "Base::foo()\n";
+    }
+};
+
+class Der {
+public:
+    virtual void foo()
+    {
+        std::cout << "Der::foo()\n";
+    }
+};
+
+void gf(Base *p)
+{
+    p->bar();
+}
+böylece türemiş sınıflar taban sınıfın private sanal fonksiyonunu override ediyorlar ama virtual dispatch mekanizması taban sınıfın non-virtual fonksiyonunun içinde 
+virtual fonksiyona yapılan çağrı ile devreye giriyor.
+
+1)Taban sınıfın herhangi bir fonksiyonu public de protected da private da olabilir
+2)Türemiş sınıf taban sınıfın bir sanal fonksiyonunu public/private/protected fonksiyon olarak override edebilir
+3)Erişim kontrolü static türe ilişkin bir kavramdır yani taban sınıfın sanal fonksiyonunu türemiş sınıf private bölümde override etse dahi virtual dispatch mekanizması devereye girer!!
+Çünkü çağrı taban sınıf pointer'ı ya da referansıyla yapılıyorsa erişim kontrolüde taban sınıfa göre yapılacak
+4)Taban sınıfın sanal fonksiyonunun private yapılması ama taban sınıfın sanal olmayan  bir fonksiyonu tarafından çağırılmasıyla virtual dispatch mekanizmasının uygulanması çok sık 
+kullanılan bir teknik ve bu tekniğe/idiomik yapıya NVI idiomu denildiğini öğreneceğiz.
