@@ -1,0 +1,1065 @@
+29 Mart 2023 - Çarşamba
+
+telegram grubundaki initializer_list sorusu:
+initializer_list olmadan önce tipik bir problem vardı: std::initializer_list o probleme mükemmel bir çözüm getirdi; normalde biz C'den gelen sentaksla dizilere hatta sadece dizilere 
+değil aggregate type denilen türden varlıklara virgüllerle ayrılmış liste ile ilk değer verebiliyoruz. Fakat sadece bu şekilde ilk değer vermeye C++'ta aggregate initialization 
+deniliyor. Yani örneğin:
+int main()
+{
+    int a[] = {2, 4, 5, 7, 9}; //aggregate initialization 
+}
+aggregate initialization C'de de var zaten C'nin temel sentaksında geliyor. Sadece modern C++ ile yapılan ekleme ile:
+int main()
+{
+    int a[]{2, 4, 5, 7, 9};
+}
+Modern C++ ile yapılan eklemeyle diziyi bu şekilde de başlatabiliyoruz.
+
+Ama aggregate initialization sadece diziler için geçerli değildir C tipi yapılar için de eskiden bunlara plain old data anlamında POD deniliyordu. Örneğin;
+struct Nec {
+    int x, y, z;
+    double d;
+};
+
+int main()
+{
+    Nec mynec = {1, 2, 4, 7.8};
+}
+bunlar hala geçerli ve aslında buradaki sentaks C'den gelen sentaksın bir bileşeni. Fakat şöyle bir problem vardı: bizim container dediğimiz sınıflar var; container belirli türden 
+öğeleri bir arada (bir data structure implemente eden)tutan sınıflara verilen isim/terimdir. İşte birçok programlama dilinde bu anlamda kullanılan bir başka terim collection; C++'ta
+ise container terimi kullanılır. 
+
+Container'lar sınıf yani bunlar basit C yapısı da aggregate type'lar da değil fakat onlarda da şöyle bir ihtiyaç var doğal olarak nasıl ben diziler için önceden şu değerle/elemanlarla 
+başlasın diyebiliyorsam dizi için böyle bir sentaks varsa aslında programcının da ihtiyaç duyduğu böyle bir sentaks var container'lar için:
+#include <iostream>
+#include <initializer_list>
+#include <vector>
+
+int main()
+{
+    vector<int> ivec{2, 5, 6, 9};
+}
+Eski C++'ta initializer_list sınıfı yoktu. O zaman örneğin bir vector/bağlı liste/map/set'i yani bir STL container'ını hayata başlatırken belirli sayıda belirli değerlere sahip 
+şekilde hayata nası başaltıyorduk? O zaman şu şekilde yapıyorduk container sınıfların range ctor'ları var; string sınıfında da örneğini gördük. Bizden bir range alıyorlar o range'teki
+öğeleri kopyalıyorlar kendi bellek alanlarına. Dolayıısyla böyle bir sentaks mümkün olmadığı için önce bir tane dizi oluşturuyorduk ve tutulacak öğeler bu dizide tutuluyordu. Dizinin 
+tek varlık nedeni ctor'da kullanılması olduğu için çoğunlukla da bu diziyi const yapıyorduk ve sınıfın range parametreli ctor'ını kullanıyorduk. O dönemde yine Modern C++ ile dile 
+eklenen bazı araçlar olmadığı için uzun uzun dizinin ilk elemanının adresini ve dizinin bittiği yerin adresini bir range olarak ifade ediyoruz.
+ #include <iostream>
+#include <initializer_list>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+    const int a[] = {2, 5, 6, 9};
+    vector<int> ivec(a, a + (sizeof a / sizeof * a));
+}
+initializer_list bizi bu zahmetten kurtarıyor ama aslında yaptığı yukarıda yazılan kod'dan başka bir şey değil. Modern C++ ile :
+#include <iostream>
+#include <initializer_list>
+#include <vector>
+
+int main()
+{
+    vector<int> ivec{2, 5, 6, 9};
+}
+bu şekilde yazmamız eksi C++ ile yazılan kod ile assembly kod açısından bir farklılık oluşturmaz. Sadece bu şekilde yazdığımızda diziyi compiler oluşturur, compiler kod olarak sadece
+diziyi oluşturmakla kalmaz o dizinin başlangıç adresini ve dizinin bittiği yerin adresini de bir sınıf nesnesi olarak ifade etti. İşte o sınıf initializer_list sınıfıdır ve vector
+sınıfının da initializer_liat parametreli bir ctor'ı olduğu için aslında bu kod derleyici açısından baktığımız zaman optimizasyon öncesi şu anlama gelir: derleyici git 5 elemanlı 
+bir dizi oluştur o diziye bu değerleri kopyala o dizinin başlangıç adresini ve bittiği yerin adresini al bu adreslerle initializer_list sınıfı türünden bir nesne oluştur ve bu 
+nesneyi kopyalama semantiği ile sınıfın ctor'ına argüman olarak gönder. 
+
+Yani aslında eski C++ ile modern C++ arasında bu konu bakımından bir fark yok sadece fark programcının işini kolaylaştırması, initializer_list sınıfı bu işi kolaylaştırıcak 
+bir interface'i var ve vector gibi list gibi container sınıfların initializer_list parametreli ctor'ları var. Ve bu initializer_list sınıfı STL'in başka öğeleriyle de uyumludur;
+örneğin begin fonk.(ilk öğenin konumunu döndürür), end fonk.(son öğeden sonraki olmayan öğenin konumunu döndürür), size fonk. var gibi. Ama nasıl vector, list gibi sınıfların 
+initializer_list parametreli ctor'ları olduğu gibi sadece ctor'da değil string sınıfında da görmüştük başka üye fonksiyonlarında initializer_list parametreli ctor'ı var.
+Örneğin belirli noktada dinamik dizi hangi değerleri tutuyor ise  şimdi o değerleri tutmayı bıraksın ve şu değerleri tutsun diye karar alabiliriz:
+#include <iostream>
+#include <initializer_list>
+#include <vector>
+
+int main()
+{
+    vector<int> ivec{2, 5, 6, 9};
+    ///
+
+    int a = 5, b = 7;
+
+    ivec = {a, b, 8, 9};
+}
+burada da vector sınıfının parametresi initializer_list olan atama operator fonksiyonu çağırılır. Dolayısıyla Modern C++ ile gelen en iyi, programcının işini de en fazla 
+kolaylaştıran araçlardan biridir.
+
+initializer_list sınıfı türünden bir nesne pratikte 2 tane pointer tutar ve initializer_list'in atama operator fonksiyonu ya da copy ctor'ı aslında diziyi kopyalamıyor
+sadece pointer'ları kopyalıyor. Dolayısıyla eski C++'ta yapılan yazımın varlık nedenidir initializer_list yani varlık nedeni bir diziyi bu şekilde kullanıp dizinin 
+kopyalanması yerine dizinin boyut bilgisi ile beraber aslında bir yerde başka bir koda argüman olarak geçirilmesini sağlamaktır.
+
+======================================================================================================================================================================================
+virtual dispatch ne zaman devreye girer ne zaman girmez ile ilgili incelemeye devam ediyoruz:
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run(double speed)
+    {
+        std::cout "Car is running at the speed of "<< speed << '\n';
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+    void test_car()
+    {
+        start();
+        run();
+        stop();
+    }
+};
+yukarıdaki örnekte yazdığımız test_car fonksiyonu çok tipik bir senaryo, yani taban sınıfın sanal olmayan fonksiyonunun taban sınıfın virtual fonksiyonlarını çağırması çok 
+sık karşılaştığımız bir senaryodur. Ve bu virtaul fonksiyonlar private fonksiyonlar da olabilir; bu durumda client'lar doğrudan virtual fonksiyonları çağıramayacaktı ama 
+sanal fonksiyonların çağırılmasını sağalan sanal olmayan fonksiyonu çağırabilecekleri için dolaylı yoldan onları da çağırabilirler.
+
+Örneğin test_car fonksiyonu BMW nesnesiyle çağırıldığı zaman aslında bu fonksiyonun gizli parametre değişkeni Car* dolayısıyla BMW nesnesinin adresini test_car fonksiyonun 
+parametre değişkenine aktarmış oluyoruz; buradaki fonksiyon çağrıları da pointer semantiği ile yapıldığı için burada virtual dispatch mekanizması devreye giriyor. 
+
+Eğer bu sınıf için bir tane ctor yazarsak; ve test_car içinde çağırılan fonksiyonları bu ctor'ın içine taşısak:
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    Car()
+    {
+        start();
+        run();
+        stop();
+    }
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+
+};
+
+class Volvo : public car {
+public:
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+
+bu durumda ben Volto türünden bir nesne tanımlarsam Volvo nesnesinin hayata gelmesi sırasında Volvo nesnesi içinde bir Car nesneside hayata gelicek ve Car'ın ctor'ı
+çalışacak:
+
+//main.cpp
+
+int main()
+{
+    Volvo vx;
+}
+Car'ın ctor'ı çalıştığında nasıl test_car fonksiyonunda start, run, stop fonksiyonları çağırıldığında virtual dispatch mekanizması devreye giriyorsa burada da her şey
+ aynı olsaydı devreye girmesi gerekirdi fakat kodu çalıştırdığımız zaman virtual dispatch mekanizmasının devreye girmediğini görürüz:
+Dikkat!!!
+KURAL: Taban sınıf ctor'ları içinde yapılan sanal fonksiyon çağrıları için virtual dispatch uygulanmaz! bu dilin kuralıdır. Uygulansaydı felaket olurdu zaten çünkü bir türemiş 
+sınıf nesnesi hayata gelirken önce onun taban sınıf nesnesi hayata geliyor; yani taban sınıfın ctor'ı taban sınıfı hayata getiriyor. Ama bu durumda daha türemiş sınıf nesnesinin 
+construction'ı tamamlanmadı ki; tamamlanmadığına göre türemiş sınıf nesnesi daha hayata gelmedi demektir. Burada taban sınıfın ctor'ı içinde virtual dispatch devreye girseydi
+yani gerçekten türemiş sınıfın override'ı çağırılsaydı run time hatası olurdu; ub olurdu. Çünkü türemiş sınıfın override'ı türemiş sınıf nesnesini kullanıyor ama bu durumda 
+türemiş sınıf nesnesi daha hayata gelmemiştir ki! Örneğin türemiş sınıfın elemanları olabilir daha o elemanlar hayata gelmediği için o hayata gelmemiş elemanları kullanır. Veya 
+birtakım kaynaklar elde ediniyordur o kaynaklar edinilmiş gibi o override'da o kaynakları kullanacaklar oysa o kaynaklar edinmedi ki. Dolayısıyla zaten mantıksal olarak devreye 
+girmemesi gerekiyor. Bu da mülakatların klasik sorularıdan biridir!!
+
+O halde virtual dispatch'in devreye girmediği yerlerden biri object silicing diğeri de az önce gördüğümüz taban sınıfın ctor'ı içinde yapılan sanal fonksiyon çağrıları.
+
+Aynı durum dtor içinde geçerlidir çünkü türemiş sınıfın dtor'ı çalıştığı zaman o kod çalıştıktan sonra önce member'lar destroy oluyor sonra da türemiş sınıf nesnesi içindeki 
+taban sınıf nesnesi destroy oluyor çünkü dtor'da hayata gelmeleri ile ters sırada  destroy oluyordu. Yani eğer ki virtual dispatch mekanizması devreye girseydi;
+ölmüş olan hayatta olmayan nesneyi(taban sınıf nesnesi) kullanmak durumunda kalırdı. 
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    ~Car()
+    {
+        start();
+        run();
+        stop();
+    }
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+
+};
+
+class Volvo : public car {
+public:
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+
+//main.cpp
+#include <iostream>
+#include "car.h"
+
+int main()
+{
+    Volvo vx;
+}
+türemiş sınıfın ctor'ını düşünelim; türemiş sınıfın dtor'ı çalışıyor o kod çalıştıktan sonra önce member'lar (örneğin ax, bx, cx olsun), ardından türemiş sınıf nesnesi içinde 
+bulunan taban sınıf nesnesi Car destroy olur çünkü hayata en önce gelen en son yok ediliyordu(FILO). 
+Volvo::~Volvo()
+{
+    //code
+}
+O halde önce cx sonra bx sonra ax ve en son Car nesneleri yok edilir; fakat Car'ın dtor'ı çağırıldığı zaman veri elemanları destroy olmuş kaynaklar geri verilmiş virtual dispatch 
+devreye girerse ölmüş varlığı kullanmış olucak.
+
+
+virtual dispatch mekanizmasının devreye girmediği bir yer daha var:
+Eğer taban sınıf üye fonksiyonu içinde çağrı taban sınıfı ile nitelenerek yapılırsa test_car fonksiyonunda olduğu gibi, burada  virtual dispatch mekanizması devreye girmez.
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+    void test_car()
+    {
+        Car::start();
+        Car::run();
+        Car::stop();
+    }
+
+};
+
+class Volvo : public car {
+public:
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+
+//main.cpp
+#include <iostream>
+#include "car.h"
+
+int main()
+{
+    Volvo vx;
+    Audi ax;
+    Dacia dx;
+
+    vx.test_car();
+    ax.test_car();
+    dx.test_car();
+}
+bunu bilmek önemli  bir nedenden dolayı özellikle önemlidir; çünkü bazen şöyle bir kodda yazmamız gerekebiliyor, yani üye fonksiyon içinde virtual dispatch mekanizması devreye 
+girmeden önce taban sınıfın kendi implementasyonu kullanmak isteyebiliyoruz: 
+void test_car()
+{
+    Car::start();
+    start();
+}
+gibi
+
+================================================================================================================================================================================
+Bir derleyici virtual dispatch'i nasıl implemente ediyor?
+ 
+virtual dispatch mekanizmasını C'de nasıl implemente edebiliriz diye düşünüp elde ettiğimiz sonuçlara benzer şekilde derleyici de implemente eder.
+
+Bütün polymorphic sınıf nesneleri içinde fiilen sınıf nesnesisinin elemanları dışında derleyici taban sınıf nesnesinin içine bir pointer gömüyor. Yani bütün polymorphic sınıf 
+nesnelerin içinde bir taban sınıf nesnesi var ama taban sınıf nesnesinin içinde taban sınıf nesnesinin elemanlarının dışında bir de bir pointer var. O pointer'a popüler olarak
+"virtual pointer" deniliyor. Hatta tipik olarak vptr ismi ile gösterilir. Aslında bunun tam terimsel karşılığı "virtual function table pointer" dır.
+
+class Base {
+    int mx, my;
+    virtual void f1() {}
+    virtual void f2() {}
+    virtual void f3() {}
+    virtual void f4() {}
+};
+
+class Der : public Base {
+    virtual void foo() {}
+};
+
+class Nec : public Der {
+    virtual void bar() {}
+};
+
+int main()
+{
+    std::cout << "sizeof(Base) = " << sizeof(Base) << '\n'; //12
+    std::cout << "sizeof(Der) = " << sizeof(Der) << '\n';   //12
+    std::cout << "sizeof(Nec) = " << sizeof(Nec) << '\n';   //12
+}
+Derleyici her sınıf için bir veri yapısı oluşturuyor; derleyicinin oluşturduğu bu veri yapısına sanal fonksiyon tablosu(virtual function table) deniliyor. Virtual function table 
+dediğimiz veri yapısında indekslenmiş bir şekilde sanal fonksiyon override'larının adresleri vardır yani kalıtımla elde edilen türemiş sınıfların her biri için bir virtual 
+function table vardır ve o tabloda da indekslenmiş bir şekilde sanal fonksiyon override'larının adresleri vardır. İndeksler statik olarak yani compile time'da elde ediliyor(örneğin
+Volvo türemiş sınıfının start fonksiyonunun 1. indekste olması, Bmw türemiş sınıfının start fonksiyonunun 1. indekste olması vb. ) fakat bu veri yapılarının oluşturulması ise 
+run time'da run time'ın başındadır. Derleyici polymorphic bir sınıf nesnesi oluşturulduğunda örneğin bir Volvo bir Audi nesnesi oluşturulduğunda aslında biz sadece taban sınıfın 
+veri elemanları initialize ediliyor gibi görüyoruz ama derleyici o taban sınıf nesnesi içine gömdüğü virtual function table pointer'a ilgili sınıfın sanal fonksiyon tablosunun
+adresi ile ilk değerini verir. Yani Volvo nesnesinin içindeki Car nesnesinin içindeki vptr(virtual pointer)'nin değeri Volvo'nun sanal fonksiyon tablosunun adresidir. 
+
+Şimdi gelelim virtual dispatch'in nasıl uygulandığına:
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+
+};
+
+class Volvo : public car {
+public:
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+
+
+//main.cpp
+#include <iostream>
+#include "car.h"
+
+void car_game()
+{
+    pcar->start();
+    pcar->run();
+    pcar->stop();
+}
+derleyici compile time'da start'ın sanal fonksiyon olduğunu anlıyor; ismi arıyor aranan sınıfı Car sınıfında buldu ve onun sanal fonk. olduğunu gördü. Ve sanal fonk. olduğunu 
+gördüğü için burada virtual dispatch uygulaması gerektiğini anladı:
+virtual dispatch uygulaması şu demek:
+pcar'ın gösterdiği nesnenin içindeki vptr'ye erişeyim; burada start fonk. indeksini de compile time'da bildiği için vptr'ye erişip ilgili indeksi geçer ve o indeksteki fonksiyonu
+çağırır
+void car_game()
+{
+    pcar->start();
+    /*
+        pcar->vptr[1]();
+    */
+    pcar->run();
+    pcar->stop();
+}
+virtual dispatch'in tabii ki ilave maliyeti vardır bu maliyetten kaçınmanın yolları vardır. Fakat %95 neredeyse bu maliyet işi engellemez. Maliyeti hem işlemsel hem de bellekseldir.
+
+
+a)virtual dispatch'te işlemsel maliyet
+(yani virtual dispatch olmasaydı bu kodlar çalışmayacaktı)
+Öncelikle her polymorphic nesnenin içinde bir pointer var.
+1)virtual dispatch mekanizması ilave maliyetler bir yana hemen her zaman dinamik ömürlü nesneler  gerektiriyor yani bu nesnelerin türü çoğunlukla run time'da belli olduğundan
+biz otomatik ömürlü nesnelerle ya da statik ömrülü nesnelerle virtual dispatch uygulamıyoruz %99 virtual dispatch dinamik ömürlü nesneler ile oluşturuluyor. Dolayısıyla ortada
+virtual dispatch varsa hemen her zaman dinamik ömürlü nesneler var ama dinamik ömürlü nesnelerin zaten çok ciddi bir maliyeti var. Yani o zaman virtual dispatch'ten önce bizim 
+şunu sorgulamamız gerekiyor dinamik ömürlü nesne olmadan ben işimi görebilir miydim? Eğer örneğin new ifadeleri ile oluşturulmayan otomatik ömürlü nesnelerle işimi görebiliyor 
+olsaydım o dinamik ömürlü nesnelerin maliyetine(malloc karşılığı operator new fonk. çağırılıyor, aynı şekilde C'deki free benzeri operator delete fonk. çağırılıyor vb.)
+katlanmamış olurduk. Yani virtual dispatch mekanizması bizi dinamik ömürlü nesne kullanımına itiyor.
+
+2)Her nesnenin içinde bir tane virtual function pointer olduğuna göre bizim nesnelerimiz yazdığımız ctor'lar bizim veri elemanlarımızı initialize ediyor ama her polymorphic
+nesnenin hayat gelmesinde o pointer'ında initialize edilmesi de var. Yani örneğin 1000 tane polymorphic nesne hayata gelmişse 1000'i içinde o virtual function pointer 
+initialize edilecek. Sanal fonksiyon tabloları da veri yapılarıdır; o veri yapılarınında oluşturulması gerekiyor. Yani nasıl vector sınıfı türünden veya map sınıfı türünden 
+bir nesne oluşturduğumuz zaman onun ctor'ı çalışıyorsa birtakım işlemler yapılıyorsa yine aynı şekilde sanal fonksiyon tablosunun oluşturulması içinde run time'da birtakım 
+kodların çalışması gerekiyor. Biz farkına varmasakta run time'ın başında o sanal fonksiyon tablolarının oluşturulduğu onları oluşturan kodlar çalışıyor. Doğal olarak bu veri 
+yapısının kendisi de heap'tedir. Yani onlar içinde bir allocation yapılıyor. Normalde virtual dispatch olmasaydı doğrudan fonksiyon adresiyle çağırılacaktı ama şimdi
+her virtual function çağrısı 2 tane dereferencing kodu içericek. 1.'si polymorphic nesnenin içindeki vptr'ın elde edilmesinde 2. de elde edilen adresten indekse erişme.
+Yani tipik olarak virtual dispatch mekanizması eğer compiler optimization herhangi bir şekilde durumu değiştirmiyorsa 2 tane dereferencing kodu içeriyor.
+
+Önemli!!
+Ortada 10 tane Bmw nesnesi varsa sadece ve sadece  tane virtual function table vardır yani her sınıf nesnesi için sadece 1 tanedir!!!
+
+b)virtual dispatch'te belleksel maliyet
+1)Her nesne için vptr vardır yani bellek maliyeti olarak her polymorphic nesne için bir pointer her sınıf için bir veri yapısı/fonksiyon tablosu. Yani ortada 20 tane Volvo 
+nesnesi varsa her Volvo nesnesinin sizof'u 4 byte(sizof'u pointer kadar) artıcak ve sonuçta 1 tane de bellekte 1 sanal fonksiyon tablosu için yer ayrılıcak hatta o da heap'tedir.
+Dolayısıyla bellek açısından bakarsak her nesne için bir pointer ilave her sınıf için bir sanal fonk. tablosu. 
+
+Peki bu maliyetlerin herhangi bir şekilde bizim işimizi etkilemesi söz konusu mu?
+Hayır biz zateb birçok durumda dinamik ömürlü nesnenin  kullanılması zorunlu olan temalardayız ilave maliyet ise tipik bir işletim sistemi altında koşan programda her nesne 
+için bir pointer'ın fazladan kullanması veya 2 kere dereferencing çoğunlukla kayda değer bir maliyet değil. Fakat tabii ki uygulamanın ne olduğuna da bağlıdır.
+
+C++ multi paradigmatic bir dil olduğu için ne kalıtıma %100 mecburuz yani kalıtımında istenmeyen bazı nitelekleri var; örneğin kalıtım uygulayarak OPP yaklaşımında yüksek seviyeli bir 
+bağımlılık oluşturuyoruz. Dolayısıyla kalıtımın kullanılmadığı alternatiflerde var; örneğin kapalı sınıf  hiyerarşisi varsa ben hiç virtual dispatch mekanizmasını kullanmadan 
+hatta dinamik ömürlü nesne kullanma ihtiyacı olmadan örneğin  C++17 ile dile eklenen variant sınıfı ile birbirinden bağımsız sınıfları ortak bir arayüzde kullanma şansına sahip 
+oluyorum ya da generic programlama tarafında CRTP dediğimiz bir araç var; bazı durumlarda generic olarak compile time'da adeta bir virtual dispatch mekanizmasını run time'da
+bir virtual dispatch olmadan compile time'da implemente edebiliyoruz. Yani kalıtım tek alternatif değil.
