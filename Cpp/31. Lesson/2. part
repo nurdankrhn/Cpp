@@ -1,0 +1,665 @@
+Derlayiciler bazı durumlarda koda bakarak hangi sınıfın fonksiyonunun çağırılması gerektiğini koda bakarak anlayabiliyorlar. Bu durumda normalde kağıt üstünde virtual dispatch 
+uygulanması gerekirken koda bakarak yaptığı optimizasyon ile hangi fonksiyonun çağırıldiklarını anladıklarında tabii ki virtual dispatch mekanizmansını uygulamıyorlar. Buna 
+"dervirtualization optimization" deniliyor. Dolayıısyla oluşan assembly koduna baktığımız zaman virtual dispatch uygulaması görmeyi beklerken göremediğimiz durumlarda öyle 
+durumlar var ki az önce de söylediğimiz gibi derleyici dervirtualization optimization yapabiliyor yani virtual dispatch kodunu hiç oluşturmayabiliyor.
+
+=====================================================================================================================================================================================
+
+virtual constructor
+C++'ta virtual constructor yoktur. Bazı dillerde virtual constructor'a yönelik dilin hazır bir aracı varken C++'ta nesne modeli daha farklı olduğundan virtual constructor yok.
+Fakat virtual constructor'ı adeta simule eden idiomatik bir yapı var; o yapıya virtual constructor idiom ya da clone idiom deniliyor. Bu her C++ programcısının bilmesi gereken
+idiomik bir yapıdır. 
+
+Soru 1: virtual keyword'unu ctor için kullanabilir miyim?
+Hayır; ctor virtual anahtar sözcüğü ile bildirilemez. 
+
+Soru 2: sınıfın static üye fonskiyonu virtual olabilir mi?
+Hayır, olamaz.
+
+Soru 3: global fonksiyonlar virtual olabilir mi?
+Hayır, olamaz.
+
+Demekki virtual function sadece sınıfın non-static üye fonksiyonları için söz konusu ve ctor'larda bunun dışında
+class Myclass {
+public:
+    virtual Myclass();//syntax error
+    virtual void foo();//legal
+    static virtual void foo();//syntax error
+};
+
+virtual void gfoo(); //syntax error
+
+Hatırlatma: inline olarak sınıfın içinde tanımlarken virtual keyword'ünü tanım içinde kullanacağız ama ayrı yerde veya başka .cpp dosyasında tanımlarken virtual anahtar sözcüğünü
+kullanmak sentaks hatası; bildirimde kullanırız tanımda değil!
+
+Sanal ctor yok ama sanal ctor idiom'u var; o sebeple sanal ctor olsaydı nasıl bir şey olabilirdi önce bunun cevabını almaya çalışalım:
+#include <iostream>
+#include "car.h"
+
+aslında sanal ctor önemli bir ihtiyaç (sadece kullanılan terim biraz yadırganan bir terim) çünkü:
+void car_game(Car*)
+{
+
+}
+bu fonksiyona gelen araba Dacia'da olabilir Audi'de olabilir, Bmw'de olabilir vb. Benimde bu fonksiyona çalışma zamanında  gelen araba ile aynı türden bir nesne oluşturmam gerekse
+yani semantik olarak oluşturmak istediğim:
+void car_game(Car*)
+{
+    //buraya gelen arabanın bir kopyasını oluşturmak istiyorum
+}
+diyelim ki çok daha yüksek seviyeli bir programlama dilinde kod yazıyoruz ve şöyle bir keyword olsun:
+void car_game(Car*)
+{
+    //buraya gelen arabanın bir kopyasını oluşturmak istiyorum
+    dynamic_type_of(*p) mycar;
+}
+dinamik tür run time'da davranışa esas olan tür evet compile time'da p'nin türü Car* *p'nin ise Car fakat benim amacım program çalışırken Car* Bmw ise ben bir Bmw nesnesi 
+oluşturucam. Bunu doğrudan yapacak bir araç yok. Bunu implemente eden idiomik yapıya clone idiom'u deniliyor.
+
+//clone idiom
+ben virtual dispatch mekanizmasını kullanarak türemiş sınıflardan herhangi birinin override'ını çağırılmasını sağlayabiliyorum; o zaman örneğin ismi clone olan bir fonksiyonun 
+çağırılmasını sağlasam bu clone fonksiyonu da virtual ya da pure virtual olsa tabii tipik olarak pure virtual. O zaman burada run time'da çağırılan fonksiyon gelen araba 
+Bmw ise Bmw'nin clone override Dacia ise Dacia'nın clone override'ı olucak. O zaman her sınıf clone fonksiyonunu override eder; Bmw'nin clone fonksiyonu Bmw kopyalar, Audi'nın 
+clone override'ı Audi kopyalar, Dacia'nın clone override'ı Dacia kopyalar:
+void car_game(Car*)
+{
+    //buraya gelen arabanın bir kopyasını oluşturmak istiyorum
+    Car *pnewcar = p->clone();
+    pnewcar->start();
+    pnewcar->run();
+    pnewcar->stop();
+}
+Birçok durumda özellikle en tepedeki taban sınıfın bir sınıf hiyerarşisinde bir ya da birden fazla fonksiyonu pure virtual oluyor. Yeterinde soyutlamayı yükseltirsek
+öyle bir noktaya geliriz ki artık o sınıfın bir nesne olma ihtimali olmaz bir kavram haline gelir. Yani o kavram türünden bir nesne oluşturmanın genel bir mantığı yoktur.
+Bu örneğimizde clone fonksiyonun sanal olması gerekiyor fakat Car sınıfı içinde tipik olarak bir implementasyon söz konusu değildir. O yüzden bu tür durumlarda fonksiyonları 
+sanal yapmak yerine bir implementasyona sahip olmayacak şekilde onları saf sanal yapıyoruz böylece türemiş sınıflarıda onları override etmeye zorluyoruz. Çünkü override etmezlerse
+onlarda abstract olurlar; bu durumda en az 1 pure virtaul function'a sahip oldukları için bizim Car sınıfımız bir absratc sınıf olmuş olurdu. Öyle sınıflar var ki sınıfların bütün 
+fonksiyonları pure virtual function'dır bu Java, C# gibi dillerdeki interface'in karşılığıdır. Konvensiyonel olarak bazı programcılar bu tür sınıfları oluştururken isimlendirmede
+bazı programcılar salt pure virtual fonksiyonlardan oluşan böyle abstract sınıflara başına I veya i ekleyerek isim veriyorlar. Bu C++'ta da bazı programcıların çok sık tercih 
+ettiği bir isimlendirme biçimidir.
+
+O halde kendi örneğimize clone idiom'u implemente edelim:
+  
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+
+    virtual Car* clone() = 0; //pure virtual function
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+
+};
+//Car sınıfında artık 1 tane pure virtual function olduğu için abstract sınıf olur ve o sınıf türünden nesne oluşturamam(pointer veya referans tanımlayabilirim)
+
+class Volvo : public car {
+public:
+    Car* clone()override
+    {
+        return new Volvo(*this);
+    }
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    Car* clone()override
+    {
+        return new VolvoXC90(*this);
+    }
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    Car* clone()override
+    {
+        return new Mercedes(*this);
+    }
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    Car* clone()override
+    {
+        return new Opel(*this);
+    }
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    Car* clone()override
+    {
+        return new Fiat(*this);
+    }
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    Car* clone()override
+    {
+        return new Audi(*this);
+    }
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    Car* clone()override
+    {
+        return new Honda(*this);
+    }
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    Car* clone()override
+    {
+        return new Togg(*this);
+    }
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    Car* clone()override
+    {
+        return new Dacia(*this);
+    }
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+Car sınıfının artık abstract olması iyi bir şey çünkü; aslında biz fonksiyon yazarkan  virtual dispatch'ten faydalanabilmek için normalde fonksiyonun parametresini pointer ya da 
+referans yapıyoruz fakat bunun yerine sınıf türünden yaparsak eğer sınıf abstract olmasaydı:
+void car_game(Car r)
+{
+
+}
+a)Eğer mandatory copy elision oluşmamışsa burada copy ctor çağırılacaktı her fonksion çağırsı için ya da başka bir optimizasyon söz konusu değilse
+b)burada object slicing olucaktı ve bu virtual dispatch mekanizmasının devreye girmesini engelleyecekti. Fakat artık bunlar olmaz çünkü Car sınıfı 
+abstract class bunlar sentaks hatası olur zaten. Çünkü Car sınıfı abstract olduğundan parametre değişkeni de olsa abstract sınıfı türünden nesne oluşturamam.
+
+//main.cpp
+#include <iostream>
+#include "car.h"
+
+void car_gane(Car*)
+{
+    p->start();
+    Car* pnewcar = p->clone();
+    pnewcar->start();
+    pnewcar->run();
+    pnewcar->stop();
+
+    (void)getchar();
+}
+
+int main()
+{
+    for(int i = 0; i < 20; ++i)
+    {
+        Car *p = create_random_car();
+        car_game(p);
+    }
+}
+clone fonksiyonunu böyle override etseydim:
+Car* clone()override
+{
+    return new Volvo;
+}
+eğer böyle yazsaydım bu clone olmaz (ama bu da ayrı bir ihtiyacın çözümü olabilir) çünkü new ifadesini bu şekilde kullanırsam dinamik ömürlü yeni Volvo nesnesi default initialize
+edilmiş olur default ctor ile hayata getirilmiş olur bu durumda gelen arabanın kopyasını çıkarmış olmayız. Örneğin clone fonksiyonuna gelen aracın yaşı, modeli, rengi vb vardır.
+Örneğin clone fonksiyonuna gelen arabanın yaşı  ve rengi kırmızı bir Volvo ise ve benim isteğim yine onun gibi  yaşında kırmızı bir Volvo oluşturmaksa bu clone. Fakat bu şekilde 
+değilde beni ilgilendiren sadece onun türüyse  buraya gelen Volvo ama ben yeni bir Volvo oluşturacaksam default construct edilmiş yani yukarıdaki gibi yapılmışsa o clone değildir.
+O zaman ona clone değil create_similar vb bir isim vermemiz daha doğru olur. O halde yukarıdaki ifadenin clone olması için şu şekilde yapılması gerekir:
+bu fonksiyon hangi nesne için çağırılıyorsa onun adresi this olduğuna göre nesnenin kendisi de *this olduğuna göre; dinamik ömürlü Volvo nesnesini bu fonksiyon hangi nesne için 
+çağırıldıysa onunla initialize edildi bu durumda copy ctor çağırıldı. Yani dinamik olarak oluşturdum ve kopyasını çıkardım. 
+Car* clone()override
+{
+    return new Volvo(*this);
+}
+
+Her türemiş sınıfa bu şekilde clone'nun override'ını eklemek zahmetli bunun içinde generic programlama paradigmasının öğelerinden faydalanabiliriz!!
+
+Az önce global fonksiyonların virtual olamayacağını söylemiştik; fakat öyle durumlar var ki biz global fonksiyonun virtual dispatch'den faydalanmasını istiyoruz. 
+Örneğin yine C++ mülakatlarında sorulan tipik bir soru:
+std::cout << *p << '\n'; ifadesini legal kılacak fonksiyonu yazalım;
+int main()
+{
+    for(int i = 0; i < 20; ++i)
+    {
+        Car *p = create_random_car();
+        std::cout << *p << '\n';
+        car_game(p);
+    }
+}
+bunu yapabilmek için global fonksiyonu virtual yapamayacağıma göre global fonksiyonun parametresini taban sınıf türünden yapıp taban sınıfa virtual bir fonksiyon eklerim; 
+yani global fonksiyonun parametresi ile aslında virtual fonksiyona çağrı yapmış olacağım:
+bu örnek ile std::cout << *p << '\n'; ifadesi legal hale geldi hem de hangi araba geldiyse onun için I am a (gelen_araba_ismi) şeklinde ekrana yazı yazdırdık:
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void print(std::ostream& os)const = 0; 
+    friend std::ostream& operator<<(std::ostream& os, const Car& c)
+    {
+        c.print(os);
+        return os;
+    }
+    virtual Car* clone() = 0; //pure virtual function
+    
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+
+};
+//Car sınıfında artık 1 tane pure virtual function olduğu için abstract sınıf olur ve o sınıf türünden nesne oluşturamam(pointer veya referans tanımlayabilirim)
+
+class Volvo : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Volvo\n";
+    }
+    Car* clone()override
+    {
+        return new Volvo(*this);
+    }
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a VolvoXc90\n";
+    }
+    Car* clone()override
+    {
+        return new VolvoXC90(*this);
+    }
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Mercedes\n";
+    }
+    Car* clone()override
+    {
+        return new Mercedes(*this);
+    }
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Opel\n";
+    }
+    Car* clone()override
+    {
+        return new Opel(*this);
+    }
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Fiat\n";
+    }
+    Car* clone()override
+    {
+        return new Fiat(*this);
+    }
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Audi\n";
+    }
+    Car* clone()override
+    {
+        return new Audi(*this);
+    }
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Honda\n";
+    }
+    Car* clone()override
+    {
+        return new Honda(*this);
+    }
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Togg\n";
+    }
+    Car* clone()override
+    {
+        return new Togg(*this);
+    }
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Dacia\n";
+    }
+    Car* clone()override
+    {
+        return new Dacia(*this);
+    }
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+
+//main.cpp
+#include <iostream>
+#include "car.h"
+
+void car_gane(Car*)
+{
+    p->start();
+    Car* pnewcar = p->clone();
+    pnewcar->start();
+    pnewcar->run();
+    pnewcar->stop();
+
+    (void)getchar();
+}
+
+int main()
+{
+    for(int i = 0; i < 20; ++i)
+    {
+        Car *p = create_random_car();
+        std::cout << *p << '\n';
+        car_game(p);
+    }
+}
+böylece dolaylı yoldan global bir fonksiyonu sanal hale getirmiş olduk!!
