@@ -1,0 +1,356 @@
+virtual destructor
+C++ dilinde constructor virtaul olamıyor ancak idiomik bir yapı ile(clone idiom'u) ile adeta virtual ctor etkisi oluşturuyoruz. Fakat destructor virtual olabiliyor hatta 
+legal olmasının yanı sıra dtor'ın çoğunlukla hemen hemen zaman virtaul olması gerekiyor. 
+
+
+Biz çoğu zaman virtual dispatch mekanizmasında dinamik ömürlü nesneler kullanıyoruz. Dinamik ömürlü nesneleri taban sınıf pointer'ı ile yönetip  bazı durumlarda da taban sınıf
+pointer'ıyla da delete ediyoruz. Örneğin:
+class Base {
+public:
+    ~Base()
+    {
+        std::cout << "Base destructor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    ~Der()
+    {
+        std::cout << "Der destructor is releasing some resources\n";
+    }
+};
+
+int main()
+{
+    Der myder;
+}
+burada daha öncede belirttiğimiz gibi Der'in ctor'ı Der nesnesini yani onun içindeki Base nesnesini ve sınıfın member'larını construct eder, ardından kodun sonunda da dtor ile 
+Der nesnesi yani içindeki member'lar ve taban sınıf nesnesi destroy edilecek. Yani önce dtor'un kodu çalışır;  dtor'un kodunun sonunda aslında member'ların ve doğal olarak 
+taban sınıf nesnesisin dtor'larına yapılan çağrı var ve bunlar ctor'ların çağırılması ile ters sıradadır. 
+
+Fakat eğer ben dinamik ömürlü bir nesne oluşturursam; dinamik ömürlü nesneyi oluşturmak 2 kademeli bir işlemdir. Önce ismi operator new olan fonksiyon çağırılır(operator new fonk.
+malloc benzeri bir fonk. derleyici o fonksiyona sizeof(Der) sabit ifadesi ile çağrı yapar), ve derleyici operator new'den aldığı adresi this pointer'ı olarak sınıfın ctor'ına 
+çağrı yapıyor. new fonk. başarılı olursa sizeof(Der) kadar bir bellek alanı allocate edicek; başarılı olmazsa exception throw edicek. Throw ettiği exception'ın türü std::bad_alloc. 
+class Base {
+public:
+    ~Base()
+    {
+        std::cout << "Base destructor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    ~Der()
+    {
+        std::cout << "Der destructor is releasing some resources\n";
+    }
+};
+
+int main()
+{
+    Der* derptr = new Der;
+}
+Fakat ben bu pointerı delete etmediğim sürece dtor çağırılmaz. delete ifadesini kullandığım zaman:
+int main()
+{
+    Der* derptr = new Der;
+    delete derptr;
+}
+şimdi derleyici derptr Der* türünden olduğu için Der sınıfının dtor'ını çağırdı. dtor'ındaki kod çalıştı ve dtor'ın sonunda taban sınıf nesnesi olan Base'inde dtor'ıda çağırıldı.
+Ve o da bittikten sonra operator delete fonksiyonu çağırıldı. 
+
+Fakat problemli bir durum var çünkü biz birçok durumda  dinamik ömrülü türemiş sınıf nesnesini taban sınıf pointer'ı ile yönetiyoruz; hatta çoğu zaman biz nesnenin türünü bile 
+bilmiyoruz programın çalışma zamanında anlaşılıyor. Örneğin aşağıda foo isimli fonksiyonda run time'da gelen nesne türünden bir nesne oluşturmak istersem dinamik olarak oluşturduğum
+bu nesneyi delete etmem de gerekir. İster direk fonksiyona gelen nesne ister clone'ladığım nesne olsun böyle bir senaryoda derleyici delete operator'ünün operandı Base* yani taban 
+sınıf nesnesi türünden adres olan bir nesne olduğu için Base'in yani taban sınıfın dtor'ına çağrı yapacak. Çünkü delete operator'ünün operandı olan ifade static olarak ele alınıyor.
+Dolayısyla bu durumda 
+1)gelen nesnesinin dtor'ı çağırılmadı
+2)Standartlara göre bu tanımsız davranış olarak belirlenmiştir:
+class Base {
+public:
+    ~Base()
+    {
+        std::cout << "Base destructor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    ~Der()
+    {
+        std::cout << "Der destructor is releasing some resources\n";
+    }
+};
+
+void foo(Base* p)
+{
+    //
+    delete p;
+}
+
+int main()
+{
+    Base* baseptr = new Der;
+    foo(baseptr); //ub
+}
+Yani eğer türemiş sınıf nesnesini taban sınıf pointer'ı ile delete ediyorsak burada ub vardır. Fakat ub olmasaydı dahi bir diğer problem burada çağırılanın Der sınıfın dtor'ının 
+değil Base sınıfının dtor'ı olması  oysa Der'in dtor'ının çağırılması gerekiyordu. Burada:
+a)polymorphic davranışın gerçekleşebilmesi yani delet operator'ünün operandı olan pointer hangi sınıf türünden nesneyi gösteriyorsa run time'da o sınıfın dtor'ının çağırılması 
+için dtor'ın virtual olması gerekiyor!!! Ancak dtor virtual ise bu özellik devreye girebilir.   
+class Base {
+public:
+    virtual ~Base()
+    {
+        std::cout << "Base destructor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    ~Der()
+    {
+        std::cout << "Der destructor is releasing some resources\n";
+    }
+};
+
+void foo(Base* p)
+{
+    //
+    delete p;
+}
+
+int main()
+{
+    Base* baseptr = new Der;
+    foo(baseptr); //ub
+}
+implicitly override oldu diyebiliriz artık bütün sınıfların dtor'ı taban sınıfın dtor'ını override etmiş oldu yani biz fiilen tüm türemiş sınıfların dtor'ını kendimiz yazmasakta 
+derleyicinin yazdığı dtor yine onun override'ları olucak. 
+
+C++ mülakatlarında çok sık sorulan bir soru ve üretimde çok önemli bir kural:
+Herb Sutter'ın taban sınıfın dtor'ları ile ilgili çok önemli adeta slogan haline gelmiş bir cümlesi var: polymorphic taban sınıfların dtor'ları ya public virtual olmalı ya da 
+protected non-virtual olmalıdır. public virtual olması aslında gayet açık çünkü eğer türemiş sınıf nesnelerini taban sınıf pointer'ı ile delete etme ihtimali varsa 
+eğer taban sınıfın dtor'ı polymorphic değilse yani virtual değilse o zaman zaten ub!
+class Base {
+public:
+    ~Base()
+    {
+        std::cout << "Base destructor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    ~Der()
+    {
+        std::cout << "Der destructor is releasing some resources\n";
+    }
+};
+
+
+int main()
+{
+    Base* baseptr = new Der;
+   delete baseptr; //ub
+}
+
+Fakat biz olağan dışı olan bir durum olarak şöyle bir yapıda isteyebiliriz: ben kesinlikle türemiş sınıf nesnelerini taban sınıf 
+pointer'ları ile delete etmek istemiyorum. Türemiş sınıf nesneleri taban sınıf pointer'ı ile delete edilmeyecekse eğer ben böyle 
+bir garanti vermek istiyorsam dtor'ın virtual olması gerekmez. Ama bu durumda da taban sınıf pointer'ı ile türemiş sınıf nesnesinin 
+destroy edilmesini engellememiz gerekiyor. Onu engellemek için dtor'ı protected yapıyoruz:
+dtor'ı protected yaptığımız zaman bildiğimiz gibi client kodlar erişemiyor
+class Base {
+protected:
+    ~Base()
+    {
+        std::cout << "Base destructor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    ~Der()
+    {
+        std::cout << "Der destructor is releasing some resources\n";
+    }
+};
+
+
+int main()
+{
+    Base* baseptr = new Der;
+   delete baseptr; //syntax error
+}
+böylece dinamik ömürlü nesne taban sınıf pointer'ı delete edilemeyecek!!!
+
+Bu durumda türemiş sınıf pointer'ı ile türemiş sınıf nesnesini delete edersem sentaks hatası olamz çünkü türemiş sınıfın dtor'ı taban 
+sınıfın dtor'ını çağırıyor ama taban sınıfın dtor'ı protected  fakat taban sınıfın protected bölümüne türemiş sınıflar erişebiliyordu:
+şimdi öyle bir yapı oluşturduk ki türemiş sınıf nesneleri delete edildiğinde taban sınıf nesnesi için dtor'ın çağırılmasını engelleyen 
+bir mekanizma yok!!
+class Base {
+protected:
+    ~Base()
+    {
+        std::cout << "Base destructor\n";
+    }
+};
+
+class Der : public Base {
+public:
+    ~Der()
+    {
+        std::cout << "Der destructor is releasing some resources\n";
+    }
+};
+
+
+int main()
+{
+    Der* derptr = new Der;
+   delete derptr;
+}
+
+Sonuç olarak Herb Sutter'ın polymorphic taban sınıfların dtor'ları ya public virtual olmalı ya da protected non-virtual olmalıdır
+sözünü aklımızda adeta bir ilke gibi tutmalıyız. 
+
+C++ mülakatlarında yine çok sık sorulan; üretimde de önemli olan bir soru:
+Varsayılan argüman dinamik tür ile ilgili değildir. Yani varsayılan argüman statik türe ilişkin bir kavramdır yani derleyici varsayılan 
+argüman kontrolünü static olarak koda bakarak yapıyor. Dolayısıyla aşağıdaki örnekte p->vfun(); çağırısında yukarıda Base* türünden bir 
+pointer'a atama yapıldığı için çağrıda Base* kullanıldığı için ve fonksiyona argüman gönderilmediği için aramayı yaptığı Base içinde 
+p->vfunc(5) gibi değerlendiriyor ve ekrana 5 yazısı yazdırılır. Diğer yandan myder.vfunc(); çağırısında da static tür Der olduğu için 
+ekrana 9 yazar yani türemiş sınıfın override ettiği fonksiyon çağırılır:
+#include <iostream>
+
+class Base {
+public:
+    virtual void vfunc(int x = 5)
+    {
+        std::cout << "Base::vfunc(int x) x = " << x << '\n';
+    }
+};
+
+class Der : public Base {
+public:
+    virtual void vfunc(int x = 9)override
+    {
+        std::cout << "Der::vfunc(int x) x = " << x << '\n';
+    }
+};
+
+int main()
+{
+    Der myder;
+
+    Base *p = &myder;
+    p->vfunc(); //5
+    myder.vfunc(); //9
+}
+
+çok sık sorulan bir diğer soru:
+Function overriding ve function overloading bir arada da kullanılabilir:
+bazı özellikle tasarım örüntülerinde kullanılıyor; double dispatch dediğimiz(ileri C++ kursu) mekanizmanın implemantasyonunda 
+bu kullanılıyor. 
+
+class Base {
+public:
+    virtual void func(int);
+    virtual void func(double);
+    virtual void func(int, int);
+
+    //const overload
+    virtual void foo();
+    virtual void foo()const;
+};
+//türemiş sınıflar bu overload'ları override edebilir
+
+class Der : public Base {
+public:
+    virtual void func(int)override;
+    virtual void func(double)override;
+    virtual void func(int, int)override;
+
+    virtual void foo()override;
+    virtual void foo()const override;
+
+};
+
+void gf(Base& r)
+{
+    r.foo();
+    r.func(1);
+    r.func(1.1);
+    r.func(2, 2);
+}
+
+====================================================================================================================================
+
+2 tane contextual keyword'un dile eklendiğini söylemiştik biri override diğeri ise final keyword'üdür. Gerek override gerek final 
+contextual keyword. Yani belirli bağlamlarda anahtar szöcük etkisi yaparken o bağlamın dışında identifier olabilen 2 anahtar sözcüklerdir.
+Örneğin:
+int main()
+{
+    int final = 5;
+}
+veya
+struct final {
+    void final();
+};
+
+int main()
+{
+
+    final cut;
+    cut.final();
+}
+
+final keyword'ünün 2 tane ayrı anlamı vardır:
+final class 
+final override
+
+final class: öyle bir sınıf ki bu sınıftan artık kalıtım yapılması isenmiyor. Tipik olarak sınıf hiyerarşilerinde görülen bir durum.
+Hiyerarşide belirli bir derinlikten sonra artık yeni bir kalıtım elde edinmesi istenmiyor. final keyword'ü ile nitelediğimiz sınıftan 
+kalıtım yoluyla yeni bir sınıf elde edilmesi sentaks hatasına neden olur.
+
+final keyword'ünün şuradaki kullanımınıda bazı programcılar tercih ediyor: her sınıf kalıtıma uygun değil; yani bazı sınflar kalıtma 
+uygun değilken bazı sınıflarında kalıtım mekanizması ile kullanılması söz konusu. Tipik olarak kalıtımda kullanılacak taban sınıflar 
+ona göre tasarlanıyor. Dolayısıyla isteiğim sınıftan kalıtım uygularım doğru bir yaklaşım değil. İşte bazen programcılar bir sınıfın 
+kalıtıma uygun olmadığını vurgulamak için de ortada bir hiyerarşi yokken dahi sınıfı final yapabiliyorlar:
+class Base {
+
+};
+
+class Der final : public Base {
+
+};
+
+class Nec : public Der { //syntax error
+
+};
+veya 
+class Nec final {
+
+};
+
+class Der : public Nec { //syntax error
+    
+};
+
+final override: bundan sonraki kalıtımlarda artık bu fonksiyon override edilemesin anlamına gelir:
+class Base {
+public:
+    virtual void foo();
+};
+
+class Der : public Base {
+public:
+    void foo()override final;
+};
+
+class Nec : public Der {
+public:
+    void foo()override; //syntax error
+};
+yani final anahtar sözcüğünün sanal fonksiyonlarda kullanılması bundan sonra kalıtımda elde edilecek sınıfın bu fonksiyon için  artık taban sınıfın 
+implementasyonunu kullanaması gerektiği anlamanına gelir.
