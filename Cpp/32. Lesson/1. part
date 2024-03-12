@@ -1,0 +1,670 @@
+31 Mart 2023 - Cuma
+
+Geçen ders ele aldığımız final contextual keyword'ünün: final override anlamını incelemeye devam edelim:
+class Base {
+public:
+    virtual void foo();
+};
+
+class Der : public Base {
+public:
+    virtual void foo()override final;
+};
+
+class SDer : public Base {
+public:
+    virtual void foo()override; //syntax error
+};
+Der sınıfının override edilmiş foo fonksiyonunda kullanılan final keyword'ünden dolayı daha sonra çok seviyeli kalıtımla elde edilen sınıfların artık foo fonksiyonunu 
+override edemeyeceği anlamına gelir. Yani Der sınıfından kalıtım yapabiliriz bunda bir problem yok fakat Der sınıfından yapılan kalıtımlardaki elde edilen yeni sınıflar
+Der'in override'ını(onun implementasyonunu) kullanmak zorundadır. 
+
+
+Özellikle final class ve final override  devirtualization olarak bilinen optimizasyonu yapmasında da rol oynuyor. Yani eğer bir sınıf final ise ya da bir override final ise
+derleyici bazı durumlarda koda bakarak doğrudan compile time'da hangi fonksiyonun çağırıldığını anlayabiliyor. 
+
+RTTI(Run Time Type Identification(Information))
+C++'ta bulunan popüler akronimlerden biridir. Programın çalışma zamanında bir nesnenin dinamik türünün belirlenmesine yönelik araçlardır. 
+
+
+run time polymorphism'inin iyi yönü zaten dinamik türün ne olduğunu bilmeden işimizi halledebilmemiz; böylece eski kodların yeni kodları yani daha sonradan yazılmış kodları 
+kullanabilmesi. Üst katmandaki kodların alt katmandaki kodlara bağlı kalmaması! Fakat öyle durumlar var ki bazen mecburiyetten bazen özel bir amacı implemente etmek için 
+bazende eskiden belki yanlış tasarım yapıldığı için bizim programın çalışma zamanında gelen tür'ün türünü öğrenmemizi gerektiricek senaryolar olabiliyor. Örneğin önceki örneğimiz 
+olan Car başlık dosyasyını kullanarak bunu açıklayalım:
+#include "car.h"
+
+void car_game(Car *p)
+{
+    //buraya gelen araba bir Volvo mu?
+
+    p->start();
+    p->run();
+    p->stop();
+}
+Örneğin tüm kodlar daha önceden yazılmış; normalde Car sınıfının open_sunroof isimli bir fonksiyonu yok ama Volvo'nun open_sunroof isimli fonksiyonu var. Biz car_game'e
+gelen arabanın programın çalışma zamanında Volvo olup olmadığına bakacağız. Eğer Volvo ise kodda değişiklik yapıp onun sunroof'unu açacağız. Aslında eğer böyle bir kalıtım 
+varsa bu doğru bir kalıtım değil; böyle kalıtımlara İngilizce'de inproper inheritance deniliyor. Çünkü türemiş sınıf nesnesi tamamen taban sınıf nesnesi gibi taban sınıf
+nesnesinin beklendiği her yerde kullanılabilmeli. Hatta bunun için bir sloganımız bile vardı "promise no less require no more". Fakat böyle bir mecburiyet varsa fonksiyona 
+gelen türün Volvo olup olmadığını(compile time'da anlaşılacak bir şey değildir) anlamamız gerekir. 
+
+down-casting
+Türemiş sınıftan taban sınıfa doğru yapılan dönüşümlere "up-casting" 
+denilirken tam tersi taban sınıftan türemiş sınıfa yapılan dönüşüme ise down-casting deniliyor. Örneğin Volvo*'dan Car*'a dönüşüm up-casting; Car*'dan Volvo*'a dönüşüm 
+ise down-casting. down casting_i yapabilmemiz için gerçekten programın çalışma zamanında dinamik türün ne olduğunu öğrenmemiz gerekiyor.  Dinamik türün ne olduğunu öğrenmeye
+yönelik araç setimizde 2 tane operator ve bir sınıf vardır:
+operatorler:
+dynamic_cast
+typeid
+
+class:
+type_info
+Yani bu 3 aracı öğrenirsek programın çalışma zamanında tür belirlenmesine yönelik ihtiyaçları da karşılamış oluruz. 
+
+dynamic_cast:
+Kursun başlarında C'de olmayan C++ olan 4 tane operator'ün varlığından bahsetmiştik, bunlar type conversion(tür dönüşümü) için kullanılıyordu:
+static_cast
+const_cast
+reinterpret_cast
+dynamic_cast
+ve hala C'deki C tipi tür dönüştürme operator'ünün C++'ta kullanımı geçerli fakat tavsiye edilmiyor. C++'ın kendi tür dönüştürme operator'lerini kullanmanın iyi kodlama pratiği 
+olduğunu söylemiştik. Tür dönüştürme operator'lerinden dynamic_cast dışındakileri incelemiştik ve onuda kalıtım konusunda ele alacağımızı söylemiştiştik.
+
+dynamic_cast operator'ü down-casting'in güvenli bir şekilde yapılıp yapılamayacağını sınıyor. Diğer tür dönüşüm operator'lerinde olduğu gibi sentaks'a sahiptir; genel sentaks
+:operator<target_type>(operand)
+
+down-casting güvenli olarak yapılabilir mi?
+Eğer dynamic_cast operator'ünde hedef tür olarak bir türemiş sınıf pointer türü alırsak operand olarakta taban sınıf türünden bir adres verirsek; programın çalışma zamanında 
+olan 2 tane ihtimal var:
+Car *carptr;
+dynamic_cast<Audi *>(carptr);
+1)carptr gerçekten bir Audi nesnesini gösteriyor. Yani *carptr nesnesinin dinamik türü Audi; o zaman dönüşüm başarılı oluyor ve biz Audi nesnesinin adresini elde ediyoruz.
+Audi *aptr = dynamic_cast<Audi *>(carptr); eğer burada carptr gerçekten Audi nesnesini gösteriyor ise biz güvenli olarak run time'da aptr pointer'ını bir Audi nesnesi adresi 
+olarak kullanabiliriz. 
+2)Eğer carptr'ın değeri programın çalışma zamanında bir Audi nesnesinin adresi değilse dönüşüm başarısız oluyor ve dynamic_cast operator'ü nullptr değerini üretiyor. 
+Dolayısıyla biz programın çalışma zamanında dynamic_cast'in başarılı olup olmadığını yani down-casting'in başarılı olup olmadığını dynamic_cast'in nullptr olup olmadığını 
+sınıyarak yapabiliyoruz:
+Audi *aptr = dynamic_cast<Audi *>(carptr); 
+if(aptr) {
+    ///
+}
+
+Dikkat!!!
+dynamic_cast operator'üne operand olan ifade polymorphic bir türe ilişkin olması gerekir!!! yoksa sentaks hatası meydana gelir, bu compile time'da kontrol ediliyor:
+class Base {
+
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+    Base* baseptr = &myder;
+
+    Der *derptr = dynamic_cast<Der*>(baseptr);//syntax error since baseptr is'nt a address of type of polymorphic class  
+}
+eğer sınıfı polymorphic yaparsak sentaks hatası olmaz:
+class Base {
+public:
+    virtual void bar();
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+    Base* baseptr = &myder;
+
+    Der *derptr = dynamic_cast<Der*>(baseptr);
+}
+
+ilerde göreceğimiz typeid operator'ünün üstünde böyle bir kısıtlaması yok; yani dynamic_cast operator'ü sadece polymorphic türler için kullanılabiliyor. 
+Bunu bir örnekle görelim:
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void print(std::ostream& os)const = 0; 
+    friend std::ostream& operator<<(std::ostream& os, const Car& c)
+    {
+        c.print(os);
+        return os;
+    }
+    virtual Car* clone() = 0; //pure virtual function
+    
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+
+};
+
+class Volvo : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Volvo\n";
+    }
+    Car* clone()override
+    {
+        return new Volvo(*this);
+    }
+    void open_sunroof {
+        std::cout << "Volvo sunroof opened\n";
+    }
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a VolvoXc90\n";
+    }
+    Car* clone()override
+    {
+        return new VolvoXC90(*this);
+    }
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Mercedes\n";
+    }
+    Car* clone()override
+    {
+        return new Mercedes(*this);
+    }
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Opel\n";
+    }
+    Car* clone()override
+    {
+        return new Opel(*this);
+    }
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Fiat\n";
+    }
+    Car* clone()override
+    {
+        return new Fiat(*this);
+    }
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Audi\n";
+    }
+    Car* clone()override
+    {
+        return new Audi(*this);
+    }
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Honda\n";
+    }
+    Car* clone()override
+    {
+        return new Honda(*this);
+    }
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Togg\n";
+    }
+    Car* clone()override
+    {
+        return new Togg(*this);
+    }
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Dacia\n";
+    }
+    Car* clone()override
+    {
+        return new Dacia(*this);
+    }
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+
+
+//main.cpp
+#include "car.h"
+
+void car_game(Car *carptr)
+{
+    carptr->start();
+    carptr->run();
+    carptr->stop();
+}
+burada diyelim ki araba giderken son dakika değişikliği artık eski kodları değiştirme şansımız yok; istenen şey bu fonksiyona gelen tür Volvo ise cam tabanını aç. O zaman benim 
+gelen arabanın Volvo olup olmadığını sınamam gerekir:
+//main.cpp
+#include "car.h"
+
+void car_game(Car *carptr)
+{
+    std::cout << *carptr << '\n';
+    carptr->start();
+    carptr->run();
+    carptr->stop();
+
+    auto vp = dynamic_cast<Volvo*>(carptr);
+
+    if (vp) {
+        vp->open_sunroof();
+        (void)getchar();
+    }
+}
+//fonksiyona Volvo'dan kalıtım yoluyla elde edilen VolvoXC90 gelse yine if'in doğru kısmına girer.   2'si içinde girer; fakat typeid'de öyle değil. 
+int main()
+{
+    for(int i = 0; i < 1000; ++i) {
+        Car *cp = create_random_car();
+        car_game(cp);
+        delete cp;
+    }
+}
+
+
+C++'ın temel sentaksında bazı öğeler eski C++'tan gelme bazı öğeleri ise Modern C++'tan gelme. Örneğin:
+int foo();
+
+int main()
+{
+    if (int x = foo(); x > 10 ) {
+        //use x
+    }
+}
+burada kullanılan yapıya if with initializer deniliyor ve C++17 ile dile eklenmiştir. Böyle değişikliklere dilin temel sentaksında yapılan değişikliklere "core syntax" denir. 
+
+int foo();
+
+int main()
+{
+    if (int x = foo() ) {
+       
+    }
+}
+burada kullanılan yapı ise C++98'dir. Eskiden beri olan bir sentaks yapısıdır; if parantezi içinde bulunan ifade de tanımlanan değişken lojik yorumlamaya tabi tutulur. C'de yoktur! 
+Bunu if with initializer ile temsil edersek:
+int foo();
+
+int main()
+{
+    if (int x = foo(); x != 0 ) {
+       
+    }
+}
+pointer'larda lojik yorumlama için pointer'ın null pointer olup olmadığına göre yapıldığı için:
+//C++17
+int* foo();
+
+int main()
+{
+    if (int *ptr = foo(); ptr != nullptr ) {
+       
+    }
+}
+
+//C++98
+int* foo();
+
+int main()
+{
+    if (int *ptr = foo() ) {
+       
+    }
+}
+
+Örneğin dile Modern C++ ile eklenen auto anahtar sözcüğünü kullarak C++98'deki yapıyı beraber kullandığımızda eski ve yeni C++'ı harmanlamış oluruz:
+int* foo();
+
+int main()
+{
+    if (auto ptr = foo() ) {
+       
+    }
+}
+
+
+Bir diğer örnek optional sınıfın int açılımı; optional'ın int açılımı bir sınıf ve optional sınıfı operator bool fonksiyonunu overload ettiği için örnekte tanımladığımız 
+optional nesnesi olan op lojik kontrole tabi tutulduğunda aslında sınıfın operator bool fonksiyonu çağırılır:
+
+std::optional<int> foo();
+
+int main()
+{
+    if (auto op = foo() ) {
+       
+    }
+}
+
+C++17 ile dile eklenen if with initializer ile temsil edersek:
+std::optional<int> foo();
+
+int main()
+{
+    if (auto op = foo(); x ) {
+       
+    }
+}
+
+eğer operator bool fonk. açık açık yazarsak:
+std::optional<int> foo();
+
+int main()
+{
+    if (auto op = foo(); x.operator bool( ) ) {
+       
+    }
+}
+
+Gerek Modern C++'ta if with initializer gerek eski C++' bulunan yapının sağlamaya çalıştığı avantaj scope leakage'ı engellemek!!Çünkü if parantezi içinde değişkeni tanımlamdığımız 
+zaman değişkeni sadece x'in doğru ve yanlış kısmında kullanabiliyoruz:
+int foo();
+
+int main()
+{
+    if (int x = foo(); x != 0 ) {
+       
+    }
+
+    else {
+        ++x;
+    }
+}
+böylece kapsam sızıntısının önüne geçmiş oluyoruz. 
+
+İşte dynamic_cast operator'ünü kullandığım yerde tipik olarak taban sınıf türünden pointer'ı türemiş sınıf pointer'ına dönüşütürüp onun nullptr olup olmadığını sınıyorum. 
+Ve onu belirli bir kapsamda kullanıyorum işte eskiden beri burada kullanılan idiomik yapı şuydu: dynamic_cast'in geri dönüş değerini tutucak değişkenin if parantezi içinde
+tanımlanması:
+//main.cpp
+#include "car.h"
+
+void car_game(Car *carptr)
+{
+    std::cout << *carptr << '\n';
+    carptr->start();
+    carptr->run();
+    carptr->stop();
+
+    
+
+    if (Volvo* vp = dynamic_cast<Volvo*>(carptr)) { //C++98'de de geçerli
+        vp->open_sunroof();
+        (void)getchar();
+    }
+}
+
+//C++17
+void car_game(Car *carptr)
+{
+    std::cout << *carptr << '\n';
+    carptr->start();
+    carptr->run();
+    carptr->stop();
+
+    
+
+    if (Volvo* vp = dynamic_cast<Volvo*>(carptr); vp) { //C++17
+        vp->open_sunroof();
+        (void)getchar();
+    }
+}
+
+//C++11
+void car_game(Car *carptr)
+{
+    std::cout << *carptr << '\n';
+    carptr->start();
+    carptr->run();
+    carptr->stop();
+
+    
+
+    if (auto* vp = dynamic_cast<Volvo*>(carptr)) { //C++11
+        vp->open_sunroof();
+        (void)getchar();
+    }
+}
+//fonksiyona Volvo'dan kalıtım yoluyla elde edilen VolvoXC90 gelse yine if'in doğru kısmına girer.   2'si içinde girer; fakat typeid'de öyle değil. 
+int main()
+{
+    for(int i = 0; i < 1000; ++i) {
+        Car *cp = create_random_car();
+        car_game(cp);
+        delete cp;
+    }
+}
+dynamic_cast operator'ünün tipik kullanım biçimi bu şekildedir. Fakat dynamic_cast operator ile ilgili önemli bir nokta daha var. Biz bazen de run time polymorphism'ini
+pointer semantiği ile değil referans semantiği ile uyguluyoruz. Peki down-casting referans semantiği ile yapılabilir mi?
+
+Evet fakat burada çok önemli bir fark var; referanslar söz konusu olduğunda null referans diye bir şey söz konusu değildir. null refarans olmadığına göre bunu ilerde 
+alacağımız exception handling ile yapacağız. Bu durumda eğer dynamic_cast operator'ünü refarans türü ile kullanırsak yani hedef tür referans türü olursa null refarans 
+olmadığı için sentaks hatası yok fakat run time'da up-casting başarısız olduğunda exception throw ediyor. Burada throw edilen exception'ının türü standart kütüphanenin 
+_exception hiyerarşisindeki bad_cast isimli sınıf türüdür. 
+
+//main.cpp
+#include "car.h"
+
+void car_game(Car& cr)
+{
+    std::cout << cr << '\n';
+    carptr->start();
+    carptr->run();
+    
+
+
+    try {
+        auto& vr = dynamic_cast<Volvo&>(cr);
+        vr.open_sunroof();
+        (void)getchar();
+    }
+
+    catch(const std::exception& ex)
+    {
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+}
+
+int main()
+{
+    for(int i = 0; i < 1000; ++i) {
+        Car *cp = create_random_car();
+        car_game(*cp);
+        delete cp;
+    }
+}
+
+memory leak ve resource leak ile ilgili güzel, hocamızında sorduğu bir soru:
+#include <string>
+
+int main()
+{
+    if(true) {
+        auto ps = new std::string(100'000, 'A');
+        //use ps
+    }
+}
+Bu kod çalıştığında ne olur?
+Dikkat edilirse dinamik olarak tahsis edilen  nesneler için bir delete ifadesi yok. Burada 2 ayrı leak var: Biri resource leak diğeri sadece memory leak.  Çünkü 
+new std::string(100'000, 'A'); ifadesiyle string nesnesi hayata geliyor, ve bu stirng nesnesi 100'000 tane A karakterini buradaki heap'te tutuyor. Bu durumda string sınıfının 
+ctor'ı en az 100'000 karakterlik bellek alanını allocate ediyor. Burada allocate edilen en az 100'000 karakterlik bellek bloğunu dtor geri verir fakat dtor çağırılmadığı için
+(burada bu tipik olarak bir RAII sınıfı) kaynak geri verilememiş ve buradaki sızıntıya resource leak diyebiliriz aynı zamanda memory leak. 2. leak ise buradaki string sınıfının 
+kendisi de dinamik ömürlü dolayısıyla dinamik ömürlü string nesnesi içinde yer heap'te ayrılıyor. Yani sizeof(string) = 32 byte ise 32 byte'lık bellek alanının kendisi de heap'te 
+allocate ediliyor; onun içinde operator new fonksiyonu çağırılıyor. Biz delete ettiğimizde hem dtor'ın çağırılmasını sağlıyoruz hem de operator new fonk. elde edilen 32 byte'lık 
+bellek bloğunu da yine operator delete fonk. ile geri verilmesini sağlıyoruz. 
+
+Dolayısıyla burada 2 ayrı sızıntı var biri 100'000 karakterlik belek bloğunun geri verilmemesi diğeri de string'in sizeof değeri kadar olan örneğin 32 byte'lık bellek bloğunun 
+geri verilmemesi.
