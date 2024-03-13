@@ -1,0 +1,623 @@
+
+typeid operator'ü nasıl kullanılıyor?
+typeid bir nevi bir anahtar sözcük bir keyword; bir operator olarak görev yapıyor. typeid'inin operandı :
+a)bazen bir tür bilgisi oluyor: typeid (type)
+b)bazen bir ifade oluyor: typeid (expr)
+typeid operatörü bu şekilde 2 şekilde de kullanılabildiğine göre bunu  sizeof operatörüne benzetebiliriz:
+a)sizeof(int);
+b)sizeof(x);
+
+typeid operator'ünün dynamic_cast operator'ünden önemli bir farkı operandı bir tür bilgisi ise bu tür bilgisinin polymorphic bir sınıf türü olması zorunluluğu var; ne de ifadenin 
+polymorphic bir sınıf türünden  olma zorunluluğu var:
+typeid(int)
+double dval{};  typeid(dval * 1.2)
+
+typeid operator'ünü kullanabilmesi için  typeinfo başlık dosyasının dahil edilmesi gerekiyor. typeid operator'ünü anlayabilmemiz için C++'ın standart kütüphanesinin typeinfo isimli 
+sınıfını iyi bir şekilde anlamamız gerekiyor. typeid operatorü ile oluşturulan bir ifade aslında std::type_info sınıfı türünden bir nesneye const referanstır. 
+#include <typeinfo>
+
+class Myclass {};
+
+int main()
+{
+    int x = 10;
+
+    typeid(Myclass)
+}
+typeid(Myclass) ifadesinin türü; bir ifadenin türü refarans türü olmayacağına göre bu ifadenin türü const type_info'dur. Bu ifadenin türü const type_info olduğuna göre ben 
+bu ifadeyi bir nedenden dolayı bir referansa  bağlamak istersem benimde referansı şu şekilde tanımlamam gerekir:
+#include <typeinfo>
+
+class Myclass {};
+
+int main()
+{
+    int x = 10;
+
+    const type_info& x = typeid(Myclass);
+}
+örneğin const ifadesini yazmazsam sentaks hatası meydana gelir çünkü const nesneyi const olmayan referansa bağlamaya çalıştım. 
+
+type_info sınıfının bilmemiz gereken bazı özellikleri:
+1)type_info sınıfının default ctor'ı yoktur.
+#include <typeinfo>
+
+class Myclass {};
+
+int main()
+{
+    std::type_info x; //syntax error(no default ctor exists for class "typ_info")
+}
+2)type_info sınıfının copy ctor'ıda delete edilmiş; dolayısıyla şöyle bir nesne oluşturmamız da mümkün değil:
+#include <typeinfo>
+
+class Myclass {};
+
+int main()
+{
+    std::type_info x = typeid(Myclass); //syntax error copy ctor of type;_ino class is deleted
+}
+Bu pratikte bizim için şu anlama gelir:type_info sınıfı türünden bir nesne oluşturamazsınız, type_info sınıfı türünden nesneyi standart kütüphane oluşturuyor siz ancak ona bir  
+referans alabilirsiniz. Ona referans almanın yolu da typeid operator'ünü kullanmak.
+
+typeid operator'ünün bizi eriştirdiği const type_info nesnesinin ilişkin olduğu sınıf olan type_info sınıfının bizi ilgilendiren 2 tane fonksiyonu var:
+1)operator==() fonksiyonu: type_info sınıfının karşılaştırma operator fonksiyonu standart kütüphane tarafından member function olarak overload edilmiş.
+İki type_info nesnesini karşılaştırdığımız zaman bu bir karşılaştırma fonksiyonu olduğu için  doğal olarak geri dönüş değeri bool'dur. Eğer fonksiyona argüman olarak 
+gönderilen nesneler aynı türe ilişkin type_info nesneleri ise fonksiyon true değer döndürüyor; eğer farklı türe ilişkin type_info nesneleri ise fonksiyon false değer
+döndürüyor. Yani 2 type_info nesnesini karşılaştırmak demek aslında bu 2 type_info nesnesi aynı türün type_info nesnesi olup olmadığını saptamak demektir. Her türün bir 
+type_info nesnesi olduğunu düşünün programın çalışma zamanında derleyici bunları oluşturuyor. 
+#include <typeinfo>
+
+class Myclass {};
+
+int main()
+{
+    auto b = typeid(Myclass) == typeid(int);
+
+    std::cout << std::boolalpha << b << '\n'; //false
+}
+
+bir diğer örnek:
+#include <typeinfo>
+
+class Myclass {};
+
+int main()
+{
+    Myclass mx;
+    auto b = typeid(Myclass) == typeid(mx);
+
+    std::cout << std::boolalpha << b << '\n'; //true
+}
+
+2)name() fonksiyonu: const char* geri dönüş değerine sahiptir; özellikle generic programlama kısmında bu fonksiyonu çok sık kullanacağız.  Geri döndürdüğü cstring tamamen
+implementasyona bağlı yani örneğin derleyicimizin implementasyonu kriptik herhangi bir yazı da verebilir. 
+#include <typeinfo>
+#include <iostream>
+
+class Myclass {};
+
+int main()
+{
+    Myclass mx;
+    
+    std::cout << typeid(Myclass).name() << '\n'; //class Myclass yazdı ekranda fakat başta da söylediğimiz gibi bu implementation defined
+}
+
+veya
+int main()
+{
+    std::cout << typeid(34).name() << '\n'; //int
+}
+
+veya
+int main()
+{
+    std::cout << typeid(34u).name() << '\n'; //unsigned int
+}
+
+veya
+int main()
+{
+    std::cout << typeid(34.L).name() << '\n'; //long double 
+}
+
+veya
+int main()
+{
+    std::cout << typeid('A').name() << '\n'; //char
+}
+
+veya
+int main()
+{
+    char str[20];
+    std::cout << typeid(str).name() << '\n'; //char [20]
+}
+
+veya
+int main()
+{
+    std::cout << typeid("faruk").name() << '\n'; //char const [6]
+}
+
+string'ler derleyiciden derleyiciye değişiyor ama aynı derleyici için  aynı string'in elde edilmesi garantisi altındadır:
+#include <typeinfo>
+#include <string>
+#include <iostream>
+
+
+int main()
+{
+    using namespace std;
+
+    string s1{ typeid('A').name() };
+    string s2{ typeid(char).name() };
+
+    cout << boolalpha << (s1 == s2) << '\n';
+}
+
+typeid operatör'ünün dinamik tür ile ilişkisi
+#include <typeinfo>
+#include <string>
+#include <iostream>
+
+class Base {
+
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    using namespace std;
+
+    Der myder;
+
+    Base* baseptr = &myder;
+
+    cout << (typeid(*baseptr) == typeid(Der)) << '\n'; //0
+    cout << typeid(*baseptr).name() << '\n'; // class Base
+}
+Eşitlik sonucu 0 olsu çünkü typeid operatörünün davranışı polymorphic ve nonpolymorphic türler için farklıdır. Eğer operand olan tür polymorphic bir sınıf türü ise davranışı 
+polymorphic olacak; programın çalışma zamanında belirlenecek. Fakat şu anda taban sınıfın bir sanal fonksiyonu olmadığı için Base sınıfı ve Base sınıfından kalıtım yoluyla elde
+edilmiş Der sınıfı polymorphic türler olmadığı için typeid operator'ünün kullanımı geçerli ama static türe ilişkin. 
+
+Sınıflar polymorphic olduğundan typeid operatörü tür çıkarımını dinamik türe göre yapacak:
+#include <typeinfo>
+#include <string>
+#include <iostream>
+class Base {
+public:
+    virtual ~Base() = default;
+
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    using namespace std;
+
+    Der myder;
+
+    Base* baseptr = &myder;
+
+    cout << (typeid(*baseptr) == typeid(Der)) << '\n'; //1
+    cout << typeid(*baseptr).name() << '\n'; // class Der
+
+}
+
+Önceki örneğimizde open_sunroof isimli  fonksiyonu çağırmak için gelen türün Volvo olup olmadığını kontrol etmek için dynamic_cast operatörünü kullanmıştık; şimdi aynı örneği typeid 
+operator'ü ile yapalım:
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void print(std::ostream& os)const = 0; 
+    friend std::ostream& operator<<(std::ostream& os, const Car& c)
+    {
+        c.print(os);
+        return os;
+    }
+    virtual Car* clone() = 0; //pure virtual function
+    
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+
+};
+
+class Volvo : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Volvo\n";
+    }
+    Car* clone()override
+    {
+        return new Volvo(*this);
+    }
+    void open_sunroof {
+        std::cout << "Volvo sunroof opened\n";
+    }
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a VolvoXc90\n";
+    }
+    Car* clone()override
+    {
+        return new VolvoXC90(*this);
+    }
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Mercedes\n";
+    }
+    Car* clone()override
+    {
+        return new Mercedes(*this);
+    }
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Opel\n";
+    }
+    Car* clone()override
+    {
+        return new Opel(*this);
+    }
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Fiat\n";
+    }
+    Car* clone()override
+    {
+        return new Fiat(*this);
+    }
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Audi\n";
+    }
+    Car* clone()override
+    {
+        return new Audi(*this);
+    }
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Honda\n";
+    }
+    Car* clone()override
+    {
+        return new Honda(*this);
+    }
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Togg\n";
+    }
+    Car* clone()override
+    {
+        return new Togg(*this);
+    }
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Dacia\n";
+    }
+    Car* clone()override
+    {
+        return new Dacia(*this);
+    }
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+Burada dikkat edilmesi gereken şey şudur; if'in doğru kısmına girmesi demek gelen türün Volvo olduğunu gösterir ama dikkat!! kesinlikle
+derleyicinin ürettiği kod hiyerarşiyi aşağı doğru taramaz yani gelen tür Volvo'dan kalıtım ile elde edilmiş VolvoXC90 ise if'in içine 
+girmez!!!Dolayısıyla burada sadece Volvo olup olmadığının kontrolünü yapmış oluyoruz. 
+
+//main.cpp
+#include "car.h"
+
+void car_game(Car *carptr)
+{
+    std::cout << *carptr << '\n';
+    carptr->start();
+    carptr->run();
+
+    if(typeid(*carptr) == typeid(Volvo)) {
+        Volvo* vp = static_cast<Volvo*>(carptr);
+        pv->open_sunroof();
+    }
+    
+}
+
+int main()
+{
+    for(int i = 0; i < 100; ++i) {
+        Car *cp = create_random_car();
+        car_game(cp);
+        delete cp;
+        system("cls");
+    }
+}
+
+type_info sınıfı ilerde ele alacağımız bir konuda daha karşımıza çıkacak: C++17 ile dile eklenen any isimli bir sınıf vardır.
+Bu sınıf türünden bir nesneye herhangi türden bir nesneyi atayabiliyoruz. Bu sınıfın type isimli fonksiyonu vardır; ver geri dönüş 
+değeri type_info&'dır. Yani bu fonksiyon ile operandı olan nesnenin gerçek türünü öğrenebiliriz:
+#include <iostream>
+#include <any> //C++17
+
+class Myclass {};
+
+int main()
+{
+    using namespace std;
+
+    any x = 12;
+
+    x = string{ "ayse" };
+
+    Myclass mx;
+
+    x = mx;
+
+    if(x.type == typeid(Myclass)) {
+        std::cout << "evet.....\n";
+    }
+}
+
+
+
+static_cast operator'ünün ilginç bilinmeyen bir özelliği vardır:
+örneğin bir kütüphane kullandığımızı varsayalım; kütüphane kalıtım mekaniizmasını kullanıyor ve onlarca sınıf var örneğin QT.
+Ve şöyle bir soru sorulsa biz size 2 tane sınıf veriyoruz bu 2 sınıf aynı hiyerarşi içinde mi değil mi?
+class A {
+
+};
+
+class B {
+
+};
+
+//multiple interitence
+class C : public A, public B {
+
+};
+
+class D : public C {
+
+};
+
+//2 sınıfın aynı hiyerarşiye ilişkin olduğunu compile time'da anlamanın yolu var mı?
+Cevap evet var: static_cast'e dönüşüm yaparız aynı hiyerarşi için legal olur ama bunlar aynı hiyerarşide değilse illegal olur!!
+
+class X {
+
+};
+
+class Y {
+
+};
+
+int main()
+{
+    static_cast<Y*>((X*)0); //syntax error
+}
+fakat aynı hiyerarşide olsalardı sentaks hatası olmazdı:
+class X {
+
+};
+
+class Y : public X {
+
+};
+
+int main()
+{
+    static_cast<Y*>((X*)0); 
+}
+bu dilin önemli bir kuralıdır; bazen mülakatlarda da böyle bir soru sorulabiliyor. Yani 2 sınıfın aynı hiyerarşide olup olmadığını 
+compile time'da nasıl kontol ederiz? Tabii ki gidip sınıf tanımına bakarsak anlarız ama en pratik kontrol budur!! static_cast ile 
+bu sınıf türünden pointer'ları birbirine dönüştürün aynı hiyerarşideki sınıflar arasında static_cast ile tür dönüşümü legal! Dolayısıyla
+bir sürü başlık dosyasına bakmadan bunların aynı hiyerarşide olup olmadığını static_cast operator'ü ile sınayabiliriz. Fakat bildiğimiz 
+gibi static_cast'in run time ile bir ilgisi yok, eğer sınamayı run time yönelik yapacaksak o zaman ya dynamic_cast ya da typeid
+operator'ünü kullanmamız gerekir. 
+
+unevaluated context
+sizeof
+decltype
+typeid
+#include <typeinfo>
+#include <iostream>
+
+int main()
+{
+    int x = 10;
+
+    auto& r = typeid(x++); //r'nin türü const type_info referans semantiği ile tür çıkarımı yapıldığında const'luk düşmüyor
+
+    std::cout << "x = " << x << '\n'; //10
+}
+standart output'a 10 yazar çünkü typeid operator'ünün operandı olan ifade  unevaluated context. O halde normalde ub'ye neden olan bir ifadeyi
+typeid'ye operand olarak verirsek ub'ye neden olmaz çünkü unevaluated context:
+#include <typeinfo>
+#include <iostream>
+
+int main()
+{
+    int a[10]{};
+    
+    auto& r = typeid(a[40]);
+}
