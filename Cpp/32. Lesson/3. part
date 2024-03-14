@@ -1,0 +1,1016 @@
+RTII derleyiciler tarafından nasıl implemente ediliyor?
+
+Yani örneğin dynamic_cast operator'ü için derleyici nasıl bir kod üretiyor olabilir?
+virtual dispatch mekanizmasının nasıl implemente ediliğini incelerken her tür için oluşturulan virtual function table'da her fonksiyon 
+adresi bir indeks'e yerleştirilmişti. Buradada tipik bir implementasyon bir indekste ilgili sınıfa ilişkin type_info nesnesinin adresini
+tutuyor. Yani aslında type bilgiside bu şekilde tutuluyor. Örneğin biz dynamic_cast operator'ünü kullandığımız zaman buraya gelen araba 
+Volvo'mu diye baktığımız zaman derleyicinin ürettiği kodda derleyici type_info nesnesinin adresinin yazıldığı yeri bildiği için oraya 
+erişecek ve o adresi kontrol eder. 
+
+Fakat dynamic_cast'te örneğin Volvo'nun sanal fonksiyon tablosununa bakması yetmez çünkü is-a relationship ile VolvoXC90'da Volvo'dan 
+kalıtım yolu ile elde edilen örneğim multi-level inheritance varsa onlarda Volvo olacağı için onlarada bakmak zorunda. Dolayısıyla 
+yine böyle programcılar ile yapılan mülakatlarda sorulan sorulardan biri bu olabilir: maliyet açısından karşılaştırırsak böyle bir
+senaryoda dynamic_cast'in maliyeti typeid'iden daha yükesktir. Çünkü dynamic_cast nullptr değeri üretmemek için hiyerarşiyi derinlemesine 
+kat etmek zorundadır!! Öte yandan typeid bize sadece gerçekten o türden mi? is-a relationship söz konusu olmadan sorgulamayı yaptığı için 
+bir sorgulamada işini bitiriyor. 
+
+=========================================================================================================================================
+
+covariance
+variant return type
+covariant
+
+covariance birçok programalama dilinde olan bir kavram C++ dilininde önemli bir kuralına karşılık geliyor. Kalıtım yoluyla bir sınıfı 
+elde ettiğimizde taban sınıfın virtual function'larını ve pure virtual function'larını override edebileceğimizi söylemiştik. 
+class Base {
+public:
+    virtual int foo(int);
+};
+
+class Der : public Base {
+    int foo(int)override;
+};
+
+ben fonksiyonu override ederken imzayı aynı tutup, geri dönüş değeri türünü değiştirirsem sentaks hatası olur:
+class Base {
+public:
+    virtual int foo(int);
+};
+
+class Der : public Base {
+    unsigned int foo(int); //syntax error
+};
+
+Fakat eğer ki aynı isimde aynı geri dönüş değerine sahip fonksiyonun parametre türünü değiştirirsem bu sentaks hatası olmaz ama override'da
+değildir bu ayrı bir fonksiyon olur overloading'de değildir, sadece bir maskeleme söz konusudur:
+class Base {
+public:
+    virtual int foo(int);
+};
+
+class Der : public Base {
+    int foo(unsigned int);
+};
+
+Sonuç olarak imzayı aynı tutup fonksiyonun geri dönüş değeri türünü farklı kılamam!! Ama bu kuralın bir istisnası var; işte variant return 
+type buna yönelik bir kurala karşılık gelen bir terimdir. İşte taban sınıfın sanal fonksiyonunu farklı bir geri dönüş değeri türü ile 
+override etmek mümkündür eğer bir koşul sağlanırsa işte buradaki bu istisnai duruma variant return type ya da covariance deniliyor. 
+
+Eğer bir taban sınıfın bir sanal fonksiyonunun geri dönüş değeri türü B bir sınıf olmak üzere B* ya da B& türü ise türemiş sınıf bu 
+fonksiyonu override ederken normalde B* ise B* döndürmesi B& ise B& döndürmesi gerekir ama B* yerine D* ya da B& yerine D& döndürebilir
+ama D sınıfının B sınıfının bir kalıtım ile elde edilmiş türemiş sınıfıysa yani D ile B arasında bir is-a relationship varsa:
+
+class B {};
+class D {};
+
+class Base {
+public:
+    virtual B* foo();
+};
+
+class Der : public Base {
+public:
+    D* foo(); //syntax error
+};
+Der::foo overriding virtual function return type differs and is not covariant from Base::foo 
+
+bu kodu legal kılmak için D sınfının B sınıfından public kalıtımı ile elde edilmiş olmalı:
+
+class B {};
+class D : public B {};
+
+class Base {
+public:
+    virtual B* foo();
+};
+
+class Der : public Base {
+public:
+    D* foo(); 
+};
+artık her D bir b olduğu için sentaks hatası olmaz! Aynı şey referans semantiği ile de yapılabilir:
+class B {};
+class D : public B {};
+
+class Base {
+public:
+    virtual B& foo();
+};
+
+class Der : public Base {
+public:
+    D& foo(); 
+};
+
+Fakat direk nesnelerin kendisini döndürmek sentaks hatası olur:
+class B {};
+class D : public B {};
+
+class Base {
+public:
+    virtual B foo();
+};
+
+class Der : public Base {
+public:
+    D foo(); //syntax error
+};
+
+!!!
+Sonuç olarak covariance'ın diğer adıyla variant return type'ın geçerli olması için fonksiyonun geri dönüş değerinin pointer türü ya da 
+referans türü olması gerekir.
+
+Peki neden böyle bir farklılık var?
+class B {};
+class D : public B {};
+
+class Base {
+public:
+    virtual B* foo();
+};
+
+class Der : public Base {
+public:
+    D* foo(); 
+};
+
+Eğer şöyle bir fonksiyon olsaydı:
+void func(Base* p)
+{
+    B* bp = p->foo();
+}
+görüldüğü üzere geri dönüş değeri B*'da tutabiliyoruz. Fakat eğer covariance olmasaydı:
+class B {};
+class D : public B {};
+
+class Base {
+public:
+    virtual B* foo();
+};
+
+class Der : public Base {
+public:
+    B* foo(); //fonksiyonun geri döndürdügü nesne aslında D* türünden ama covariance olmadığı için B* döndürmüş olsun
+};
+
+Eğer şöyle bir fonksiyon olsaydı:
+void func(Base* p)
+{
+    B* bp = p->foo();
+}
+
+//eger bu fonksiyonu bir Der nesnesi ile çağırırsam:
+int main()
+{
+    Der myder;
+    D* p = myder.foo(); //syntax error
+}
+sentaks hatası meydana gelir çünkü bu foo fonk. geri dönüş değeri B* ama D*'a down-casting olduğu için ve bende herhangi bir operator
+kullanmadığım için sentaks hatası meydana geldi. Bunu gidermek için tür dönüştürme operator'ünü kullanmalıyım:
+int main()
+{
+    Der myder;
+    D* p = static_cast<D*>(myder.foo());
+}
+Aslında son derece doğal olan bir kodu Der'in foo fonksiyonun gerçekte D* döndürdüğünü bilmeme rağmen static_cast operator'ünü kullanmak
+zorunda kalırdım fakat şimdi covariant'tan istifade ettiğim durumda doğrudan bu kodu bu şekilde yazabileceğim:
+class B {};
+class D : public B {};
+
+class Base {
+public:
+    virtual B* foo();
+};
+
+class Der : public Base {
+public:
+    D* foo(); 
+};
+
+void func(Base* p)
+{
+    B* bp = p->foo();
+}
+
+int main()
+{
+    Der myder;
+    D* p = myder.foo();
+}
+
+
+Örneğin daha önce yazdığımız Car sınıfı ve onun sanal fonksiyonu olan clone fonksiyonunu ele alalım:
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void print(std::ostream& os)const = 0; 
+    friend std::ostream& operator<<(std::ostream& os, const Car& c)
+    {
+        c.print(os);
+        return os;
+    }
+    virtual Car* clone() = 0; //pure virtual function
+    
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+
+};
+
+class Volvo : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Volvo\n";
+    }
+    Car* clone()override
+    {
+        return new Volvo(*this);
+    }
+    void open_sunroof {
+        std::cout << "Volvo sunroof opened\n";
+    }
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a VolvoXc90\n";
+    }
+    Car* clone()override
+    {
+        return new VolvoXC90(*this);
+    }
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Mercedes\n";
+    }
+    Car* clone()override
+    {
+        return new Mercedes(*this);
+    }
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Opel\n";
+    }
+    Car* clone()override
+    {
+        return new Opel(*this);
+    }
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Fiat\n";
+    }
+    Car* clone()override
+    {
+        return new Fiat(*this);
+    }
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Audi\n";
+    }
+    Car* clone()override
+    {
+        return new Audi(*this);
+    }
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Honda\n";
+    }
+    Car* clone()override
+    {
+        return new Honda(*this);
+    }
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Togg\n";
+    }
+    Car* clone()override
+    {
+        return new Togg(*this);
+    }
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Dacia\n";
+    }
+    Car* clone()override
+    {
+        return new Dacia(*this);
+    }
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+
+//main.cpp
+//elimde türü belli olan bir nesnenin kopyasını çıkarmak isediğim bir senaryo olsun
+#include "car.h"
+#include <iostream>
+
+int main()
+{
+    Audi * p = new Audi;
+
+    Audi *pa = p->clone(); //syntax error
+}
+sentaks hatası çünkü tür uyumsuzluğu var. clone fonk. geri dönüş değeri Car* yani derleyiciyi Car*'dan Audi*'a dönüşüme zorluyoruz.
+Bu geçerli değildir, bu run time yönelik bir hata da değil çünkü ben zaten türün Audi olduğunu biliyorum. Bunun geçerli olması için 
+olsa olsa static_cast kullanmak zorundayım:
+//main.cpp
+#include "car.h"
+#include <iostream>
+
+int main()
+{
+    Audi * p = new Audi;
+
+    Audi *pa = static_cast<Audi*>(p->clone());
+}
+
+burada da covariance var, clone fonk. geri dönüş değeri Car* olduğuna göre clon'u override eden sınıf Car türünden kalıtım yoluyla elde edilmiş sınıf türünden 
+pointer döndürebilir. O zaman geri dönüş değeri türü farklı olmasına rağmen variant return type olduğuna göre kod tamamen legal hale gelicek:
+//car.h
+//car.h
+#include <iostream>
+#include <random>
+
+
+class Car {
+public:
+    virtual void print(std::ostream& os)const = 0; 
+    friend std::ostream& operator<<(std::ostream& os, const Car& c)
+    {
+        c.print(os);
+        return os;
+    }
+    virtual Car* clone() = 0; //pure virtual function
+    
+    virtual void start()
+    {
+        std::cout "Car has just started\n";
+    }
+    virtual void run()
+    {
+        std::cout "Car is running now\n";
+    }
+    virtual void stop()
+    {
+        std::cout "Car has just stopped\n";
+    }
+
+};
+
+class Volvo : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Volvo\n";
+    }
+    Volvo* clone()override
+    {
+        return new Volvo(*this);
+    }
+    void open_sunroof {
+        std::cout << "Volvo sunroof opened\n";
+    }
+    void start()override
+    {
+        std::cout "VOLVO has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO has just stopped\n";
+    }
+};
+
+class VolvoXC90 : public Volvo {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a VolvoXc90\n";
+    }
+    VolvoXC90* clone()override
+    {
+        return new VolvoXC90(*this);
+    }
+    void start()override
+    {
+        std::cout "VOLVO XC90 has just started\n";
+    }
+    void run()override
+    {
+        std::cout "VOLVO XC90 is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "VOLVO XC90 has just stopped\n";
+    }
+};
+
+class Mercedes : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Mercedes\n";
+    }
+    Mercedes* clone()override
+    {
+        return new Mercedes(*this);
+    }
+    void start()override
+    {
+        std::cout "MERCEDES has just started\n";
+    }
+    void run()override
+    {
+        std::cout "MERCEDES is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "MERCEDES has just stopped\n";
+    }
+};
+
+class Opel : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Opel\n";
+    }
+    Opel* clone()override
+    {
+        return new Opel(*this);
+    }
+    void start()override
+    {
+        std::cout "OPEL has just started\n";
+    }
+    void run()override
+    {
+        std::cout "OPEL is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "OPEL has just stopped\n";
+    }
+};
+
+class Fiat : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Fiat\n";
+    }
+    Fiat* clone()override
+    {
+        return new Fiat(*this);
+    }
+    void start()override
+    {
+        std::cout "FIAT has just started\n";
+    }
+    void run()override
+    {
+        std::cout "FIAT is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "FIAT has just stopped\n";
+    }
+};
+
+class Audi : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Audi\n";
+    }
+    Audi* clone()override
+    {
+        return new Audi(*this);
+    }
+    void start()override
+    {
+        std::cout "AUDI has just started\n";
+    }
+    void run()override
+    {
+        std::cout "AUDI is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "AUDI has just stopped\n";
+    }
+};
+
+class Honda : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Honda\n";
+    }
+    Honda* clone()override
+    {
+        return new Honda(*this);
+    }
+    void start()override
+    {
+        std::cout "HONDA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "HONDA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "HONDA has just stopped\n";
+    }
+};
+
+class Togg : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Togg\n";
+    }
+    Togg* clone()override
+    {
+        return new Togg(*this);
+    }
+    void start()override
+    {
+        std::cout "TOGG has just started\n";
+    }
+    void run()override
+    {
+        std::cout "TOGG is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "TOGG has just stopped\n";
+    }
+};
+
+class Dacia : public car {
+public:
+    virtual void print(std::ostream& os)const override
+    {
+        os << "I am a Dacia\n";
+    }
+    Dacia* clone()override
+    {
+        return new Dacia(*this);
+    }
+    void start()override
+    {
+        std::cout "DACIA has just started\n";
+    }
+    void run()override
+    {
+        std::cout "DACIA is running now\n";
+    }
+    void stop()override
+    {
+        std::cout "DACIA has just stopped\n";
+    }
+};
+
+
+Car* create_random_car()
+{
+    static std::mt19937 eng{ std::random_device{}() };
+    static std::uniform_int_distribution dist{ 0,8 };
+
+    switch(dist(eng)) {
+        case 0:  return new Volvo;
+        case 1:  return new Opel;
+        case 2:  return new Audi;
+        case 3:  return new Honda;
+        case 4:  return new Fiat;
+        case 5:  return new Mercedes;
+        case 6:  return new Togg;
+        case 7:  return new VolvoXC90;
+        case 8:  return new Dacia;
+    }
+
+    return nullptr;
+}
+
+#include "car.h"
+#include <iostream>
+
+int main()
+{
+    Audi * p = new Audi;
+
+    Audi *pa = p->clone(); //legal
+}
+
+üstelik auto type deduction'da da eğer covariance olmasaydı compile time'da deduction yapıldığı için tür çıkarımı yine Car* olurdu:
+#include "car.h"
+#include <iostream>
+
+int main()
+{
+    Audi * p = new Audi;
+
+    auto pa = p->clone(); //eğer covariance yoksa pa'nın türü Car* olur
+}
+
+===========================================================================================================================================
+
+private inheritance
+Kalıtım konusunu ele alırken demiştik ki kalıtım C++'ta nesne yönelimli programlamadaki kalıtımın üstünde onu aşkın bir araç olarak 
+kullanılıyor. Örneğin C#, Java gibi dillerde kalıtım is-a relationship her zaman ama C++'ta kalıtımda is-a relationship söz konusu olmak 
+zorunda değil çünkü bizde 3 ayrı kalıtım biçimi var: public kalıtımı, private kalıtımı, protected kalıtımı.
+
+public kalıtmının is-a relationship olduğunu onu betimlediğini söyledik ve dedik ki private kalıtımı ve protected kalıtımı başka araçlar
+orada da bir inheritance var ama is-a relationship olmak zorunda değil. 
+
+Her ne kadar 3 farklı kalıtım türü olsa da üretimdeki kodların %90'ı public kalıtımı, %9'u private kalıtımı, %1 ise protected kalıtımı 
+şeklinde oranlayabiliriz. 
+
+public kalıtım:
+class Base {
+
+};
+
+class Der : public Base {
+
+};
+
+private kalıtım:
+class Base {
+
+};
+
+class Der : private Base {
+    
+};
+
+protected kalıtım:
+class Base {
+
+};
+
+class Der : protected Base {
+    
+};
+class anahtar sözcüğü ile kalıtım ile sınıf elde ettiğim zaman kalıtım belirteci olan specifier'ı yazmazsam default'u private kalıtımıydı:
+private kalıtım:
+class Base {
+
+};
+
+class Der : Base {
+    
+};
+veya
+class Der : private Base {
+    
+};
+
+fakat istisna struct anahatr sözcüğünü kullandığımda durum değişiyor; sınıfı struct anahtar sözcüğü ile oluşturursam default kalıtım 
+biçimi public kalıtımı oluyordu:
+public kalıtım:
+class Base {
+
+};
+
+struct Der : public Base {
+    
+};
+veya 
+struct Der : Base {
+    
+};
+
+public kalıtımında taban sınıfın public interface'i türemiş sınıfın public interface'ine ekleniyor, taban sınıfın protected interface'i
+türemiş sınıfın protected interface'ine ekleniyor, taban sınıfın taban interface'i herhangi bir şekilde ulaşılır durumda değil. 
+Fakat private kalıtımında artık taban sınıfın public fonksiyonları türemiş sınıfın private interface'ine geçiyor. Bu şu anlama geliyor:
+
+eğer kalıtım public olsaydı:
+class Base {
+public:
+    void foo();
+
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo();
+}
+
+kalıtım private olduğunda artık taban sınıfın public bölümü türemiş sınıfın private bölümüne ekleniyor; yani artık taban sınıfın 
+public bölümü türemiş sınıfın client'larına kapatılmış oluyor. 
+class Base {
+public:
+    void foo();
+
+};
+
+class Der : private Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+    myder.foo(); //syntax error
+}
+
+türemiş sınıfın kendi fonksiyonun sınıfın public kısmında bulunan fonksiyonu çağırması legaldir; çünkü türemiş sınıfın private
+bölümü gibi ele alınacak dolayısıyla  kendi private bölümüne nasıl erişiyorsa buna da erişir:
+class Base {
+public:
+    void foo();
+
+};
+
+class Der : private Base {
+    void bar()
+    {
+        foo();
+    }
+};
+
+Sonuç olarak;
+1)Taban sınıfın public fonksiyonlarının kodunu kullanabilirim ama kendi arayüzüme eklemiş olmam.
+2)Artık is-a relationship söz konusu değil; normlade bu kalıtım public olsaydı Der*'dan Base*'a ya da Der&'ten Base&'e dönüşüm olacaktı 
+yani up-casting söz konusu olacaktı.
+class Base {
+public:
+    void foo();
+
+};
+
+class Der : public Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+   Base* baseptr = &myder;
+   Base& baseref = myder;
+}
+fakat kalıtım private kalıtım olunca up-casting sentaks hatası olur:
+class Base {
+public:
+    void foo();
+
+};
+
+class Der : private Base {
+
+};
+
+int main()
+{
+    Der myder;
+
+   Base* baseptr = &myder; //syntax error
+   Base& baseref = myder; //syntax error
+}
+yani private kalıtımında türemiş sınıftan taban sınıda implicit conversion yok! Fakat bunun bir istisnası var:
+up-casting'i türemiş sınıfın üye fonksiyonu içinde yaparsak dönüşümün legal olduğunu görüyoruz; bu yine birçok programcının yanlış 
+bildiği bir konu:
+class Base {
+public:
+    void foo();
+
+};
+
+class Der : private Base {
+    void bar()
+    {
+        Der myder;
+
+        Base* baseptr = &myder; //legal
+        Base& baseref = myder; //legal
+    }
+
+};
+
+int main()
+{
+
+}
+yani aslında private kalıtımında up-casting yok derken aslında tam doğru ifade etmemiş oluyoruz; up-casting client kodlara yokken 
+türemiş sınıfın üye fonksiyonlarına ise vardır!!
+
+Bunun dışında bir istisna daha var:
+Türemiş sınıfın friend'lik verdiği kodlarda da up-casting legaldir:
+
+class Base {
+public:
+    void foo();
+
+};
+
+class Der : private Base {
+    void bar()
+    {
+l
+    }
+    
+    friend void func();
+
+};
+
+void func()
+{
+    Der myder;
+
+    Base* baseptr = &myder; //legal
+    Base& baseref = myder; //lega
+}
+
+int main()
+{
+
+}
+
+Sonuç olarak up-casting private kalıtımda yok sentaks hatası ama 2 tane istisna var ki onlarda legal:
+1)Türemiş sınıfın üye fonksiyonları içinde up-casting legal(örtülü olarak)
+2)Türemiş sınıfın friend'lik verdiği kodlarda up-casting legal(örtülü olarak) onun dışında sentaks hatasıdır!!
