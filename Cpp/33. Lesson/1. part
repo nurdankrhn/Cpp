@@ -1,0 +1,599 @@
+3 Nisan 2023 - Pazartesi
+
+private kalıtımında 
+a) global fonksiyonlarda upcasting geçerli
+b) türemiş sınıfın üye fonksiyonları içinde upcasting geçerli
+c) türemiş sınıfın friend'lik verdiği kodlar içinde upcasting geçerli
+
+Buradan şu sonuç çıkıyor: private kalıtımı containment(bir sınıfın bir sınıf türünden elemana sahip olması) yoluyla composition'a 
+bir alternatif. 
+
+Hem private kalıtımı hem de composition'ı benzer sınıflar için kullanacağız ve ikisi arasındaki benzer ve farklı noktaları tespit 
+edeceğiz; o farklı noktalar bazı durumlarda private kalıtımının composition alternatifi olarak kullanılmasını sağlayacak:
+
+class A {
+
+};
+
+class B {
+
+private:
+    A ma;
+};
+
+Soru 1: burada B sınıfının A sınıfı türünden bir elemana sahip olması ne demek?
+Fiziksel olarak her B nesnesi içinde bir A nesnesi olması demek; yukarıdaki koda alternatif başka bir kod yazalım:
+class A {
+
+};
+
+class B : private A {
+
+};
+Soru: buradada her B nesnesinin içinde bir A nesnesi var mı yok mu?
+Var; çünkü burada da belki terimsel olarak bir farklılık var ilk'inde member object diyoruz B'nin içindeki ma'ya. Burada ise member object 
+demek yerine Base class object diyoruz. Ama ikisinin ortak özelliği her B nesnesi sınıfının içinde bir A nesnesi var. 
+
+O halde her B nesnesi hayata geldiğinde ister 1. gibi ister 2. implementsayon gibi olsun; sonuçta B'nin içindeki A'da hayata geliyor. 
+
+
+soru: composition'da B'nin üye fonksiyonları A'nın public  bölümündeki fonksiyonları kullanabilir mi?
+Evet, çağırabiliriz:
+class A {
+public:
+    void afoo();
+
+};
+
+class B {
+public:
+    void bar()
+    {
+        ma.foo();
+    }
+
+private:
+    A ma;
+};
+
+soru: bunu kendi interface'me ekleyebilir miyim?
+Cevap, evet şu şekilde ekleyebiliriz:
+class A {
+public:
+    void afoo();
+
+};
+
+class B {
+public:
+    void bar()
+    {
+        ma.foo();
+    }
+    void afoo() //forwarding function
+    {
+        ma.afoo();
+    }
+
+private:
+    A ma;
+};
+
+Peki kalıtımda bunu yapabilir miyim?
+Evet, B'nin üye fonksiyonları taban sınıfın public  bölümündeki fonksiyonları kullanabilir ve onları kendi interfacesine katabilir:
+class A {
+public:
+    void afoo();
+
+};
+
+class B : private A {
+public:
+    void bar()
+    {
+        afoo();
+    }
+
+    using A::afoo;//böylece B'nin client'ları bu using bildirimi ile afoo'yu kullanabilir, tabii bunun yerine forwarding func. ile de yapabilirdi
+
+};
+
+buraya kadar composition ile private kalıtımın ortak noktlarını gördük:
+public bölüme erişebiliyorum,
+hatta public bölümdeki fonksiyonları kendi interface'ime ekleyebiliyorum,
+her ikisinde de içinde bir başka sınıf türünden nesne var.
+
+composition ile private inheritance arasındaki farka bakalım:
+1. Önemli Farklılık:
+
+compsition'da sınıfın protected bölümünü kullanamıyorum:
+class A {
+protected:
+    void f();
+public:
+    void afoo();
+
+};
+
+class B {
+public:
+    void bar()
+    {
+        ma.foo();
+        ma.f(); //gecersiz!!
+    }
+    void afoo() //forwarding function
+    {
+        ma.afoo();
+    }
+
+private:
+    A ma;
+};
+
+Fakat kalıtım olsaydı; kalıtım private kalıtım olsada sınıfın protected bölümünü kullanabilirim:
+class A {
+public:
+    void afoo();
+
+};
+
+class B : private A {
+public:
+    void bar()
+    {
+        afoo();
+        f();
+    }
+
+    using A::afoo;
+
+};
+
+O halde farklılıklardan birisi burada: dilin kuralları diyor ki programcı olarak composition yaparsak  elemanın public bölümüne erişebilirsin 
+ama elemanın protected bölümüne erişemezsin. Ama bunun yerine private inheritance yaparsan taban sınıfın protected bölümüne erişebilirsin!!!
+Bu önemli bir farklılık
+
+2. Önemli Farklılık:
+functon overriding/sanal fonksiyonlar
+Eleman olarak alırsam elemanımın sanal fonksiyonunu override etmek diye bir şey yoktur:
+class A {
+public:
+    virtual void foo();
+}; 
+
+class B {
+
+private:
+    A ma;
+};
+soru: ma'nın foo fonksiyonunu override etmek diye bir şey var mı?
+Hayır. 
+
+Ama bu eleman almak yerine private kalıtımı olsaydı private kalıtımı olması virtual dispatch mekanizmasını engellemz ki:
+class A {
+public:
+    virtual void foo();
+};
+
+class B : private A {
+public:
+    virtual void foo()override;
+private:
+
+};
+Sonuç olarak elemanımızın sanal fonksiyonunu (doğrudan) override edemeyiz. Ancak private kalıtımında taban sınıfımızın sanal fonksiyonunu 
+override edebiliriz.
+
+3. Önemli Farklılık:
+Composition'da elemanım olan türe örtülü dönüşüm yok. Ama private kaltımda kısıtlı da olsa bu var; üye fonksiyonları içinde ve friend 
+fonksiyonları içinde türemiş sınıftan taban sınıfa dönüşüm var!
+
+private kalıtımı containment yoluyla composition'a belirli avantajlar sağlaması durumunda bir alternatif oluşturuyor. İkisinde de 
+sınıf nesnesinin içinde bir sınıf nesnesi var ikisinde de yapabileceğim ortak şeyler çok. Ancak containment ile yapamayacağım private
+kalıtım ile yapabileceğim şeyler var: 
+a)taban sınıfın protected bölümüne erişebilmek
+b)taban sınıfın protected fonksiyonlarına erişebilmek, onları çağırmak
+c)taban sınıfın sanal fonksiyonlarını override edebilmek
+d)kendi fonksiyonlarım içinde türemiş sınıftan taban sınıfa örtülü dönüşüme izin vermek.
+İşte yukarıdaki temalardan biri veya daha fazlası söz konusu olduğu zaman programcılar compisition yerine private kalıtımı terciih ediyorlar.
+
+
+Bunun dışında private kalıtım ile yapamayacağım ama composition ile yapabileceğim şeylerde var:
+Bir sınıfın başka bir sınıf türünden 2 tane elemanı olabilir, 
+bir sınıfın başka bir sınıf türünden dizi elemanı olabilir,
+işte bu tarz senaryolarda bir sınıfı kalıtım yoluyla 2 kere elde edemeyiz. 
+class Member {
+
+};
+
+class Nec {
+
+private:
+    Member mx, my;
+};
+bunun doğrudan private kalıtım ile bir alternatifi yok. 
+
+private kalıtımının kullanıldığı 2 tane tipik tema var; hatta biri C++20 standartı ile  büyük ölçüde ortadan kalktı.
+
+EBO(Empty Base Optimization)
+Bir akronimdir. Derleyicilerin kullandığı çok etkili bir optimizasyon tekniğidir. Bazı sınıflar bir elemana sahip değildir yani bir 
+interface'leri var ama fiziksel olarak bir elemanları yoktur. 
+#include <iostream>
+
+class Empty {
+
+};
+
+int main()
+{
+    std::cout << "sizeof(Empty) = " << sizeof(Empty) << '\n'; //1
+}
+
+Bir sınıfın boş olması demek o sınıfın bir interface'i olmayacak anlamına gelmiyor. Örneğin bunun fonksiyonları olabilir, bu fonksiyonlar için
+kullanılmış olabilir. Ya da bazı durumlarda ilerde öğreneceğimiz bazı compile time teknikleri için böyle sınıflar kullanılıyor olabilir.
+
+#include <iostream>
+
+class Empty {
+
+};
+
+class Nec {
+
+private:
+    Empty ex;
+}
+
+int main()
+{
+    std::cout << "sizeof(Empty) = " << sizeof(Empty) << '\n'; //1
+    std::cout << "sizeof(Nec) = " << sizeof(Nec) << '\n'; //1
+}
+
+
+
+
+#include <iostream>
+
+class Empty {
+
+};
+
+class Nec {
+
+private:
+    int ival;
+}
+
+int main()
+{
+    std::cout << "sizeof(Empty) = " << sizeof(Empty) << '\n'; //1
+    std::cout << "sizeof(Nec) = " << sizeof(Nec) << '\n'; //4
+}
+
+
+#include <iostream>
+
+class Empty {
+
+};
+
+class Nec {
+
+private:
+    int ival;
+    Empty ex;
+}
+
+int main()
+{
+    std::cout << "sizeof(Empty) = " << sizeof(Empty) << '\n'; //1
+    std::cout << "sizeof(Nec) = " << sizeof(Nec) << '\n'; //8
+}
+burada Nec'in sizeof'unun 8 olması aligment'tır. Burada her bir kelime 4 byte olduğu için bunu 4'ün katlarına yerleştiriyor, 3 byte 
+padding ekliyor. Madem buna private kalıtım bir alternatif bunu private kalıtıma dönüştürelim:
+#include <iostream>
+
+class Empty {
+
+};
+
+class Nec : private Empty {
+
+private:
+    int ival;
+}
+
+int main()
+{
+    std::cout << "sizeof(Empty) = " << sizeof(Empty) << '\n'; //1
+    std::cout << "sizeof(Nec) = " << sizeof(Nec) << '\n'; //4
+}
+Nec'in sizeof değeri 4'e düştü işte bu durumda derleyicinin yaptığı optimizasyona empty base optimization deniliyor. Yani elemanken 
+bu optimizasyonu doğrudan yapamıyor ama taban sınıf olarak kullanırsam bu optimizasyonu yapabiliyor. Ve gerçekten birçok kütüphanede 
+private kalıtımın kullanılma nedeni buydu eskiden. 
+
+neden bilerek boş sınıf oluşturuyoruz:
+a)sınıfın elemana sahip olmaması bir interface'i olmayacağı anlamına gelmiyor
+b)böyle sınıflar bazı tekniklerde overload resolution oluşturmak için kullanılıyor
+c)generic programlama paradigmasında empty class'lar yoğun olarak kullanılıyor. 
+
+
+private kalıtımının kullanıldığı ilginç bir senaryo daha var:
+private inheritance'ın "Herb Sutter" tarafından tanıtılan ilginç bir kullanım senaryosu daha var. Bu kullanım senaryosuna "restricted polymorphism" de deniliyor:
+
+class Base {
+public:
+    virtual void vfunc();
+};
+
+class Der : public Base {
+public:
+    void vfunc()override;
+}
+
+void foo(Base& r)
+{
+    r.vfunc();
+}
+
+void g1()
+{
+    Der myder;
+    foo(myder);
+}
+
+void g2()
+{
+    Der myder;
+    foo(myder);
+}
+
+void g3()
+{
+    Der myder;
+    foo(myder);
+}
+fakat bunu private kalıtım ile yapsaydım sentkas hatası meydana gelirdi:
+çünkü private kalıtımda upcasting sentaks meydana gelir.
+class Base {
+public:
+    virtual void vfunc();
+};
+
+class Der : private Base {
+public:
+    void vfunc()override;
+}
+
+void foo(Base& r)
+{
+    r.vfunc();
+}
+
+void g1()
+{
+    Der myder;
+    foo(myder); //syntax error
+}
+
+void g2()
+{
+    Der myder;
+    foo(myder);//syntax error
+}
+
+
+void g3()
+{
+    Der myder;
+    foo(myder);//syntax error
+}
+
+diyelimki ben buradaki virtual dispatch'den belirli fonksiyonların istifade etmesini istiyorum; o fonksiyona/fonksiyonlara friend'lik verirsem o zaman upcasting legal olur:
+class Base {
+public:
+    virtual void vfunc();
+};
+
+class Der : private Base {
+public:
+    void vfunc()override;
+    friend void g1();
+    //yalnızca friend bildirimi yapılan fonksiyonlar
+    //içinde virtual dispatch'e izin veriliyor.
+}
+
+void foo(Base& r)
+{
+    r.vfunc();
+}
+
+void g1()
+{
+    Der myder;
+    foo(myder); //legal
+}
+
+void g2()
+{
+    Der myder;
+    foo(myder);//syntax error
+}
+
+
+void g3()
+{
+    Der myder;
+    foo(myder);//syntax error
+}
+böylece g1 diğerlerinin erişemediği run time polymorphism'ine erişti; Herb Sutter'ın tanıttığı idiomik bir yapı bu. O yüzden restricted polymorphism deniliyor. Çok geniş bir kullanım 
+alanı olmasada ilginç bir kullanım fikri ve bazı global fonksiyonları kısıtlı bir şekilde "restricted"(sınırlandırılmış) sadece belirli fonksiyonlara virtual dispatch'den istifade etme
+şansı veriyor...
+
+
+Bazı idiomlar kesinlikle daha sonradan bulunuyor; yani dilin kurallarının bazıları belirli bir yapıyı sağlamak için bazıları ise daha sonradan bir fayda sağladığı görülüyor:
+Bu araçların hepsi tesadüfen daha sonrada bulunan araçar:
+SFINAE
+    Substitution failure is not an error
+    enable_if
+CRTP
+    curiously recurring template pattern
+lambda 
+    positive lambda idiom
+
+=======================================================================================================================================================================================
+
+protected kalıtımı
+protected kalıtımında çoğu fikir private kalıtımı ile aynıdır hemen hemen. Sadece aradaki fark multi-level inheritance'de ortaya çıkıyor. 
+
+private kalıtımı ile protected kalıtımı arasındaki fark:
+private kalıtım:
+class Base {
+public:
+    void foo();
+};
+
+class Der : private Base {
+public:
+    void bar()
+    {
+        foo();
+    }
+};
+
+class Nec : public Der {
+public:
+    void baz()
+    {
+        foo(); //syntax error
+    }
+};
+buradaki baz fonksiyonu foo fonksiyonunu çağıramaz; çünkü taban sınıfın yani türediği Der sınıfının private fonksiyonu olduğu için. bar fonksiyonunu çağırabilir ama foo'yu çağıramaz.
+
+Fakat aynı şeyi protected kalıtım için yaparsak:
+class Base {
+public:
+    void foo();
+};
+
+class Der : protected Base {
+public:
+    void bar()
+    {
+        foo();
+    }
+};
+
+class Nec : public Der {
+public:
+    void baz()
+    {
+        foo(); //legal
+    }
+};
+Böylece taban sınıf olan Base sınıfının public bölümü türemiş sınıf olan Der'in protected bölümüne eklenmiş olur. Dolayısıyla bir sonraki kalıtımda artık protected bölümde olduğu 
+için türemiş sınıf olan Der'den tekrar türemiş sınıf elde edildiğinde Base class'ın public fonksiyonuna multi-level inheritiance örneğimizde ki Nec sınıfı erişebilir oldu. 
+
+Sonuç olarak protected kalıtımı ile private kalıtımı arasında ciddiye alınabilecek tek fark protected kalıtımında taban sınıfın public bölümü türemiş sınıfın private bölümüne değil
+protected bölümüne eklenir. Bu durumda multi-level inheritance ile yani türetilen sınıflar bu öğelere erişebilir.
+
+=====================================================================================================================================================================================
+
+C++20 standartı ile dile eklenen bir özellik var; bu bir attribute aslında. 
+attribute sentaksı:
+    [[]]
+    bu konu ile ilgili daha önce konuştuğumuzda nodiscard attribute'ını kullanmayı ihmal etmememiz gerektiğini belirtmiştik! Bir fonksiyonun nodiscard olarak nitelenmesi durumunda
+    o fonksiyona yapılan çağrıda fonksiyonun geri dönüş değerini discard ettiğimizde derleyici uyarı mesajı vermeye teşvik ediliyordu. 
+
+    container sınıfların size fonksiyonu container'da tutulan öğe sayısını döndürüyor; container'ların empty fonksiyonu is empty? anlamında boolean değer döndürüyor. Dolayısıyla 
+    örneğin vector sınıfının size fonksiyonunu çağırıp geri dönüş değerini bir değişkende tutmadığımız zaman bu fonksiyon nodiscard olarak nitelendiği için derleyici bize uyarı 
+    mesajı verir:
+    #include <iostream>
+    #include <vector>
+
+    int main()
+    {
+        using namespace std;
+
+        vector<int> ivec;
+
+        ivec.size();
+        ivec.empty();
+    }
+    warning: discarding return value of function with nodiscard attribute
+    Bu özelliği kendi fonksiyonlarımız içinde kullanabiliriz; ister sınıfımızın üye fonksiyonları olsun ister global fonksiyon olsun nodiscard attribute ile bildirebiliriz:
+    class Myclass {
+
+    public:
+        [[nodiscard]] int foo();
+    };
+
+    int main()
+    {
+        Myclass mx;
+
+        mx.foo();
+    }
+    eğer ki fonksiyonun geri dönüş değerini kullanamamak lojik bir hata ise mutlaka nodiscard attribute'ını kullanın!!!
+
+
+bir başka attribute ise şudur:
+
+bazı durumlarda switch deyiminde bir case deyiminden sonra bir takım deyimler oluyor fakat break; statement yer almıyor. Bu çok şüpheli bir durum burada 2 tane ihtimal var:
+1)Programcının bunu yanlışlıkla yapması break; statment'ı unutması ve kodun lojik yapısının bozulması
+2)Bunun bilerek istenerek yapılması ama böyle bir durumda programcı burada şüphede kalıyor ve aksi yönde bir doğrulama söz konusu olmadıkça bunun yanlışlıkla yazıldığı sonucuna 
+varıyor:
+int foo();
+void bar();
+void baz();
+void func();
+
+int main()
+{
+    int x = foo();
+    switch (x)
+    {
+    case 1 : bar();
+    case 2 : baz(); break;
+    case 3 : func(); break;
+
+    }
+}
+C'de böyle durumlarda bunun bilerek yapıldığını göstermek amacıyla yorum satırıyla fallthrough yazıyoruz:
+int foo();
+void bar();
+void baz();
+void func();
+
+int main()
+{
+    int x = foo();
+    switch (x)
+    {
+    case 1 : bar(); //fallthrough
+    case 2 : baz(); break;
+    case 3 : func(); break;
+
+    }
+}
+
+Modern C++(C++17) ile oda bir attribute oldu:
+int foo();
+void bar();
+void baz();
+void func();
+
+int main()
+{
+    int x = foo();
+    switch (x)
+    {
+    case 1 : bar(); [[fallthrough]];
+    case 2 : baz(); break;
+    case 3 : func(); break;
+
+    }
+}
+böylece hem okuyucuya hem de statik kod analizi yapan programlara bilgi vermiş oluyoruz hem de derleyiciye bu konu ile ilgili bir uyarı mesajı vermemeye teşvik etmiş oluyoruz!!
