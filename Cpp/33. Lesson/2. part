@@ -1,0 +1,613 @@
+Bir diğer dile eklenen attribute ise no_unique_address attribute'dır. C++20 ile dile eklenmiştir. Bunu dersi işlerken gcc derleyicisi implemente etmiş fakat microsoft etmemişti!
+#include <iostream>
+ 
+struct Empty {}; // empty class
+ 
+struct X
+{
+    int i;
+    Empty e;
+};
+ 
+struct Y
+{
+    int i;
+    [[no_unique_address]] Empty e;
+};
+ 
+struct Z
+{
+    char c;
+    [[no_unique_address]] Empty e1, e2;
+};
+ 
+struct W
+{
+    char c[2];
+    [[no_unique_address]] Empty e1, e2;
+};
+ 
+int main()
+{
+
+    std::cout << "sizeof(Empty) = " << sizeof(Empty) << '\n'; //1
+    std::cout << "sizeof(X) = " << sizeof(X) << '\n'; //8
+    std::cout << "sizeof(Y) = " << sizeof(Y) << '\n'; //4
+}
+
+====================================================================================================================================================================================
+
+multiple inheritance
+Mülakatlarda en çok soru bu kalıtım türünden geliyor. Dikkat multiple inheritance ile kastedilen multi-level inheritance değildir. Örneğin A sınıfından B sınıfını B sınıfından C 
+sınıfını kalıtım yoluyla elde ediyorsak bu multi-level inheritance'dır. Multiple inheritance birçok programala dilinde doğrudan bulunan bir araç değildir. C++ dilinde olan bir 
+araçtır. Diğer programlama dillerinde bu araç yok demek bu aracın yaptığı iş orada yapılamaz demek değildir! Multiple inheritance bir sınıfı tek bir kalıtımla birden fazla taban 
+sınıftan türetmektir. Burada türetilen sınıfın taban sınıfların birinden veya hepsinden public kalıtımla, protected kalıtımla ya da private kalıtım ile oluşturulması mümkündür.
+
+Eğer türetilmiş sınıf çoğunlukla olduğu gibi taban sınıfların hepsiyle public kalıtımı ile elde edilirse is-a relationship ilişkisi her  taban sınıf içinde geçerlidir. Yani 
+her türemiş sınıf her taban sınıfıdır da aynı zamanda. public kalıtmında bütün incelemelerimiz türediği her taban sınıf için de geçerli olacaktır.
+
+class X {
+
+};
+
+class Y {
+
+};
+
+class Der : public X, public Y {
+
+};
+
+1)Bu multiple inheritance'dır. Der sınıfını hem X sınıfından hem Y sınıfından public kalıtımı ile oluşturmuş olduk.
+2)Burada birden fazla taban sınıf bulunduğunu her taban sınıftan önce kalıtım belirtecinin tekrar yazılması gerektiğine dikkat ediniz!!!
+3)Burada ilk yapılan teknik hatalardan biri kalıtım belirtecinin virgüllerle ayrılmış taban sınıf listesindeki bütün sınıfları nitelediğini sanmak!!
+class X {
+
+};
+
+class Y {
+
+};
+
+class Der : public X, Y {
+
+};
+soru: böyle yazdığımızda Der sınıfını hem X sınıfından hem de Y sınıfından public kalıtmıyla mı elde ediyorum?
+Hayır, böyle yazmak private yazmaya eş değerdir:
+class X {
+
+};
+
+class Y {
+
+};
+
+class Der : public X, private Y {
+
+};
+
+
+Eğer ki class değil de struct anahtar sözcüğü kullanılmışsa yine bütün sınıflar için default kalıtım biçimi public olurdu:
+class X {
+
+};
+
+class Y {
+
+};
+
+class Z {
+
+};
+
+struct Der : X, Y, Z { //public kalıtım
+
+};
+
+eğer class anahatr sözcüğü ile aynı kodu yazarsak:
+class X {
+
+};
+
+class Y {
+
+};
+
+class Z {
+
+};
+
+class  Der : X, Y, Z { //private kalıtım
+
+};
+
+sonuç olarak eğer ki class anahtar sözcüğünü kullanarak sınıf oluşturuyorsak ve taban sınıflarımızın hepsinden public kalıtımı ile türemiş sınıfı elde etmek istiyorsak public
+anahtar sözcüğünü direk yazmalıyız:
+class X {
+
+};
+
+class Y {
+
+};
+
+class Der : public X, Y {
+
+};
+
+4)Multiple inheritance'da doğal olarak türemiş sınıf nesnesinin içinde bu sefer her 2 taban sınıf nesnesinden birer tane nesne olucak:
+#include <iostream>
+class X {
+    int mx;
+
+};
+
+class Y {
+    int my;
+};
+
+class Der : public X, Y {
+
+};
+
+int main()
+{
+    std::cout << "sizeof(X) = " << sizeof(X) << '\n'; //4
+    std::cout << "sizeof(Y) = " << sizeof(Y) << '\n'; //4
+    std::cout << "sizeof(Der) = " << sizeof(Der) << '\n'; //8
+}
+Der sınıfının içinde bir X nesnesi bir de Y nesnesi var, yani içinde 2 tane ayrı taban nesnesi var. 
+
+5)Tekli kalıtmda olduğunun benzeri kurallar burada da geçerli örneğin bir Der nesnesini oluşturduğumuz zaman önce onun içindeki X nesnesi sonra Y nesnesi hayata gelicek ondan sonra
+programın akışı ctor'a giricek. Burada özellikle kalıtımdaki sıranın önemli olduğunu belirtelim:
+#include <iostream>
+class X {
+    X()
+    {
+        std::cout << "X default ctor\n";
+    }
+
+};
+
+class Y {
+    Y()
+    {
+        std::cout << "Y default ctor\n";
+    }
+
+};
+
+class Der : public X, Y {
+
+};
+
+int main()
+{
+    Der myder;
+}
+Der sınıfı türünden bir nesne oluşturduğum zaman Der'in içindeki X taban sınıf nesneside Y taban sınıf nesneside hayata gelicek. Ve bunların hayata gelme sırası bildirimdeki sıradır.
+Dolayısıyla ekran çıktısı şu şekilde olur:
+X default ctor
+Y default ctor
+Bunların hayata gelme sırası bildirimdeki sıra yani Der'in ctor'ı içinde bu sırayı değiştirsek dahi bu sıra değişmez.
+Bu derleyiciye bağlı değil yani kalıtımda taban sınıfların bildirilme sırası taban sınıf nesnelerinin hayata gelme sırasını belirliyor. Örneğin:
+#include <iostream>
+class X {
+public:
+    X(int a)
+    {
+        std::cout << "X(int a) a = " << a << '\n';
+    }
+
+};
+
+class Y {
+public:
+    Y(int b)
+    {
+        std::cout << "Y(int b) b = " << b << '\n';
+    }
+
+};
+
+class Der : public X, Y {
+public:
+    Der() : Y(1), X(9)
+    {
+        std::cout << "Der default ctor\n";
+    }
+};
+
+int main()
+{
+    Der myder;
+}
+ekranda önce X'in sonra Y'nin en son Der'in ctor'ı çıkar. Tıpkı member'larda olduğu gibi Der'in ctor'ında yapılan bildirime göre değilde kalıtmda bildirildiği sırada nesneler 
+hayata geldiği için member'larda verilen tavsiyedeki gibi burada da aynı sırayı ctor initializer_list'de de kullanmak daha iyidir çünkü aynı sırada olmasa da bir hükmü yok
+okuyanı yanılmanın dışında bir faydası yoktur. 
+#include <iostream>
+class X {
+public:
+    X(int a)
+    {
+        std::cout << "X(int a) a = " << a << '\n';
+    }
+
+};
+
+class Y {
+public:
+    Y(int b)
+    {
+        std::cout << "Y(int b) b = " << b << '\n';
+    }
+
+};
+
+class Der : public X, Y {
+public:
+    Der() : X(9), Y(1), 
+    {
+        std::cout << "Der default ctor\n";
+    }
+};
+
+int main()
+{
+    Der myder;
+}
+
+6)Her iki sınıftanda public kalıtımıyla elde ediyorsam her 2 taban sınıfın interface'inide alabiliyorum:
+class X {
+public:
+    void xf();
+};
+
+class Y {
+public:
+    void yf();
+};
+
+class Der : public X, public Y {
+
+};
+
+int main()
+{
+        Der myder;
+
+        myder.xf();
+        myder.yf();
+}
+Şüphesiz derleyicinin oluşturduğu assembly kodda xf'nin gizli parametresi X* yf'nin gizli parametresi ise Y* derleyici myder nesnesinin içindeki X nesnesinin adresini xf'ye argüman 
+olarak gönderiyor, diğerinde de myder nesnesinin içindeki Y nesnesinin adresini  argüman olarak döndürüyor. Her 2 taban sınıfında public öğelerini kendi public bölümüme katmış 
+oluyorum. Yine aynı şekilde public inheritance olduğu için her 2 sınıfının protected member'larınada kendi üye fonksiyonlarım içinde erişebilirim. 
+
+upcasting her 2 sınıf içinde söz konusudur.  Yani Der sınıfı türünden bir nesne hem X hem de Y türünden kabul edildiği için X türünden örneğin bir pointer'a myder'in adresini
+yine Y türünden bir pointer'a myder'in adresini  atayabilirim. Yine referans semantiği ile upcasting'i kullanabilirim:
+class X {
+public:
+    void xf();
+};
+
+class Y {
+public:
+    void yf();
+};
+
+class Der : public X, public Y {
+
+};
+
+int main()
+{
+    Der myder;
+
+    X* ptr = &myder;
+    Y* ptr = &myder;
+
+    X& = myder;
+    Y& = myder;
+}
+
+aşağıda ambiguity oluşur:
+class X {
+public:
+    void xf();
+};
+
+class Y {
+public:
+    void yf();
+};
+
+class Der : public X, public Y {
+
+};
+
+void foo(X&);
+void foo(Y&);
+
+int main()
+{
+    Der myder;
+
+    foo(myder); //ambiguity
+}
+foo'ların oluşturduğu function overload ile yapılan çağrı arasında bir seçilebilirlik olamdığı için ambiguity oluşur. Yani her 2 taban sınıfa dönüşüm user defined conversion;
+her ikisi içinde çağırılabilirlik açısından bir problem yok. Burada ambiguity'i kaldırmak için türü açıkça belirtebiliriz:
+class X {
+public:
+    void xf();
+};
+
+class Y {
+public:
+    void yf();
+};
+
+class Der : public X, public Y {
+
+};
+
+void foo(X&);
+void foo(Y&);
+
+int main()
+{
+    Der myder;
+
+    foo(static_cast<X&>(myder)); 
+    foo(static_cast<Y&>(myder)); 
+}
+ambiguity'i bu tür bir tür dönüştürme operatör'ü ile veya çözünürlük operatorü ile ortadan kaldırmaya "dismabiguity" deniliyor. Tabii fonksiyonların parametreleri pointerda olabilirdi:
+class X {
+public:
+    void xf();
+};
+
+class Y {
+public:
+    void yf();
+};
+
+class Der : public X, public Y {
+
+};
+
+void foo(X*);
+void foo(Y*);
+
+int main()
+{
+    Der myder;
+
+    foo(static_cast<X*>(myder)); 
+    foo(static_cast<Y*>(myder)); 
+}
+
+
+7)Her 2 taban sınfın fonksiyonlarını da override edebilir:
+class X {
+public:
+    virtual void xf(int) {}
+};
+
+class Y {
+public:
+ virtual void yf(int, int) {}
+};
+
+class Der : public X, public Y {
+public:
+    virtual void xf(int)override 
+    {
+        std::cout << "Der::xf(int)\n";
+    }
+    virtual void yf(int, int)override 
+    {
+        std::cout << "Der::yf(int, int)\n";
+    }
+};
+
+void foo(X& xr, Y& yr)
+{
+    xr.xf(0);
+    yr.yf(0, 12);
+}
+
+int main()
+{
+    Der myder;
+
+    foo(myder, myder);
+}
+
+
+Çoklu kalıtımda isim arama kuralları ayrıdır:
+
+class   BaseX {
+public:
+    void foo();
+};
+
+class   BaseY {
+public:
+    void foo(int);
+};
+
+class Der : public BaseX, public BaseY {
+
+};
+İsim arama konusuna geldiğimiz zaman ismi nitelemeden kullanırsak ve isim her 2 taban sınfta da varsa ambiguity oluşur:
+
+int main()
+{
+    Der myder;
+    myder.foo(); //ambiguity
+}
+programcıların burada tipik şu beklentisi oluyor: ben myder.foo'yu çağırayım ve function overloadin'den faydalanayım; fakat burada fonksiyon çağrısı olması önemli değildir. Neyin 
+ismi olursa olsun . operator'ünün sağ operandı olan ismin derleyici fonksiyon ismi olduğunu anlamaz. Derlayici bu ismi her 2 sınıfta birden arıyor yani belirli bir sıra dahilinde 
+aramıyor. Her iki sınıfta birden aranıyor. Dolayısıyla böyle bir isim çakışması olduğunda derleyici BaseX'teki foo ismini mi alsın yoksa BaseY'deki foo ismini mi alsın? bunu anlama
+şansı yok! Dolayıısyla ambiguity olucak. Dikkat ambiguity olması bu fonksiyonun çağırılması ile ilgili değil sadece bir isim olması ile ilgilidir. 
+
+Taban sınıflar aynı isme sahip ismi kullanmak ve ambiguity oluşmasını engellemek için ismi nitelemeliyiz:
+class   BaseX {
+public:
+    void foo();
+};
+
+class   BaseY {
+public:
+    void foo(int);
+};
+
+class Der : public BaseX, public BaseY {
+
+};
+İsim arama konusuna geldiğimiz zaman ismi nitelemeden kullanırsak ve isim her 2 taban sınfta da varsa ambiguity oluşur:
+
+int main()
+{
+    Der myder;
+    myder.BaseX::foo(); //legal, foo ismi direk BaseX sınıfında arandı
+    myder.BaseY::foo(1); //legal, foo ismi direk BaseY sınıfında arandı
+
+    //veya referans semnatiği ile de yapabiliriz:
+    static_assert<BaseX&>(myder).foo();
+    static_assert<BaseY&>(myder).foo(1);
+}
+
+Fakat şu şekilde olsaydı ambiguity oluşmazdı çünkü foo önce türemiş sınıfın scope'unda aranırdı ondan sonra taban sınıflarda aranırdı. 
+class   BaseX {
+public:
+    void foo();
+};
+
+class   BaseY {
+public:
+    int foo;
+};
+
+class Der : public BaseX, public BaseY {
+public:
+    int foo;
+};
+
+int main()
+{
+    Der myder;
+    myder.foo = 6; //legal, türemiş sınıfın foo isimli değişkeni önce arandığı için o bulundu ve ambiguity oluşmadı!
+}
+
+
+Sonuç olarak, taban sınıflardan ortak isim geldiğinde bu isimlerin aranması sırasında bir sıra söz konusu değil. Her 2 ya da 3 taban sınıfta da birden aranıyor. Dolayısıyla 
+böyle bir isim çakışmasında isim çakışmasından kurtulamanın ya da ambiguity'i engellemenin yolları vardır:
+1)ismi niteleyerek kullanmak
+2)türemiş sınıf nesnesini ya da türemiş sınıf nesne adresini taban sınıf pointer'ı türüne ya da taban sınıf referans türüne cast edip, ismi öyle kullanmak.
+
+Burada özellikle generic programlama tarafında bizi ilgilendiren ilginç bir özellik daha var:
+class   BaseX {
+public:
+    void foo();
+};
+
+class   BaseY {
+public:
+    int foo(int, int);
+};
+
+class Der : public BaseX, public BaseY {
+public:
+
+};
+bu function overloading değil scope'ları birbirinden farklı kaldı ki her 2 taban sınıf içinde birden arandığından function overloading söz konusu değil, bunu yukarıda belirtmiştik. 
+Ama ilginç bir şey yapabilirim overloading etkisi için: her 2 sınıfın foo ismi için using bildirimi yaparsam her iki isimde türemiş sınıf scope'u içinde visible hale gelicek:
+class   BaseX {
+public:
+    void foo();
+};
+
+class   BaseY {
+public:
+    int foo(int, int);
+};
+
+class Der : public BaseX, public BaseY {
+public:
+    using BaseX::foo();
+    using BaseY::foo();
+
+};
+
+int main()
+{
+    Der myder;
+    myder.foo();
+    myder.foo(12, 45);
+}
+
+Çoklu kalıtı aslında her 2 taban sınıfın interface'inide alarak onları o interface'leri dahil ederek bir sınıfı oluşturma amaçlı yapılıyor. Örneğin:
+
+Ben hem Worker hem de Tecaher interface'ini alıcak yeni bir sınıf oluşturmak istesem:
+class Worker {
+public:
+    virtual void work();
+
+};
+
+class Teacher {
+public:
+    virtual void teach();
+};
+
+class MathTeacher : public Worker, public Teacher{
+
+};
+böylece MathTeacher Worker olması nedeniyle Worker'ın üye fonksiyonlarından faydalanabilecek onları override edebilecek Worker gereken yerde MathTeacher kullanabileceğim aynı zamanda
+bir Teacher olduğu için Teacher gereken yerde de kullanılabilicek; her iki sınıfın sanal fonksiyonlarını override edebilecek. 
+
+Yalnız kalıtımların 2 ya da daha fazlasının aynı kalıtım kategorisinde olması hiç şüphesiz gerekmiyor:
+örneğin Worker olması composition nedenli olabilir ama Teacher olması onu is-a relationship nedeni ile olabilir. Yani pekala biri private diğeri public kalıtımı olabilir:
+class Worker {
+public:
+    virtual void work();
+
+};
+
+class Teacher {
+public:
+    virtual void teach();
+};
+
+class MathTeacher : private Worker, public Teacher{
+
+};
+
+Örneğin Golf pattern'lerinden Adaptör pattern'inin static sınıf bazında implementasyonunda tipik olarak bir sınıftan public kalıtımıyla bir sınıftan private kalıtımı ile elde 
+ediyoruz(C++'daki implementasyonu). Dikkat bu durumda upcasting yalnızca Teacher class'ı için yapılabilir. Worker class içinde yine yapılabilir ama yine türemiş sınfın üye 
+fonksiyonları içinde ve türemiş sınıfın friend'leri içinde. Yani Worker için private kalıtım kuralları Teacher için ise public kalıtım kuralları tamamen geçerli olacak.
+
+Bu konu ile ilgili en fazla soru sorulan ve üretimde de dikkatli olmamız gereken özel bir senaryo var:
+C++ mülakatlarında da gelir, buna Diamond formation denir. Diamond hem elmas anlamında hem de karo anlamında. Dolayısıyla C++'ta bazıları elmas formasyonu bazıları ise karo formasyonu 
+diyor. Konuya biraz espiri katmak amaçlı burada bahsedilen formasyona DDD(three D formation) deniliyor. 
+DDD
+    (dreadful Diamond of Derivation)
+    (deathful Diamond of Derivation)
+Diamond Formation Ne Demek?
+Bazı durumlarda biz bir taban sınıftan birden fazla sınıfı elde ediyoruz fakat o türemiş sınıftan elde ettiğimiz sınıfları taban sınıf olarak kullanıp tekrar ondan bir sınıf elde 
+ediyoruz. Örneklemek için şu şekilde düşünebiliriz; örneğin Device sınıfından Fax ve Modem sınıflarını elde ediyorum. Fax'ta Modem'de bir elektronik cihaz, dolayıısyla her ikiside
+Device sınıfından kalıtım yoluyla elde ediliyor. Fakat daha sonra bu Fax-Modem sınıfını da  Modem ve Fax sınıflarından çoklu kalıtım yoluyla elde ediyorum. Burada özel ayrı bir 
+sentaks kullanmazsanız çoklu kalıtım ile elde edilen sınıfta ki bu sınıfa join class deme alışkanlığı da var.  Fax-Modem sınıfının içinde taban sınflar türünden olan 2 tane ayrı nesne 
+var, hem Fax nesnesi hem de Modem nesnesi var. Fakat hem Fax'ın içinde hem de Modem'in içinde Device türünden bir nesne olduğu için niyayetinde derleyicinin ürettiği kodda Fax-Modem 
+sınıf nesnesinin içinde 2 tane Device nesnesi oluyor. Bu basit bir problem gibi görünse de hem run time'a yönelik hem de compile time'a yönelik çok önemli bir problemdir!!
+Çünkü bu a)compile time yönelik birçok durumda ambiguity oluşturucak b)problem domainindeki karşılığı ile kod karşılığı yani modeldeki karşılığı/kod karşılığı ile run time karşılığı
+birbiri ile aynı olmayacak. Çünkü modelde eğer Fax-Modem bizim gözümüzle bakarsak tek bir cihazsa onu oluşturduğumuz sınıflar onu modelliyor olmayacak çünkü 2 tane ayrı Device var. 
+Bu da run time'daki davranışını da etkileyecek. Yani compile time'daki ambiguity probleri ortadan kalksa dahi normalde bu aslında tek bir device'ken adeta bozulmuş bir şekilde duruma 
+göre bazen bir device şeklinde bazen diğer device şeklinde çalışacak yani birbiri ile iletişim halinde olmayacak. Örneğin Fax tarafından Device'ı açtığımda Modem tarafında Device 
+açılmış olmayacak. İşte bütün bu problemler ile başa çıkmamız gerekicek. O yüzden burada elmas formasyonu dikkat edilmezse çok ciddi bir sorun oluşturur. 
+
+Çoklu kalıtımda böyle bir durumda yani elmas formasyonu oluştuğunda çoklu kalıtım ile elde edilen sınıfın yani o join class denilen sınıfın içinde her 2 taban sınıftan gelen 
+ortak taban sınıf nesnesinden örneğimizde Device'dan 2 tane yerine 1 tane olmasını sağlamak mümkün işte onu oluşturan kalıtım biçimine de "virtual inheritance" deniliyor. 
+
+Dikkat virtual function başka pure virtual function başka virtual inheritance ise başka şeylerdir. virtual inheritance elmas formasyonunun koruma aracıdır. 
