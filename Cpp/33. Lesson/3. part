@@ -1,0 +1,756 @@
+Diamond Formation
+
+class Person {
+
+};
+
+class Worker : public Person {
+
+};
+
+class Teacher : public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+};
+MathTeacher sınıf nesnesinin içinde bir Worker'dan gelen bir de Tecaher'dan gelen 2 tane Person vardır. Peki bunun sonuçları nelerdir?
+1)join class türünden bir nesne tanımladığımızda Person sınıfının 2 defa ctor'ı çağırılır, dtor'lardan biri Worker'ın içindeki Person'dan diğeri Teacher'ın içindeki Person'dan
+kaynaklanıyor. Ve ikisininde this pointer'ının değeri farklıdır çünkü 2 ayrı nesnelerdir.
+#include <iostream>
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+};
+
+class Worker : public Person {
+
+};
+
+class Teacher : public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+};
+
+int main()
+{
+    MathTeacher mt;
+}
+
+2)Bu durumda örneğin ben MathTeacher nesnesi ile Person'ın interface'indeki speak fonksiyonunu çağırmak istesem; ambiguity olucak:
+#include <iostream>
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+    void speak();
+
+};
+
+class Worker : public Person {
+
+};
+
+class Teacher : public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+};
+
+int main()
+{
+    MathTeacher mt;
+    mt.speak(); //syntax error because of ambiguity
+}
+ambiguity oluştu çünkü derleyici hangi Person'ı kullanacağını bu durumda anlama şansına sahip değil. 
+
+Fakat bildiğimiz üzere ambiguity'nin olduğu yerde disambiguity'de mümkün yukarıdaki ambiguity'i kaldırmak için ismi nitelemeliyiz:
+#include <iostream>
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+    void speak()
+    {
+        std::cout << "Person::speak() this : " << this << '\n';
+    }
+
+};
+
+class Worker : public Person {
+
+};
+
+class Teacher : public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+};
+
+int main()
+{
+    MathTeacher mt;
+    mt.Worker::speak(); 
+    mt.Teacher::speak();
+
+    static_cast<Worker&>(mt).speak();
+    static_cast<Teacher&>(mt).speak();
+}
+
+3)Aynı şey MathTeacher'ın üye fonksiyonları içinde geçerli:
+#include <iostream>
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+    void speak()
+    {
+        std::cout << "Person::speak() this : " << this << '\n';
+    }
+
+};
+
+class Worker : public Person {
+
+};
+
+class Teacher : public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+public:
+    void solve_equation()
+    {
+        //fonksiyon nitelenmeden kullanılsaydı ambiguity oluşurdu!
+        Worker::speak();
+        Teacher::speak();
+    }
+};
+
+4)Yine aynı problem pointer veya refarans upcasting'de de var:
+#include <iostream>
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+    void speak()
+    {
+        std::cout << "Person::speak() this : " << this << '\n';
+    }
+
+};
+
+class Worker : public Person {
+
+};
+
+class Teacher : public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+public:
+    void solve_equation()
+    {
+        //fonksiyon nitelenmeden kullanılsaydı ambiguity oluşurdu!
+        Worker::speak();
+        Teacher::speak();
+    }
+};
+
+int main()
+{
+    MathTeacher mt;
+
+    Person* p = &mt; //ambiguity
+}
+ambiguity olur çünkü 2 tane ayrı Person var. Bunun geçerli olması için static_cast ile dönüşüm yapmalıyız:
+#include <iostream> 
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+    void speak()
+    {
+        std::cout << "Person::speak() this : " << this << '\n';
+    }
+
+};
+
+class Worker : public Person {
+
+};
+
+class Teacher : public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+public:
+    void solve_equation()
+    {
+        //fonksiyon nitelenmeden kullanılsaydı ambiguity oluşurdu!
+        Worker::speak();
+        Teacher::speak();
+    }
+};
+
+int main()
+{
+    MathTeacher mt;
+
+    Person* p1 = static_cast<Teacher*>(&mt);
+    Person* p2 = static_cast<Worker*>(&mt); 
+
+    std::cout << "p1 = " << p1 << '\n';
+    std::cout << "p2 = " << p2 << '\n';
+}
+
+Sonuç olarak 2 tane taban sınıf nesnesi olması compile time'da birçok problem yaratıyor. Hangi sınıf nesnesinin kullanacağını derleyiciye belirtmemiz gerekiyor. Ama problem sadece 
+compile time yönelik değil, problem çoklu kalıtım ile elde edilmiş nesnenin adeta şizofrenik şekilde çoklu kalıtımda farklı şekilde davranmasıdır. Yani aslında 2 tane sınıf 
+türündenmiş gibi haraket ediyor fakat model olarak baktığımızda onun tek bir sınıf olması gerekiyor. Örneğin yukarıda verdiğimiz örnekte de MathTeacher'ın Person 2 tane Person 
+değil ki. MathTeacher  problem domainine bakarsak diğer insanlar gibi bir kişi. Fakat örnekte MathTeacher adeta çift kişilikli insanlarda olduğu gibi duruma göre ayrı bir Person 
+olarak davranıyor duruma göre ayrı bir Person olarak davranıyor. Aslında bunun tek bir Person olması gerekiyor. İşte bu run time'da da problem oluşturuyor, yani istediğiniz kadar 
+compilw time'da çözünürlük operator'ünü kullanın, tür dönüştürme operator'ünü kullanın çoğu zaman problem modelle oluşturduğumuz sınıf sisteminin birbirine uyumlu olmaması! Pekala
+bazen 2 tane olması istenen bir durum olabilir, öyle bir durum olabilir ki gerçekten 2 tane ayrı taban sınıf nesnesi olması modele daha uygundur. Ama çoğu zaman yukarıdaki örnekte 
+olması gereken durumda olduğu gibi tek kişi olması gerekir. 
+
+Çoklu kalıtım tek araç değil, çoklu kalıtıma ayrı ayrı alternatifler var ama çoklu kalıtımda da tek bir nesne oluşturmanın yolu var: virtual inheritante
+
+Buradaki problemin sadece compile time yönelik değil run time yönelik'te olduğunu göstermek için aşağıdaki örneği inceleyelim:
+#include <iostream>
+class Device {
+public:
+    bool is_on()
+    {
+        return mflag;
+    }
+    void turn_on()
+    {
+        mflag = true;
+        std::cout << "cihaz acildi\n";
+    }
+    void turn_off()
+    {
+        mglaf = false;
+        std::cout << "cihaz kapatildi\n";
+    }
+private:
+    bool mflag{};
+};
+
+class Fax : public Device {
+public:
+    virtual void send_fax()
+    {
+        if(is_on()) {
+            std::cout << "fax gonderildi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan fax gonderilemedi\n";
+        }
+    }
+    virtual void receive_fax()
+    {
+        if(is_on()) {
+            std::cout << "fax alindi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan fax alinamadi\n";
+        }
+
+    }
+};
+
+class Modem : public Device {
+public:
+    virtual void send_data()
+    {
+        if(is_on()) {
+            std::cout << "data gonderildi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan data gonderilemedi\n";
+        }
+    }
+    virtual void receive_data()
+    {
+        if(is_on()) {
+            std::cout << "data alindi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan data alinamadi\n";
+        }
+
+    }
+};
+
+class FaxModem : public Fax, public Modem {
+
+};
+
+int main()
+{
+    FaxModem fm;
+
+    fm.Fax::turn_on();
+    fm.receive_fax();
+    fm.send_data();
+    fm.Modem::turn_off();
+    fm.send_fax();
+}
+Ekran çıktısına baktığımız zaman birbiri ile çeliştiğini görürüz. Çünkü problem domain'indeki karşılığı ile kod karşılığı birbiri ile uymuyor. Biz diyelimki problem domanininde 
+tek bir cihaz olarak görmek istiyoruz, 1 tane açma kapama düğmesi var açınca fax'ta data'da göderilsin böylece bu hem printer hem de scanner gibi çalışan bir cihaz olurdu. Bu problemi
+düzeltmenin yolu virtual inheritance'dir.
+virtual inheritance
+eğer çoklu kalıtımda taban sınıf   olarak kullanılan sınıfları ortak taban sınıftan kalıtım yoluyla elde ederken virtual inheritance yoluyla elde edersek, burada virtual anahatar 
+sözcüğü overload edilmiştir. Burada ki virtual keyword'ünün anlamı şudur: eğer bu sınıf çoklu kalıtımda başka bir sınıf ile birlikte taban sınıf olacaksa bu kendi taban sınıfından
+bir tane koyulmasını sağlayacak:
+çoklu kalımın kullanımında kullanılacak olan türemiş sınıfların her ikiside virtual olması gerekir!!
+#include <iostream> 
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+    void speak()
+    {
+        std::cout << "Person::speak() this : " << this << '\n';
+    }
+
+};
+
+//virtual inheritance
+class Worker : virtual public Person { 
+
+};
+
+//virtual inheritance
+class Teacher : virtual public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+public:
+    void solve_equation()
+    {
+
+    }
+};
+
+int main()
+{
+    MathTeacher mt;
+}
+1)Kodu çalıştırdığımız zaman sadece 1 tane ctor çağırıldığını göreceğiz çünkü ortada 1 tane Person nesnesi var. 
+
+2)Artık 1 tane taban sınıf nesnesi olduğu için bir ambiguity söz konusu olmayacak.
+#include <iostream> 
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+    void speak()
+    {
+        std::cout << "Person::speak() this : " << this << '\n';
+    }
+
+};
+
+//virtual inheritance
+class Worker : virtual public Person { 
+
+};
+
+//virtual inheritance
+class Teacher : virtual public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+public:
+    void solve_equation()
+    {
+
+    }
+};
+
+int main()
+{
+    MathTeacher mt;
+
+    mt.speak();
+}
+
+3)Yine çoklu kalıtım ile elde edilmiş sınıfın üye fonksiyonun da taban sınıfın fonksiyonunu çağırmak ambiguity olmayacak.
+#include <iostream> 
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+    void speak()
+    {
+        std::cout << "Person::speak() this : " << this << '\n';
+    }
+
+};
+
+//virtual inheritance
+class Worker : virtual public Person { 
+
+};
+
+//virtual inheritance
+class Teacher : virtual public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+public:
+    void solve_equation()
+    {
+        speak();
+    }
+};
+
+3)Ayrıca artık taban sınıf nesnesinden 1 tane olduğu için  upcasting'de sentaks hatası olmaz:
+#include <iostream> 
+class Person {
+public:
+    Person()
+    {
+        std::cout << "Person default ctor this : " << this << '\n';
+    }
+
+    void speak()
+    {
+        std::cout << "Person::speak() this : " << this << '\n';
+    }
+
+};
+
+//virtual inheritance
+class Worker : virtual public Person { 
+
+};
+
+//virtual inheritance
+class Teacher : virtual public Person {
+
+};
+
+class MathTeacher : public Worker, public Teacher {
+
+public:
+    void solve_equation()
+    {
+
+    }
+};
+
+int main()
+{
+    MathTeacher mt;
+
+    mt.speak();
+
+    Person* p1 = &mt;
+    Person* p2 = &mt; 
+
+    Person& r = &mt;
+}
+
+#include <iostream>
+class Device {
+public:
+    bool is_on()
+    {
+        return mflag;
+    }
+    void turn_on()
+    {
+        mflag = true;
+        std::cout << "cihaz acildi\n";
+    }
+    void turn_off()
+    {
+        mglaf = false;
+        std::cout << "cihaz kapatildi\n";
+    }
+private:
+    bool mflag{};
+};
+
+class Fax : virtual public Device {
+public:
+    virtual void send_fax()
+    {
+        if(is_on()) {
+            std::cout << "fax gonderildi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan fax gonderilemedi\n";
+        }
+    }
+    virtual void receive_fax()
+    {
+        if(is_on()) {
+            std::cout << "fax alindi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan fax alinamadi\n";
+        }
+
+    }
+};
+
+class Modem : virtual public Device {
+public:
+    virtual void send_data()
+    {
+        if(is_on()) {
+            std::cout << "data gonderildi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan data gonderilemedi\n";
+        }
+    }
+    virtual void receive_data()
+    {
+        if(is_on()) {
+            std::cout << "data alindi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan data alinamadi\n";
+        }
+
+    }
+};
+
+class FaxModem : public Fax, public Modem {
+
+};
+
+using namespace std;
+
+int main()
+{
+    FaxModem fm;
+
+    cout << boolalpha; //boolalpha manipülatörü boolean değerlerin true false olarak yazılmasını sağlıyor.
+    cout << "is on ? " <<  fm.is_on() << '\n';
+    fm.turn_on();
+    cout << "is on ? " <<  fm.is_on() << '\n';
+    fm.send_fax();
+    fm.send_data();
+    fm.turn_off();
+    cout << "is on ? " <<  fm.is_on() << '\n'
+    fm.receive_fax();
+    fm.receive_data();
+}
+
+(part3_virtual_inheritance resminin yorumu)
+virtual inheritance'ın çok tipik bir örneği var: iostaream kütüphanesi
+cout nesnesi global bir değişkendir. cout nesnesi basic_iostream isimli sınıf türünden bir nesne, basic_ostream bir sınıf şablonunun ismi bizim ostream'de o sınıf şablonunun 
+bir specialization'ının ismi. İlerde ele alacağımız iostream kütüphanesinde sınıf hiyerarşisi şöyle: en tepede bütün stream'lerin taban sınıfı olan ios_base isimli bir sınıf var.
+Bu sınıf bir template değil, ios_base sınıfından kalıtım ile elde edilen basic_ios sınıfı ve onun taban sınıfı olan ios_base sınıfları giriş ya da çıkış akımı stream'i olmasından 
+bağımsız interface'i taşıyor. Örneğin formatlama interface'i burada, fakat basic_ios sınıfından 2 ayrı kalıtım yapılmıştır: basic_istream ve basic_ostream sınıfları. basic_istream
+sınıfı okuma interface'i'ne sahip örneğin operator right sift fonk. operator left sift fonk. basic_osteram sınıfından geliyor. Örneğin dosyadan salt okuma yapmak için kullandığımız 
+fonksiyonlar basic_ifstream sınıfı basic_istream sınıfından basic_ofstream sınıfı da basic_ostream sınıfından kalıtım ile elde ediliyor. Burada ilginç bir şey var; basic_iostream
+isimli bir sınıf var. basic_iostream sınıfı hem okuma hem de yazma işlemi yapılabilecek stream'leri temsil eden sınıftır. Dolayısıyla hem okuma interface'ine hem de yazma interface'ini 
+alması gerekiyor. O yüzden standart kütüphanede basic_iostream sınıfı çoklu kalıtım multiple inheritance yoluyla basic_istream ve basic_ostream sınıflarından çoklu kalıtım yoluyla 
+elde edilmiştir. İşt burada join class olan basic_iostream kendi taban sınıflarından yani basic_istream'den ve basic_ostream'den kalıtım yoluyla elde edilmiş olmasında rağmen biz 
+basic_iostream'in içinde 1 tane basic_ios ve 1 tane ios_base olmasını istiyoruz. Çünkü sonuçta aynı nitelikleri okuma tarafında da yazma tarafında da kullanacağız. O yüzden 
+basic_istream ile basic_ostream basic_ios sınıfından virtual inheritance ile oluşturulmuş. Böylece basic_iostream nesneleri ve basic_iostream'den kalıtım yoluyla edilen sınıf
+nesneleri içinde 1 tane ios_base 1 tane basic_ios olucak! İşte bu çoklu kalıtımda sanal kalıtımın en tipik örneği.
+
+Sanal kalıtımda ortak olan taban sınıf yani basic_ios bu sınıfa virtual Base class deniliyor. 
+
+#include <iostream>
+class Device {
+public:
+    bool is_on()
+    {
+        return mflag;
+    }
+    void turn_on()
+    {
+        mflag = true;
+        std::cout << "cihaz acildi\n";
+    }
+    void turn_off()
+    {
+        mglaf = false;
+        std::cout << "cihaz kapatildi\n";
+    }
+private:
+    bool mflag{};
+};
+
+class Fax : virtual public Device {
+public:
+    virtual void send_fax()
+    {
+        if(is_on()) {
+            std::cout << "fax gonderildi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan fax gonderilemedi\n";
+        }
+    }
+    virtual void receive_fax()
+    {
+        if(is_on()) {
+            std::cout << "fax alindi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan fax alinamadi\n";
+        }
+
+    }
+};
+
+class Modem : virtual public Device {
+public:
+    virtual void send_data()
+    {
+        if(is_on()) {
+            std::cout << "data gonderildi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan data gonderilemedi\n";
+        }
+    }
+    virtual void receive_data()
+    {
+        if(is_on()) {
+            std::cout << "data alindi\n";
+        }
+
+        else {
+            std::cout << "cihaz kapali oldugundan data alinamadi\n";
+        }
+
+    }
+};
+
+class FaxModem : public Fax, public Modem {
+
+};
+
+using namespace std;
+
+int main()
+{
+    FaxModem fm;
+
+    cout << boolalpha; //boolalpha manipülatörü boolean değerlerin true false olarak yazılmasını sağlıyor.
+    cout << "is on ? " <<  fm.is_on() << '\n';
+    fm.turn_on();
+    cout << "is on ? " <<  fm.is_on() << '\n';
+    fm.send_fax();
+    fm.send_data();
+    fm.turn_off();
+    cout << "is on ? " <<  fm.is_on() << '\n'
+    fm.receive_fax();
+    fm.receive_data();
+}
+Fakat burada başka bir problem daha var; normalde şu ana kadar olan örneklerin tamamında biz ctor initializer_list'le kendi taban sınıf nesnemizi initialize ediyorduk. Ancak şimdi
+çoklu kalıtımda şöyle bir problem var, çoklu kalıtımda derleyicinin şunu anlama şansı yok ki, ortada 1 tane Device nesnesi var, peki bu Device nesnesini kim initialize edicek?
+Fax initialize etti, Modem initialize etti peki FaxModem sınıfı türünden bir nesnenin initialize edilmesi durumunda onun Device'ı Fax tarafından mı Modem tarafından mı initialize 
+edilecek? Ortada 1 tane cihaz var bunun anlaşılma şansı yok. O yüzden virtual inheritance'da artık kalıtım hiyerarşisindeki bütün sınıflar virtual Base class'ı initialize etmek 
+zorundadır. Yani hiyerarşide kaç tane sınıf olursa olsun hiyerarşinin derinliği ne olursa olsun o derinlikteki bütün sınflar o en tepedeki ortak taban sınıf nesnesini initialize 
+etmek zorunda. Aksi halde sentaks hatası olucak. 
+
+
+
+class Base {
+public:
+    Base(const char*);
+};
+
+class DerX : virtual public Base {
+public:
+    DerX() : Base{"DerX"}
+    {
+
+    }
+};
+
+class DerY : virtual public Base {
+public:
+    DerY() : Base{"DerY"}
+    {
+        
+    }
+};
+
+
+//eğer bu kalıtım virtual olmasaydı ben kendi taban sınıfımı initialize etmek zorundaydım ama şimdi DerZ'nin Base'in ctor'ına kendisinin çağrı yapması gerekiyor.
+class DerZ : public DerX, public DerY {
+public:
+    DerZ() : Base("DerZ")
+    {
+        
+    }
+};
+
+class DerA : public DerZ {
+public:
+    DerA() : Base("DerA")
+    {
+        
+    }
+};
