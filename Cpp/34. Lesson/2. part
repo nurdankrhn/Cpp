@@ -1,0 +1,377 @@
+Modern araçlar yani exception handling araçları geleneksel hata işleme araçlarına göre önemli avantajlar içerir. Ama şunu anlamamız gerekiyor, sonuçta bir kod hatayı tespit edicek 
+bir kodda hataya müdahele edicek. 
+
+Hataya müdahele etmek ne demek?
+Hataya 2 nedenle müdahele söz konusu olabilir: 
+1)Törminatif yaklaşım: yani artık öyle bir durum oluşmuştur ki programın çalışmaya devam etme imkanı zaten kalmamıştır. Örneğin bir işletim sistemi seviyesinde bir hata var. 
+Ve bu hatanın giderilme imanı yok. Ya da donanım ile ilgili bir hata var bu hatanın giderilme imkanı yok. Bu durumda yine de bizim çok önemli bir görevimiz var, artık yapabilecek 
+bir şey yok yapılabilecek en mantıklı iş programın çalışmasının durması ve tekrar başlatılması  eğer tekrar çalışması gerekiyorsa. Ama bunun için de bir kayıp olmaması gerekiyor.
+Buradaki feleket senaryosu şu olabilir: program sonlandı, işin, yapamadı ama bir sürü de zarar oluştu. Örneğin kredi kartı sisteminde müşterinin yaptığı son işlemler kaydedilmemiş 
+oldu. Programı tekrar başlatacağız onun ayrı bir kaybı var ama birtakım işlemler yok artık onların kayıtları yok. Ya da hastanenin acil destek ünitesini yöneten yazılım hata oldu 
+program sonlandı program sonlandığı için hastalara destek veren cihazlar durdu, hastalar öldü. Dolayısıyla 1 müdahelenin nedeni programı sonlandırmaya yönelik olabilir. 
+
+2)Çoğunlukla törminatif yaklaşım yerine bazı durumlarda resumtif yaklaşım kullanılıyor. Yani amaç programın işini görmesine devam etmesi. Halk tabiriyle olur arada hatalar olur ama 
+programın işini halen yapabiliyor durumda. İngilizcesi ile "recovery" oldu. O hata durumundan kurtuldu ve program çalışma zamanını devam ettiriyor. Bu durumda da bizim öyle bir 
+şekilde kodu oluşturmamız gerekiyor ki, hata oldu hata yakalandı gerekli müdahele yapıldı program çalışmaya devam ediyor. Ama sağlıklı bir şekilde çalışmaya devam etmesi gerekir.
+Örneğin bu hatanın oluşması ve yakalanması sürecinde birtakım kaynaklar sızdırırsa program çalışmaya devam edicek ama belki de çalışmaması daha iyi olurdu. Yani her 2 senaryoda da 
+a) programın çalışmasının sonlandırılması senaryosunda da 
+b) programın çalışmasının devam ettirilmesi senaryosunda da 
+bu işlerin sağlıklı bir şekilde yapılması gerekiyor!! Zaten asıl zorluk kısmının burada olduğunu göreceğiz. 
+
+Birçok programlama dilinin ana sentaksında exception handling araçları birbirinin aynısı olmasa da birbirine benzer araçlardır. Yani bu benzerlik bundan sonra öğreneceğimiz 
+programla dillerinin ilgili araçalrını kullanmanızı kolaylaştırıcak. Hatta en karmaşık yapı her zaman olduğu gibi C++'ta.
+
+C'de olmayan C++'ta olan  3 tane anahtar sözcüğü tamamen exception handling araçları ile ilgili kullanılıyor. Bu anahtar sözcükler:
+throw
+try
+catch
+Bunların 3'üde anahtar sözcük, 3'ününde kullanıldığı ve kullanılması gereken yerler var. Yani exception handling'in olmazsa olmaz anahtar sözcükleri bunlardır. Ve doğal olarak sadece 
+bu anahtar sözcükler değil işin içine büyük ölçüde de standart kütüphane girecek. Çünkü burada sırf bu exception handling konusu ile ilgili kullanılacak sınıflar, bir sınıf 
+hiyerarşisi var. Yani bu konuyu tam olarak öğrenmek dilin sentaksını araçlarını öğrenmek değil sadece belirli seviyede de burada kullanacağımız sınıfları tanımak bu sınıfları 
+öğrenmek var. Örenğin std::exception sınıfı, std:bad_alloc sınıfı, std::logic_error sınıfı gibi. Her zaman olduğu gibi belirli idiomatik yapılarda var. Örneğin bir C++ programcısına 
+exception dispatcher idiom'u ne? diye sorulduğunda vericek bir cevabı olmalı. 
+
+
+Hatayı tespit eden kod daha yukardaki katmanlardaki kodları bu durumdan haberdar etmek için bir nesne oluşturup bu nesneyi daha yukarıdaki kodlara gönderiyor. Burada şöyle bir metafor
+olduğunu düşünün ben Necati fonksiyonuyum ben çağırıldım. Fakat belirli bir noktada işimi yapamayacağımı anladım. Normalde C olsaydı geri dönüş değeri kullanarak bir hata değeri 
+veya global bir değişkeni set ederek bir hata değeri göndürecektim. Ama şimdi bir nesne oluşturuyorum bu hatayı temsil eden ve o nesneyi adeta diyorum ki ey beni çağıran beni çağıranı 
+çağıran beni çağıranı çağıranı çağıran yani yukarıdaki kodlar ben işimi yapamadım işimi yapamamam ile ilgili bilgiyi oluşturan bir nesne oluşturdum size ve o nesneyi atıyorum, 
+fırlatıyorum gönderiyorum. Kim ki bu hataya müdahele etmek ister bu nesneyi yakalasın bu nesneden edindiği bilgi ile gerekli müdaheleyi yapsın. İşte exception handling araçlarının 
+olmazsa olmazı hatayı tespit eden kodun hatayı üst katmandaki kodlara bildirmek için oluşturulan bir nesneyi yukarıdaki kodlara göndermesi. Bu işi yapan C'de olmayan C++ dilinde olan 
+özel bir statement. Bu statement'a throw statment deniliyor.  İşte bu eylemin kendisine ingilizce de to throw an exception etmek deniliyor. İşte bu da terminoloji açısından bir problem 
+oluşturuyor. Çünkü burada bir metafor ya da analoji var to throw an exception, bunu da Türkçe'ye çevirmek gerekiyor. Mesela throw atmak, fırlatmak istisna göndermek gibi bir çeviri 
+çıkıyor. Fakat burada illa bir çeviri gerekiyorsa "hata nesnesi göndermek" şeklinde hocamız çeviriyor. Ya da bazen "hata göndermek" diye çeviriyor. Sonuç olarak burada kastedilen 
+bir nesnenin oluşturulması daha yukarıdaki katmandaki kodların bu nesneyi yakalamasına  izin vericek bir kod yapısının oluşturulması bunu oluşturan statement'a throw stament deniliyor.
+Dolayısıyla excepiton'ının gönderilebilmesi için olmazsa olmaz bileşen bir throw statement'tır. 
+
+İkinci bileşen try anahtar sözcüğü ile oluşturuluyor, try anahatar sözcüğü ile bir blok oluşturuluyor. Ve bu bloğada adı üstünde try bloğu deniliyor. try bloğunun basit bir sentaksı
+var:
+try {
+
+}
+bu blok scope anlamında da bir blok. Yani bildiğimiz blok nasıl bir scope oluşturuyorsa bir kapsam oluşturuyorsa try bloğuda böyle bir blok oluşturuyor. try bloğu şu demek: siz böyle 
+bir blok oluşturarak  siz böyle bir blok oluşturarak şunu declare etmiş oluyorsunuz: bu blok içinde çalışan kodlardan biri bir hata nesnesi gönderirse bir exception throw ederse
+bu try bloğu o hatayı yakalayıp müdahele etmeye bir aday. Yani try bloğu kaynak kod açısından bir blok olsa da run time'da çalışacak kodlarda gönderilicek hatayı yakalamaya aday. 
+Örneğin try bloğu içinde f1() fonksiyonu çağırılmış olsa f1 f2'yi f2 f3'ü böyle uzunca bir call chain olsa ve bu call chain'de f15'in çağırdığı f16 bir exception throw etse biz bu 
+try bloğunu oluşturan kodu yazan programcı olarak o hatayı f16'dan gönderiken hatayı yakalamaya aday oluyorz. Yani try bloğu sadece kaynak kod açısından bir blok değil bu bloğu içinde
+koşan kodlardan gönderilen hatayı yakalamaya aday bir blok aynı zamanda. 
+try {
+    f1();
+}
+işte try bloğunu izleyen kodlar bunlara exception handler'da diyebiliriz, fiilen hataya müdahele etmeye aday olan kodlardır. Yani exception'ı handle edecek olan kodlar o yüzden onlara 
+exception handler'da diyebiliriz. Bunlarda catch anahatar sözcüğü ile oluşturulan blok yapısıdır:
+try {
+    f1();
+}
+catch () 
+bu parantezin içinde catch parametresi dediğimiz değişkenin opsiyonel olarak tanımı yer alıyor. Örneğin int x gibi:
+try {
+    f1();
+}
+catch (int x) {
+
+} 
+ve burada da bir blok var. 
+
+Eğer proramın çalışma zamanında try bloğu içinde çalışan kod bir exception gönderirse programın akışı o exception'ının throw edilmesiyle o fonksiyondan çıkıcak, dikkat şimdiye kadar 
+bir fonksiyondan çıkmanın yolu ya exit ya abort fonksiyonu ya da fonksiyonun içinde bir  return statment yoluylaydı. Ama şimdi bir fonksiyonun içinden programın akışının programın 
+çalışma zamanında çıkmasının nir yoluyla daha tanışmış olacağız: exception throw edilmesi. Ve eğer gönderilen hata nesnesinin türü burada catch parametresi dediğimiz parametrenin
+türü ile aynıysa programın akışı exception'ının gönderildiği koddan exception'ını işleyecek olan catch bloğuna çekilecek. 
+
+exception throw etmek ne demek?
+
+throw statment
+//normal akış örneği
+#include <iostream>
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+    f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{   std::cout << "main called\n";
+    f1();
+    std::cout << "main returns\n";
+}
+
+ama eğer hernangi bir fonksiyonun kodu çalışırken bir throw statement yürütülürse bu throw statement'ın yürütülmesiyle programın akışı f4 fonksiyonundan çıkacak. Yani artık 
+bundan sonra olan kod yürütülmeyecek. 
+#include <iostream>
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw 1;
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+    f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{   std::cout << "main called\n";
+    f1();
+    std::cout << "main returns\n";
+}
+burada 2 tane ihtimal var: ya üst katmandaki kodlardan biri gönderilen bu exception'ı yakalayacak böylece programın akışı exception'ını yakalayan yani exception'a müdahale eden 
+ingilizcesi ile exception'ını handle eden koda programın çalışma zamanında aktarılıcak. 
+
+Peki exception yakalanmazsa ne olur?
+Dilin çok net bir kuralı var bir exception gönderirse programın çalışma zamanında böyle bir kod ama gönderilen exception yakalanmazsa; terminolojik olarak bu duruma 
+"uncaught exception(yakalanamayan hata nesnesi)" deniliyor. uncaught exception olması durumunda ne olur sorusu hayati öneme sahiptir. 
+
+uncaught exception olursa ne olur?
+Bu durumda standart kütüphanenin bir fonksiyonu çağırılıyor, bu fonksiyonun ismi std::terminate. std::terminete fonksiyonu exception başlık dosyasında bildirilen şöyle bir fonksiyon:
+void terminate(); terminete fonksiyonu çağırıldığı zaman programı sonlandırıyor. Böyle fonksiyonların bir default davranışı söz konusudur. İngilizce default behavior deniliyor.
+terminate'ın default behavior'ı abort'u çağırmak. Yani siz herhangi bir başka karar almamışsanız terminate abort'u çağırıyor. abort bildiğimiz abnormal termination fonksiyonu. 
+Yani abort hiçbir önlem almadan dosyaların buffer'ını vs flush etmeden programı sonlandırıyor. abort'un 2 tane önemli özelliğine dikkat biri hiçbir önlem almadan programı sonlandırması
+exit gibi değil, exit bir normal termination fonksiyonudur. Siz main'de örneğin return 0 yazdığınızda exit fonksiyonunu çağırmış oluyorsunuz. exit'in verdiği bir takım garantiler var.
+Dosyalar kapatılıcak dosyaların buffer'ları flash edilecek, atexit isimli başka bir standart C fonksonu var atexit ile kayıt edilen fonksiyonlar ters sırada çağırılıcak. Ama abort 
+öyle değil, abort tak diye programı sonlandırıyor. İşte böyle sonlandırmaya abnormal termination deniliyor. Fakat bu doğru kullanılırsa kötü bir şey değildir. Çünkü eğer doğrudan 
+sonlandırılmazsa araya bazı başka işlemler girerse o zaman daha karmaşık durumlar oluşacak ne olduğu anlaşılmayacak. Ama abort'un özelliği anında programı sonlandırıyor ve kendi 
+kimliğinide hata akımına bırakıyor. Dolayısıyla örneğin program çalışırken sonlandı, run time'da bir çökme olabilir, başka bir şey olabilir, ub olabilir işte bu nedenler başka abort'un 
+çağırılmasıyla sonlanması başka. Siz tipik olarak  programın başında duran kişi olarak abort'un çağırılması durumunda abort ile sonlandığını anlıyorsunuz. Yukarıdaki örneği release 
+modda değilde debug modda çalıştırdığımızda abort fonk. çağırılacak ve program sonlanacak. abort'u çağıran terminate fonksiyonudur. 
+
+Madem exception yakalanamadığında terminate çağırılıyor terminate'de abort'u çağırıyor ne gerek var ki doğrudan abort çağırılsın neden terminate çağırılıyorda terminate abort'u çağırıyor?
+Çünkü bu default davranışı callback mekanizması ile değiştirebiliyoruz. İşte bu amaçla yine standart kütüphanenin exception başlık dosyası içinde bildirilen ismi set_terminate olan 
+bir fonksiyonu var. Zaten bu da konvensiyonel bir isimlendirme yani bir fonksiyonun default davranışını bir callback alıp değiştirmeye yönelik fonksiyonlar tipik olarak böyle 
+isimlendiriliyor.  
+
+pseudo code olarak terminate'ın implementasyonu
+
+//impletation.cpp
+using terminate_handler = void(*)(); //terminate_handler function pointer türünün eş ismidir
+//typedef void (*terminate_handler)(void);
+terminate_handler geri dönüş değeri olmayan parametresi olmayan bir fonksiyon adresi türüdür. 
+
+terminate_handler gfp = &std::abort;
+
+void terminate()
+{
+    gfp();
+}
+yani terminate abort'u ismiyle çağırmıyor, terminate abort'u bir function pointer'ı ile çağırıyor. Aslında sadece terminete'e baksak deriz ki terminate function pointer olan gfp'nin
+değeri olan adresteki fonksiyonu çağırıyor. O zaman gfp'nin değeri hiç değişmemişse terminate kimi çağırmış olucak? abort'u işte bundan dolayı buna default behavior deniliyor. 
+set_terminate fonksiyonu ise şöyle:
+
+terminate_handler set_terminate(terminate_handler f);
+bu durumda set_terminate fonksiyonu function pointer döndürüyor, ve parametresi de yine function pointer. Yani set_terminate geri dönüş değeri function pointer olan, parametresi 
+function pointer olan bir fonksiyondur. set_terminate fonksiyonu ise şunu yapıyor:
+terminate_handler set_terminate(terminate_handler f)
+{
+    auto fptemp = gfp;
+    
+    gfp = f;
+
+    return fptemp;
+}
+yani set_terminate sizden aldığı adresi terminate'ın çağıracağı fonksiyon adresi yapıyor. Ama eskisini de geri döndürüyor. Eskisini geri döndürme nedeni eğer istersek eski haline geri 
+alma şansımız olsun diye. 
+
+O zaman şunu söyleyebiliriz: ben istersem terminate'ın abort'u çağırması yerine bu mekanizmayı kendi isteğime göre customize etmek için kendim bir fonskiyon oluşturup bu fonksiyonun
+adresini set_terminate'e argüman olarak gönderebilirim böylece artık set_terminate kayıt edince ( böyle işlemlere fonksiyonu kayıt etme deniliyor ) benim fonksiyonumu bundan sonra 
+artık terminate abort'u çağırmak yerine benim fonksiyonumu çağırmış olucak. Bakın bu çatı çok önemli çünkü birçok programlama dilinde o kadar çok yaygın kullanılıyor ki yani genel 
+programlama bilgisi diyebiliriz. Örneğin:
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+
+void myterminate()
+{
+    std::cout << "I am myterminate function...\n";
+    ///....
+    std::exit(EXIT_FAILURE);
+}
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw 1;
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+    f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    set_terminate(&myterminate);
+    std::cout << "main called\n";
+    f1();
+    std::cout << "main returns\n";
+}
+
+Soru: auto f =   set_terminate(&myterminate); şeklinde bir kod yazsam f'nin değeri nedir? Cevap abort fonksiyonunun adresidir:
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+
+void myterminate()
+{
+    std::cout << "I am myterminate function...\n";
+    ///....
+    std::exit(EXIT_FAILURE);
+}
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw 1;
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+    f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    auto f = set_terminate(&myterminate);
+    
+    std::cout << std::boolalpha << (f == &abort) << '\n'; //true
+    std::cout << "main called\n";
+    f1();
+    std::cout << "main returns\n";
+}
+
+Program çalışırken bir kod exception gönderirse ve bu exception yakalanmazsa a) bu duruma ne denir? b) bu durumda ne olur?
+Bu duruma uncaught exception denir bu durumda terminate fonksiyonu çağırılır. terminate'ın default davranışı abort'u çağırmaktır. abort'un çağırılması da abnormal termination'dır. 
+Ancak biz istersek exception başlık dosyasındaki yukarıdaki örnekte olduğu gibi set_terminate fonksiyonuna çağrı yaparak abort'u çağırmak yerine terminate'ın default davranışını 
+değiştirip customize edebilirim. Bu şu demek exception'nın yakalanamaması bizim programımızın sonu olur. Yani bir exception gönderilirse 2 tane şansımız var ya o exception'ı
+yakalayacağız ya da o exception'ını yakalayacağız. Çünkü exception'ını yakalamazsanız, terminate çağırılıcak terminate demek ölüm demek terminate demek programınızın kontrolsüz
+biçimde sonlanması demek. Tabii set_terminate  ile kendi mekanizmasını oluşturmuşsanız en azından belirli seviyede kontrolünüz olur ama bu sonuçta terminate'ın çağırılması sonuçta 
+programın sonlanması demek.
+
+throw statement:
+
+Aslında throw statement'ın 2 tane ayrı sentaks yapısı var, bizi şimdilik ilgilendiren 1.si. Bu throw statement throw keyword'ünden sonra bir expr. alır:throw expr;
+İsterseniz buna ifadeli throw statement diyebilirsiniz. 
+
+2. ise throw anahtar sözcüğünden sonra doğrudan sonlandırıcı atom var(throw;) buna rethrow  statement denilyor, bu apayrı bir sentaksa sahip. Bunu diğeri 
+ile karşılaştırmamak lazım.
+
+
+Bazı programlama dillerinde ilerde ele alacağımız rethrow; statement için ayrı bir keyword kullanılıyor olabilir. Örneğin X dilinde throw ayrı bir keyword olsun rethrow ayrı bir
+keyword olsun ama bizde öyle değil. Bizde sadece throw keyword'ü var, onun oluşturduğu deyimin sentaksı farklı.
+
+throw expr;
+Derleyicinin throw stament karşılığı oluşturduğu kodu çok iyi anlamamız gerekiyor. Derleyici compile time'da throw expr;'deki expr ifadesinin türüne bakıyor. Ve bu türden bir nesne 
+oluşturuyor. 
+throw 12;
+/*
+    auto comp_object(12);
+*/
+yani throw ifadesinin türü ne ise derleyici o türden bir nesne oluşturuyor. 
+
+class Myclass{};
+
+throw Myclass{};
+/*
+    Derleyici throw statement'taki ifadenin türü Myclass olduğu için o zaman derleyici Myclass sınıfı türünden bir nesne oluşturu
+*/
+İşte yukarıdaki katmanlara yakalanması üzere gönderilen nesne derleyicinin oluşturduğu bu nesnedir. Bu nesneye bundan sonra 
+"exception object" diyeceğiz. Burada programcıların tipk yanlış anladığı yerlerden biri şudur:
+class Myclass {};
+
+void func()
+{
+    Myclass mx;
+
+    ///...
+    throw mx;
+}
+burada yukarıdaki katmanlara gönderilen mx'in kendisi mi yoksa kopyası mı?
+mx'in kendisi değil kopyası, burada mx'in rolü compiler tarafından oluşturulacak nesnenin initialization'ı için kullanılıyor. O yüzden 
+bir sınıf türünden nesneyi throw etmek istediğimizde çoğunlukla yukarıdaki gibi isimlendirilmiş nesne kullanmıyoruz. Çok büyük çoğunlukla 
+doğrudan bir geçici nesne oluşturma ifadesi kullanıyoruz:
+class Myclass {};
+
+void func()
+{
+    
+
+    ///...
+    throw Myclass{};
+}
+Bu şu nedenden dolayı çok önemlidir, exception gönderildiğinde exception yakalandığında programın akışı func'ı çağıran onu çağıran onu
+çağıran koda geçicek, exception'ı kim yakalarsa. Bu durumda Myclass{} nesnesi hayatta olmayacak ki bu nesne otomatik ömürlü bir nesne
+geçici nesne olduğu için. Bu nesnenin hayatı bitmiş olacak dolayısıyla başka bir kod örneğin referans semantiği ilr bu nesneyi yakalarsa
+dangling referans oluşur.  
