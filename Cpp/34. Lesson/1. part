@@ -1,0 +1,177 @@
+5 Nisan 2023 - Çarşamba 
+
+virtual inheritance 
+class Base {
+public:
+    Base(const char*);
+};
+
+class DerX : virtual public Base {
+public:
+    DerX() : Base{"DerX"}
+    {
+
+    }
+};
+
+class DerY : virtual public Base {
+public:
+    DerY() : Base{"DerY"}
+    {
+        
+    }
+};
+
+
+//eğer bu kalıtım virtual olmasaydı ben kendi taban sınıfımı initialize etmek zorundaydım ama şimdi DerZ'nin Base'in ctor'ına kendisinin çağrı yapması gerekiyor.
+class DerZ : public DerX, public DerY {
+public:
+    DerZ() : Base("DerZ")
+    {
+        
+    }
+};
+
+class DerA : public DerZ {
+public:
+    DerA() : Base("DerA")
+    {
+        
+    }
+};
+
+class DerB : public DerA {
+public:
+    DerB() : Base("DerB")
+    {
+        
+    }
+};
+
+int main()
+{
+    DerB a;
+}
+DerB'nin taban sınıfı DerA, DerA'nın taban sınıfı DerZ, DerZ'nin taban sınıfları DerX ve DerY ve bunların ortak taban sınıfı da Base. Kodu çalıştırdığımız zaman DerB'nin ctor'ının 
+doğrudan en tepedeki sınıf olan Base'in ctor'ını çağırdığını görücez. 
+=======================================================================================================================================================================================
+exception handling 
+burada kast edilen programın çalışma zamanında oluşan hatalarla başa çıkma yöntemleri, yani programınız çalışırken beklenmeyen durum ya da durumlar oluşuyor ve programınız bu 
+beklenmeyen istisnasi durumların etkisi ile işini yapamama durumuna geliyor. Bu da tipik olarak aslında programımızda fonksiyonlardan oluştuğuna göre fonksiyonlar birbirini 
+çağırdığına göre bu olay programın çalışma zamanında bir fonksiyonun içinde olur. Örneğin çağırılan func isimli bir fonksiyon çağrırıldığına göre yapması gereken bir iş var,
+yerine getirmesi gereken bir görev var, o işi yapamadığını o görevi yerine getiremediğini anladığında bir problem ortaya çıkıyor. İşte böyle hatalara programın çalışma zamanına
+yönelik hatalara ilişkin öncelikle bir terminoloji geliştirmemiz gerekiyor:
+
+run time hatası nedir?
+Öncelikle programın çalışma zamanındaki hataları C, C++, C#, Java gibi dillerde biz 2 kategoriye ayırmalıyız:
+a)kod yanlış yazılmıştır, böyle hatalar "programming errors" denir. exception handling ile doğrudan değil dolaylı ilgisi vardır. Programlama hataları ile başa çıkmanın yolu, 
+programlama/kodlama hatalarını bulmak ve bunları düzeltmek. Programlama hataları ile başa çıkmak için kullanılan araçlar şunlardır: eğer bir kodlama hatası varsa bir kere bizim 
+o kodlama hatasını bulmamız gerekiyor. Bunun da en tipik aracı kesinlikle assertion kodlarıdır. 
+
+assertion: Biz C, C++ gibi dillerde kod yazarken hem işi gören kodu yazıyoruz fakat aynı zamanda kendimizi yapabileceğimiz kodlama hatalarına karşı kendi hatalarımızı bulmaya yardımcı 
+olacak ilave kodlarda yazıyoruz. İşte bu kodlara assertion kodları deniyor. Yani bazı kodlar işi gören kodlar bazı kodlar ise eğer ben yanlış kod yazarsam o yazdığım kodu hatalı olarak 
+gösteren kodlardır. Sonuç olarak assertion'lar programcının iş gören kodun yanında kendi kodlama hatalarını kendisinin bulmasına yardımcı olucak yazdığı kodlar. assertion'ları da 
+2'ye ayırıyoruz temel olarak: static assertions(compile-time assertions) ve dynamic assertions(run-time assertions)
+
+dynamic assertions(run-time assertions): öyle bir kod ekliyoruz ki örneğin bir if deyimi var if pointer == nullptr ise if'in doğru kısmında ki kodlar çelışsın ve assertion fail oldu
+çağır abort fonksiyonunu program sonlasın gibi. Fakat C'de bunu uzun uzun yapmak yerine assert.h isimli başlık dosyanını kod ekleriz ve assert makrosunu kullanıyoruz. Her C, C++
+programcısının assert makrosunu çok iyi bilmesi gerekir. Yani programın çalışma zamanında sınanıyor kosun doğru olup olmadığı dolayısıyla bunun ilave bir run time maliyeti var. Ki
+o yüzden assertion kodlarını debug sürümünde dahil ediyoruz ama release sürümüne geçtiğimizde o amacı iş görmek olan değil amacı hata aramak olan kendi kodlama hatalarımızı bulmaya 
+yönelik kodları release sürümünde devre dışı bırakıyoruz. assert makrolarını disable etmek için assert makrosu conditional compiling komutu ile çevrelendiği için an_debug makrosunu 
+assert.h başlık dosyasını include etmeden önce define edersek bu durumda oradaki assert makroları etkisiz bir ifadeye dönüştürülüyor!
+
+static assertions(compile-time assertions): static assertions compile time'da yapılan doğrulama demektir. Yani programınızın doğru olması için sağlanması gereken koşul ya da koşullar 
+var ama sağlanması gereken bu koşul ya da koşullar bu assertions'lar programın çalışma zamanında değil derleyici kodu derlerken kontrol ediliyor. Yani siz öyle kod yapıları 
+oluştuşturuyorsunuz ki derleyici sizin yazdığınız kodun o şartın  sağlanmaması durumunda derleyici sentaks hatası olarak değerlendiriyor. C++'ta bunun için static_assert declaraiton 
+dediğimiz bir araç var. Her C++ programcısının çok iyi bilmesi gereken bir konudur. C'nin 2011 standart'ına kadar C'de static assertion dilin sentaksı içinde standart bir araç değildi.
+C11'den önce static assertion örneği:
+diyelimki yazdığımız kodun doğru olması için sistemdeki int türünün 4 byte'dan büyük veya eşit olsun:
+int main()
+{
+    int a[sizeof(int) < 4 ]; //C'de 0 elemanlı dizi tanımı yapılamaz.
+}
+eğer bu koşul yanlışsa sizeof(int) < 4 ifadesinin değeri 0 olucak, bu ifadenin değeri 0 olduğunda da derleyici sentaks hatası vericek, bizim örneğimizde de 4 ve büyük olması durumu 
+kabul edileceği için şu şekilde olmalı: 
+int main()
+{
+    int a[sizeof(int) >= 4 ];
+}
+fakat şöyle bir problem var, evet doğrulama yapılıyor fakat diziyi kullanmıyorum. Dizi boşuna yer kaplayacak, isim alıcak vb. bunu yapmanın da yine bir work around'u var: tür eş 
+isimleri bildiriminden faydalanmak. 
+typedef int ar__[sizeof(int) >= 4]; 
+
+C11 ile ise bunlara gerek kalmadı dilin sentaksına eklendi:
+_Static_assert(sizeof(int) == 4, "sizeof(int) 4 olmali"); 
+
+b)run time hataları, işte exception handling konusundaki exception terimi run time error anlamında kullanılıyor. run time error derken kast edilen şu: sizin yazdığınız kodda bir 
+yanlışlık yok kod yazılması gerektiği gibi yazılmış. Yani hata oluyor programın çalışma zamanında belirli durumlarda ama kodu düzelterek hatayı ortadan kaldırma gibi bir durum 
+söz konusu değil. Çünkü hata bizim yazdığımız kodun yanlış olması ile ilgili değil. Programın çalışma zamanında beklenmeyen durumlar oluştuğu için hata meydana gelir. 
+Örneğin bir fonksiyonun işini yapabilmesi için bir dinamik bellek alanı allocate etmesi gerekiyor bu işi yapan da aslında işletim sistemi tarafıdır. Standart kütüphanenin işletim 
+sistemini sarmalayan fonksiyonunu çağırıyorsunuz  fakat fonksiyon bellek alanını (C'deki malloc fonk. veya C++'taki operator new fonk.) allocate edemiyor. Biz malloc'u çaağırdık 
+geri dönüş değerinin null pointer olduğunu gördük. Bellek alanını elde edemedik işini yapamayacağı kesinleşti. Yani siz şimdi kodu düzelterek bunu değiştiremezsiniz, run time'daki
+koşullar nedeniyle fonksiyon işini yapamayacak duruma düştü. Sonuç olarak birinde kodda hata olduğu için fonksiyon işini yapamıyor diğerinde kodda bir hata olması gerekmiyor, 
+programın çalışma zamanında beklenmeyen bir durum oluştuğu için hata meydana geliyor. 
+
+Böyle bir durumla karşılaştığımız zaman ne yapacağız?
+İşte burada devreye öncelikle geleneksel hata işleme biçimleri giriyor. C gibi bir dile geleneksel hata işleme nasıl yapılıyor? Ve bunların C++, Java ve C# gibi dillerde neden 
+dezavantaj oluşturduğunu onları anlamamız gerekiyor ki exception handling konusunun kolaylıklarını anlayalım. Burada en radikal karar şu olabilirdi ben işimi yapamıyorum, programı
+sonlandırıyorum. Bazı durumlarda bu bile yapılıyor ama bunun yapılabileceği alan çok az. Çünkü genelde bu tür fonksiyonlar bir call chain içinde çağırılıyor. Bazen bu call chain'deki 
+fonksiyon sayısı 10 15 20 olabiliyor. Üst katmandaki fonksiyonlar alt katmandaki fonksiyonları çağırıyor. Dolayısıyla fonksiyon işimi yapamayacağımı anladım ne yapmalıyım sorusunun 
+cevabını çoğunlukla bilmiyor. Zaten bilse mesele kalmaz. Dolayısıyla fonksiyon işini yapamadığını kendini çağıran fonksiyona bir şekilde iletmek bildirmek zorunda. İşte bu bilgiyi 
+verebilmek için işte C gibi prosedürel bir dilde 2 tane temel araç var: fonksiyonun geri dönüş değeri mekanizmasının bu amaçla kullanılması, fonksiyonun geri dönüş değeri bu bilgiye 
+ayrılmıştır. Yani fonksiyonun geri dönüş değerinin varlık nedeni zaten budur. Örneğin C'de stdio kütüphanesinde ki fonksiyonların büyük bir çoğunluğunun geri dönüş değeri int'tir. 
+Ve geri dönüş değeri başarı int'tidir. Örneğin C'nin standart kütüphanesinde ki fseek fonksiyonu, remove fonksiyonu, rename fonksiyonu bunların geri dönüş değeri int'tir. İşini 
+yapabilirse bunlar 0 değerini döndürür, işini yapamaması durumunda non-zero döndürür. Ama bu C'nin standart kütüphanesinde kullanılan konvensiyonlardan biri, örneğin Microsoft API'leri
+birçok durumda yine geri dönüş değeri int başarı bilgisine ayrılan API'ler vardır ama negatif tam sayı değeri başarısızlık bilgisi olarak iletilir. Fonksiyonun geri dönüş değerinin
+başarı bilgisini iletmeye yönelik bir değer olması çok klasik bir durum ama bazen  de fonksiyonun geri dönüş değeri hem başarı bilgisidir hem de işini gerçekleştirmesinin bir 
+bileşenidir. Örneğin geri dönüş değeri adres olan fonksiyonların çoğu standart C kütüphanesinde ve Linux'un sistem çağrılarında (fopen, malloc, set_local) böyledir. Bazı durumlarda 
+fonksiyonun geri dönüş değerini iletmek daha problemli çünkü hem benim hesapladığım değer iletilsin ama özel bir değer, özel değerde hata kodu üretsin diyorsanız böyle bir değer 
+olmayadabilir. Örneğin C'deki ftell fonksiyonu file pointer'ının değerini get ediyor ama bu negatif bir değer olamayacağı için başarısızlık durumunda negatif -1 long değeri döndürüyor.
+Yani bazı fonksiyonlar için özel bir değer var. Ama mesala atoi fonksiyonuna argüman olarak verilen yazı uygun bir yazı değilse yani yazıdan geçerli bir tam sayı elde edilemiyorsa
+örneğin -1 olsaydı o da mantıklı olmaz çünkü pekala dönüştürülmesi gereken tam sayı da -1 olabilirdi. İşte böyle durumlarda biraz daha problemli özel bir değer yok. Bazen bunun için 
+out parameter kullanılıyor, fonksiyonun geri dönüş değeri buna yeterli değilse fonksiyona ilave bir pointer parametre ekleyip hata göstericek hata bilgisini çağıran koda ileticek
+bir değişken adresi istiyor. Sonuç olarak bu yöntem yani geri dönüş değeri ile iletme bazı durumlarda problemdir. Üstelik C++'ta ctor'lar geri dönüş değerine sahip değillerdir.
+Ctor'lar geri dönüş değeri kavramına sahip fonksiyonlar değillerdir. Bu durumda ctor böyle bir hata ile karşılaştığında ctor bir return value'ya sahip olamaz ki. Fakat geleneksel 
+hata işleme yönteminde kullanılan bir araç daha var: erno, erno.h başlık dosyasının içinde global değişken olarak düşünebileceğimiz erno değişkeni var. erno'nun değerinin normalde 
+0 olması gerekir, bir fonksiyon hata ile karşılaştığında global erno'yu belirli bir hata kodu ile set ediyor. Dolayısıyla siz geri dönüş değerini kullanmak yerine erno değişkeninin 
+değerine bakıyoruz. erno 0 olmaktan çıkmış, bir hata kodu ile set edilmişse en son çağırdığımız fonksiyonun bir hata ile karşılaştığını anlıyoruz. Örneğin strerror() fonksiyonu 
+hatayı bir yazıya map etmek için kullanılıyor ya da perror() fonksiyonu o hata koduna ilişkin hatayı hata akımına yazmak için kullanılıyor. Bazı fonksiyonlar hem C'nin standart 
+fonksiyonları hem de Linux'ta kullanılan sistem çağrıları, erno'yu bir değerle set ediyor. 
+
+Burada dezavantajlar neler?
+1)Hatayı tespit eden kodla hataya müdahale edicek kod arasında programın çalışma zamanında bir geçiş olmaması. Burada tipik bir call chain olduğunu söylemiştik:
+f1->f2->f3->f4->f5->f6->f7 bu fonksiyonlar işlerini yaparken birbirlerini çağırıyorlar. Örneğin en son f7 fonksiyonu çağırılmış fakat f7 fonksiyonu işini yapamamış 
+ve bir hata durumu ile karşılaşmış. Aslında bu durumda f7 durumu f6'ya bildiricek geri dönüş mekanizması ile ama diyelim ki bu hataya müdahele edicek kod f7 değil 
+f2 ya da f1 ise bu durumda  yangını söndürmek için kovaların elden ele taşınması gibi f7, f6'ya işini yapamadığını söyleyecek f6'da f5, f5 f4'e yani programın akışı 
+bu call chain'den geri dönücek f1'e kadar f1 bu durumda mühahale etkisine sahipse müdahale edicek. Peki biz daha iyi daha sağlam programcının işini kolaylaştırıcak 
+bir mekanizma isteseydik f7'de hata olduğunda programın çalışma zamanında programın akışı f7, f6, f5, ... , f1 diye gitmesin f7'den doğrudan o hataya müdahale edicek 
+koda geçsin. Yani programın çalışma zamanında hatayı tespit eden koddan hataya müdahele edicek koda bir geçiş olsun! 
+
+2)Kod yazmanın ve kod okumanın bir eziyet haline dönüşmesi! Çünkü normalde kod algoritmanın implementasyonudur. İdeal kod niyetini anlatan koddur, algoritma ne ise onun karşılığı.
+Dolayısyla bizim kodumuzun içinde döngü deyimleri var, ve döngü deyimleri içerisinde olmazsa olmaz örneğin if deyimleri var ama bu if deyimleri algoritmayı implemente ediyor. 
+Örneğin haftanın çift günleri başka tek günleri başka iş yapılacaksa orada bir if deyimi olucak ki kodumuzu one göre yapılandıracağız. Ama böyle yazmak yerine kodu, biz çoğunlukla 
+diyelimki algoritmanın implementsayonun da bir basamakta bir fonksiyonu çağırıyoruz ama ya bu fonksiyon işini yapamazsa. Tipik olarak fonksiyonun geri dönüş değerini bir 
+değişkende tutuyoruz, fonksiyonun geri dönüş değeri eğer hata kodu ise hataya müdahale eden kodu yazmak şeklinde bir kod yazmak zorunda kalıyoruz:
+x = func();
+if(x == errcode)
+{
+
+}
+bu da şu anlama gelir, iş gören kod ile hata işleyen kod birbiriyle iç içe geçmiş oluyor. Bu bizim asla istemediğimiz bir şey çünkü kodu yazmak daha zor olduğu gibi kodu okumakta
+ve o kodu değiştirmek o koda mühadele etmekte çok zor hale geliyor. Daha iyi daha akıllıca dilin içine gömülü hazır bir araç seti bir mekanizma isteseydim hata işleyen kodla işi 
+yapan kodun birbirinden ayrılsın isterdim. Yani ben koda baktığımda sadece iş gören kodu göreyim oraya hata ile karşılaştığında şu şu yapılsın vb. kodlar iş gören kod ile birlikte
+bulunmasın. Gerçekten belki de C'deki en büyük problem kod okuma/yazma da iş gören kodlarla hata işleyen kodun iç içe geçmiş olsun. Zaten mantıksız, benim bir müdahale yetkim yoksa
+bir hata olması durumunda benim yapabileceğim bir şey yoksa daha üst katmandaki bir kod buna müdahale edicekse ben niye orada hata olup olmadığına bakmak zorunda kalayım ki?
+Ama bu geleneksel hata işleme araçları sizi böyle bir kod yazmaya zorluyor. 
+
+3)Zorlayıcı bir araç seti değil bunlar. Yani ingilizcesi ile non-forcing bir mekanizma değil. Programcı kod review yaparken şunlarla çok karşılaşabilir: fopen fonksiyonu çağırılmış
+fopen'ının geri dönüş değerine bakmamış sanki her dosyanın açılması garanti altında! veya malloc çağırmış onun başarılı olup olmadığını kontrol etmemiş! Yani aslında çağırdığınız 
+fonksiyonlar ya bir özel hata kodu döndürüyor ya da geri dönüş değeri buna ayrılmış. Ya erno'yu set ediyor ama programcı ne erno'ya ne de fonksiyonun geri dönüş değerinin hata 
+kodu olup olmadığına bakmamış. O zaman problem olur.    Programcı bu durumda program dilinden şunu beklese, eğer çalıştırdığı bir kodda bir hata oluşturma ihtimali varsa o kodun
+o hataya herhangi bir kod müdahele etmediği zaman program sonlansın. Hem de hiçbir önlem almadan abnormal terminated etsin. abnormal terminate etsin ki örneğin debug sürecinde 
+program tak diye sonlandığında siz bir şey yapmak zorunda kalın. İşte 3 tane temel problem geleneksel hata işleme araçlarının adeta defoları ve dezavantajları!!!
+
+
+Modern programlama dillerinde C'de olmayan exception handling araçlarının işte bu dezavantajları ortadan kaldıran modern bir yapı olduğunu söyleyebiliriz. C++'ta da sadece exception 
+handling araçlarını kullanıyoruz diye bir şey yok. Standart kütüphanede örneğin exception handling kullanılıyor kullanılmadığı yerler var başka yöntemlerin kullandıldığı yerler var.
+Ama öyle yerler var ki dilin içine gömülü olan exception handling büyük bir avantaj sağlıyor. 
