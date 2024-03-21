@@ -1,0 +1,636 @@
+7 Nisan 2023 - Cuma
+
+C++'ın  standart kütüphanesinin de polymorphic bir sınıf hiyerarşisi vardır. En tepe de exception başlık dosyası içinde tanımlanan std::exception sınıfı var.  
+Bu sınıfın bir tane sanal fonksiyonu var bu fonksiyonun ismi what'tır. noexcept olarak bildirilmiş:
+const char* exception::what()const noexcept;
+Bu fonksiyonu çağırdığımızda eğer taban sınıf nesnesi ile bu fonksiyonu çağırırsak virtual dispatch mekanizması devreye girecek ve gönderilen exception hangi türemiş sınıf türündense 
+onun what fonksiyonu çağırılacak. O what fonksiyonu çağırıldığında da onun geri dönüş değeri ilgili sınıfın belirlediği hataya işaret eden bir string olucak. Bu string'in ne olduğu 
+standartlarca belli değil, yani derleyiciye bağlı.
+
+try bloğu içine aldığımız koddan bir exception gönderildiğinde o exception'ını yakalamaya aday oluyoruz. try bloğunu izleyen catch blokları vardır. Gerek try blokları gerek catch 
+blokları kapsam açısından da birer bloktur. Dolayısıyla bu bloklar içinde bir identifier oluşturursak sadece o blok içinde kullanabileceğimizi de söylemiştik. 
+
+exception'nın yakalanmasıyla programın akışı catch bloğuna aktarılıyor, derleyicinin oluşturduğu exception nesnesi catch parametresine kopyalanıyor. Ve burada kopyalamadan kaçınmak
+object silicing'den kaçınmal için tipik olarak catch parametrelerini referans yapıyoruz. Referans yapmakla a) copy ctor'ın çağırılmasını ortadan kaldırıyoruz çünkü copy ctor 
+çağırılırsa bir de ilave risk olarak copy ctor'ın kendisi de exception throw edebilir. Ve bir exception handler edilirken yine exception throw edilmesi dilin kurallarına göre yine
+terminate fonksiyonunun çağırılmasını gerektiriyor. O yüzden atipik örneklerin dışında örneklerin hemen hepsinde exception'ın referans semantiği ile yakalandığını göreceğiz.
+Hem virtual dispatch mekanizması devreye girsin hem de bir kopyalama olmasın diye. 
+
+Örnek:
+#include <iostream>
+
+struct NecEx
+{
+    NecEx()
+    {
+        std::cout << "NecEx default ctor this = " << this << '\n';
+    }
+    NecEx(const NecEx&)
+    {
+        std::cout << "NecEx copy ctor this = " << this << '\n';
+    }
+    NecEx(NecEx&&)
+    {
+        std::cout << "NecEx move ctor this = " << this << '\n';
+    }
+    ~NecEx()
+    {
+        std::cout << "NecEx dtor this = " << this << '\n';
+    }
+};
+
+void foo()
+{
+    throw NecEx{};
+}
+
+int main()
+{
+    try {
+        foo();
+    }
+
+    catch(const NecEx& ex) {
+        std::cout << "exception caught... &ex =" << &ex << '\n';
+    }
+}
+foo fonksiyonu içinde throw ifadesi olan NecEx nesnesi geçici bir nesne. Burada da yine mandatory copy elision oluşuyor. Normalde derleyici bir exception nesnesini oluştururken throw
+ifadesini bir initializer olarak kullanıyordu. Burada da yine daha önce öğrendiğimiz mandatory copy elision söz konusu. Derleyip çalıştırdığım zaman NecEx sınıfının copy ctor'ının 
+çağırılmadığını görüyoruz. Bu örnek bunu vurgulamaya yönelik. Zaten mandatory copy elision C++17 ile dile eklenen bir sentaks kuralı.
+
+
+Dikkat:
+catch blokları oluşturulurken 2 noktaya dikkat ediniz!!! Programcılar bu konuda genelde çok özensiz. 
+1.'si şu: 
+diyelim ki biz std::exception& ile gönderilen hatayı yakalamak istiyoruz. 1. temel ilke bu fonksiyon parametreleri içinde geçerli; eğer parametre değişkenini blok içindeki kodda 
+kullanmayacaksanız parametre değişkenine isim vermeyin!! Çünkü isim verirseniz kodu okuyan bunu yanlışlıkla kullanmadığınızı düşünür:
+
+void func(int x)
+{
+    //code 
+    //x kullanılmıyor
+
+}
+
+int main()
+{
+    try {
+
+    }
+
+    catch(std::exception& ex) {
+        //ex kullanılmıyor
+    }
+}
+aynı şekilde ana akım derleyicilerin hemen hepsi default uyarı ayalarında isim verilmiş parametre kullanılmadı zamanda tipik olarak bir uyarı mesajı vermeye eğilimlidir. 
+Fakat eğer kullanılıcaksakta:
+2) eğer exception nesnesini catch bloğu içinde değiştirmeyecekseniz burada da const semantiğine uymalısınız!!
+#include <iostream>
+#include <exception>
+
+
+int main()
+{
+    try {
+
+    }
+
+    catch(std::exception& ex) //değiştirme amaçlı herhangi bir şey yapılmamış, const olmalıydı!!!
+    {
+        std::cout << "exception caught : "<< ex.what() << '\n';
+    }
+}
+
+
+//olması gereken hali:
+#include <iostream>
+#include <exception>
+
+
+int main()
+{
+    try {
+
+    }
+
+    catch(const std::exception& ex) 
+    {
+        std::cout << "exception caught : "<< ex.what() << '\n';
+    }
+}
+
+Diğer önemli nokta ise try ve catch bloklarının birer blok oldukları ve blok içinde tanımlanan bir değişkenin diğer blokta kullanılamaz olması:
+#include <iostream>
+#include <exception>
+
+
+int main()
+{
+    try {
+        int x = foo();
+    }
+
+    catch(const std::exception& ex) 
+    {
+        x = 5; //syntax error
+    }
+}
+
+Bir diğer önemli nokta örneğin catch bloğu içinde bir değişken tanımlıyor, fakat exception yakalandıktan sonra kodun akışının geldiği nokta da tekrar o değişkeni kullanmak istiyor,
+bu mümkün değil!
+#include <iostream>
+#include <exception>
+
+int main()
+{
+    try {
+
+    }
+
+    catch(const std::exception& ex) 
+    {
+       int x;
+    }
+}
+
+
+Bir diğer önemli nokta: aksi yönde bir zorunluluk yoksa exception'ları referans semantiği ile yakalayın.
+#include <iostream>
+#include <exception>
+
+int main()
+{
+    try {
+
+    }
+
+    catch(const std::exception& ex) 
+    {
+       int x;
+    }
+}
+şeklinde exception yakalanmalı!
+
+Bir diğer önemli nokta: gerek standart kütüphane de gerek bazı framework'lerde bir exception hiyerarşisi oluyor. Bu exception hiyerarşisi tabii ki genelden özele doğru kalıtım 
+mekanizmasıyla bir kalıtım hiyerarşisi ile biçimlendiriliyor. Dolayısıyla örneğin 
+
+#include <iostream>
+#include <exception>
+#include <string>
+
+
+int main()
+{
+    try {
+        
+        string namespace { "faruk isiker "};
+        auto c = name.at(40);
+    }
+
+    catch(const std::exception& ex) 
+    {
+        std::cout << "hata yakalandi...: " << ex.what() << '\n';
+    }
+}
+burada 2 noktaya dikkat ediniz: 1) gördüğünüz gibi sınıfın what fonksiyonu bir sanal fonksiyon. Burada çağırılan what fonksiyonu aslında burada gönderilen hata nesnesinin ilişkin 
+olduğu sınıfın yani out_of_range sınıfının override'ı. 2) ben exception'ı başka ne ile yakalayabilirdim? Buradaki hiyerarşiye baktığımız zaman out_of_range logic_error'den kalıtım 
+yoluyla elde edildiği için logic_error sınıfı türünden bir catch param. ile de yakalayabilirdim:    
+#include <iostream>
+#include <exception>
+#include <string>
+
+
+int main()
+{
+    try {
+        
+        string namespace { "faruk isiker "};
+        auto c = name.at(40);
+    }
+
+    catch(const std::logic_error& ex) 
+    {
+        std::cout << "hata yakalandi...: " << ex.what() << '\n';
+    }
+}
+veya kendi sınıfı ile yakalayabilirim:
+#include <iostream>
+#include <exception>
+#include <string>
+
+
+int main()
+{
+    try {
+        
+        string namespace { "faruk isiker "};
+        auto c = name.at(40);
+    }
+
+    catch(const std::out_of_range& ex) 
+    {
+        std::cout << "hata yakalandi...: " << ex.what() << '\n';
+    }
+}
+veya en tepedeki sınıf olan exception ile exception'ı yakalayabilirim.
+
+Fakat örneğin catch bloğu için birden fazla catch parametresi olacaksa yani dolayısıyla birden fazla catch bloğu olacaksa aynı hiyerarşiye ilişkin tabii ki özelden genele doğru 
+sıralamalıyız. Çünkü derleyicinin oluşturduğu kod kontrolü yukarıdan aşağıya doğru yapıyor:
+
+#include <iostream>
+#include <exception>
+#include <string>
+
+
+int main()
+{
+    try {
+        //....
+    }
+
+    catch(const std::out_of_range& ex) 
+    {
+       
+    }
+
+    catch(const std::logic_error& ex) 
+    {
+       
+    }
+
+    catch(const std::exception& ex) 
+    {
+        
+    }
+
+    catch(...) 
+    {
+    
+    }
+}
+
+'
+Örnek:
+#include <iostream>
+#include <exception>
+
+struct NecEx
+{
+    NecEx() = default;
+
+    NecEx(const NecEx&)
+    {
+        std::cout << "NecEx copy ctor throws an exception\n";
+        throw std::exception{};
+    }
+};
+
+void foo()
+{
+    NecEx ex;
+    throw ex;
+}
+
+void myterminate()
+{
+    std::cout << "myterminete called\n";
+}
+
+int main()
+{
+    std::set_terminate(myterminate);
+
+    try {
+        foo();
+    }
+
+    catch(NecEx) { //catch param. is not a reference (copy ctor called!!)
+
+    }
+}
+sınıfın copy ctor'ı xception throw ediyor. throw edilen exception'ın türü işte o standart exception hiyerarşisindeki en tepedeki taban sınıf türünden. C++ dili diyor ki benim 
+operatorlerimin kullanımından, stanadrt sınıfımın kullanımından kaynaklanan gönderilen bütün _exception'lar std::exception türündendir. Yani eğer bir hata örneğin standart 
+kütüphanenin bir sınıfının bir üye fonksiyonundan ya da bir global fonksiyondan gönderiliyorsa ya da bazı C++ operatorlerinin/ifadelerinin kullanılması nedeniyle gönderiliyorsa
+gönderilen exception std::exception sınıfından kalıtım yoluyla elde edilen sınıflardan biri türünden olmak zorundadır. Bu şu demek her standart kütüphane exception'ını aynı 
+zamanda std::exception türünden olduğu için gönderilen bütün exception'ları std::exception& parametresi ile yakalayabiliriz.  
+
+===================================================================================================================================================================================
+
+stack unwinding
+Bu C++'a özgü önemli bir terim. Özellikle C'den gelen geleneksel hata işleme kültürünü benimsemiş kişiler exception handling ile karşılaştığı zaman exception handling'in onun adeta 
+bir mekanik eş değeri olarak görüyorlar. Yani C'de fonksiyon geri dönüş değerini kontrol ediyorduk burada da fonksiyon çağrısını try bloğu içinde alıyoruz; şeklinde bir yaklaşım 
+kesinlikle yanlıştır. exception handling'in en önemli katkısı  hata işleyen kod ile hatayı tespit eden kodu birbirinden izole etmek. Bunların iç içe geçmesini engellemek. Dolayısıyla
+her exception gönderme ihtimali olan kodu try bloğu içine almak bu mekanizmayı tamamen yanlış anladığınızı gösterir asla böyle bir şey yapmamalısınız. Hataya müdahale etmek için 
+bir fikriniz bir yetkiniz olmalı. Bu yanlış anlaşılmasın exception throw eden fonksiyonun içinde de exception'ını yakalama girişiminde bulunursunuz ama bunun için bir nedeniniz 
+yapacak bir şeyiniz olmalı!!
+
+Bu da şu demek örneğin f16 exception gönderirse ben bunu f1'de de yakalayabilirim, main fonksiyonu içinde de yakalayabilirim. Hatta main fonk. kodunu tamamını try bloğu içine 
+alıp uygulamada gönderilen exception'ları bu şekilde yakalayabilirim. Ama bu da tam doğru değil çünkü her exception'ını yakalama garantim yok, neden?
+main öncesi, global değişkenlerin ctor'larından ya da sınıfların static veri elemanlarının ctor'larının gönderdiği exception'ları yakalayamazsınız çünkü onlar main fonk. çağırılmadan 
+önce gönderilen exception'lar. 
+
+!!!!
+Müdahale etmeyeceğiniz exception'ını yakalamayın!!!! Müdahale edeceğiniz yerde try bloğu oluşturun!!!
+
+stack unwinding : hatayı gönderen kod ile hatayı yakalayan kod arasında tipik olarak 1'den fazla stack frame var. stack frame yani fonksiyonların stack'teki kendi kod alanları/bellek
+alanları var. Bildiğiniz gibi otomatik ömürlü değişkenler stack'te yer alıyor. f16 exception gönderdi fakat exception f1'de yakalandı, peki aradaki sınıf nesneleri ne olacak? 
+Çünkü exception'ın gönderilmesi ile programın akışı exception'ını throw eden koddan çıkıcak exception'ını(yakalanırsa) handle eden koda giricek. Bu durumda aradaki nesneler ne olacak?
+f16 ile f1 arasındaki fonksiyonların içinde nesneler oluşturulmuştur, bunlar kimi vector nesnesi kimi string nesnesi bunların edindiği kaynaklar var, bu nesnelerin edindiği kaynaklar
+(RAII nesneleri diyor hocamı< böyle nesnelere) bunların dtor'ı tarafından geri veriliyor. Yani eğer şöyle bir durum olsaydı ben exception'ını yakaladım ama o aradaki otomatik ömürlü 
+nesnelerin hiçbirinin dtor'ını çağrımadım o zaman kaynak sızıntısı olur. İngilizcesi ile resource leak olur! Bu durumda programın devam etmesi iyi bir şey değil ki. O kadar kaynak 
+sızdırdıktan sonra artık program doğru çalışmayabilir ya da bir sonraki exception gönderildiğinde bu sefer hiç çalışmayabilir. Dolayısıyla exception'ını yakaladığımız zaman bizim 
+üstümüze düşen temel vazife herhangi bir kaynak sızıntısı olmamasını sağlamak! İster programı devam ettirme yönünde exception'ını yakalayıp müdahale edin ister terminate ettirme 
+yönünde aama resource'ların release edilmesi gerekiyor. Buna zaten RAII idiom'unun en önemli varlık nedeni bu. Bu da şu anlama gelir, otomatik ömürlü nesnelerin dtor'larının 
+çağırılması gerekiyor. Şimdi burada temel kuralı söyleyelim:
+
+1)exception yakalanmazsa exception'ını gönderen koddan önceki oluşturulmuş otomatik ömürlü nesnelerin  dtor'larının çağırılma garantisi yok. Bu da şu demek exception'ı mutlaka 
+yakalamak gerekiyor dedik ve exception'ını yakalamadığımız zaman terminate fonksiyonu yakalanıyor demişktik. Programın terminate etmemesi için exception'ının yakalanması gerkiyor
+dedik ya ama bir nedenden daha yakalanması gerekiyor çünkü exception yakalanmazsa o stack frame'lerdeki otomatik ömürlü nesnelerinin dtor'larının çağırılma garantisi yok!
+Yani implementayon onu çağırıcak yönde bir kod üretebilir ama ana akım derleyicilerinin hiçbirinde bu yapılmıyor. 
+
+#include <iostream>
+#include <exception>
+
+class A {
+public:
+    A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklar edindi\n";
+    }
+    ~A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class B {
+public:
+    B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklar edindi\n";
+    }
+    ~B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class C {
+public:
+    C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklar edindi\n";
+    }
+    ~C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+void f4()
+{
+    A a1;
+    B b1;
+}
+
+void f3()
+{
+    C  c1;
+    f4();
+}
+
+void f2()
+{
+    A ax; B x; C cx;
+    f3();
+}
+
+void f1()
+{
+    B b1, b2, b3;
+    f2();
+}
+
+int main()
+{
+    f1();
+}
+normalde bu şekildeki implementasyonda bütün edinilen kaynaklar geri veriliyor, RAII'nin temel varlık nedeni.
+Fakat f4 fonksiyonu bu nesneler oluşturulduktan sonra exception throw etsin:
+#include <iostream>
+#include <exception>
+
+class A {
+public:
+    A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklar edindi\n";
+    }
+    ~A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class B {
+public:
+    B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklar edindi\n";
+    }
+    ~B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class C {
+public:
+    C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklar edindi\n";
+    }
+    ~C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+void f4()
+{
+    A a1;
+    B b1;
+    (void)getchar();
+    throw std::exception();
+}
+
+void f3()
+{
+    C  c1;
+    f4();
+}
+
+void f2()
+{
+    A ax; B x; C cx;
+    f3();
+}
+
+void f1()
+{
+    B b1, b2, b3;
+    f2();
+}
+
+int main()
+{
+    f1();
+}
+burada kodu çalıştırdığımız zaman göreceğiz ki f4 exception throw edene kadar 9 tane nesne oluşturmuşuz kimi A, kimi B kimi de C türünden ve programın akışı exception throw edilen 
+yere geldiğinde exception throw edilicek, exception yakalanmadığı için std::terminate çağırılıcak o da abort'u çağırıcak ve abort'ta programı hiçbir önlem almadan sonlandıracak. 
+Dikkat ederseniz hiçbir dtor çağırılmadı yani örneğin burada dtor'ların çağırılmaması bu kaynakların geri verilmemesi artık kaynaktan her şeyi anlayabilirsiniz kalıcı bir zarar da 
+oluşturabilir. Bu çok tehlikeli bir senaryodur!! exception'ını yakaladığım zaman stack unwinding dediğimiz bir süreç gerçekleşiyor. stack unwinding şu demek her stack frame'den 
+exception'ı gönderen kodla exception'a müdahale eden kod arasında yani programın akışı catch bloğuna gelene kadar sondan başa doğru o stack frame'lerdeki bütün otomatik ömürlü 
+nesneler destroy ediliyor. Bu dilin sağladığı çok önemli bir garanti! Yani ben şimdi main içinde bir try bloğu oluştursam catch bloğu içinde exception'ını yakalasam nesnelerin 
+tamamının destroy edilme garantisi vardır:
+#include <iostream>
+#include <exception>
+
+class A {
+public:
+    A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklar edindi\n";
+    }
+    ~A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class B {
+public:
+    B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklar edindi\n";
+    }
+    ~B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class C {
+public:
+    C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklar edindi\n";
+    }
+    ~C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+void f4()
+{
+    A a1;
+    B b1;
+    (void)getchar();
+    throw std::exception();
+}
+
+void f3()
+{
+    C  c1;
+    f4();
+}
+
+void f2()
+{
+    A ax; B x; C cx;
+    f3();
+}
+
+void f1()
+{
+    B b1, b2, b3;
+    f2();
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+    catch(const std::exception& ex) {
+        (void)getchar();
+
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+}
+böylece biz exception'ını yakalıyoruz ama artık şundan eminiz; dtor'lar çağırıldığına göre dtor'ları ile kaynaklarını geri veren sınıf nesneleri bir resource leak'e neden olmaz!
+C++ mülakatında size sorulabilecek exception handling ile ilgili en önemli alt başlıklardan biri stack unwinding'in ne olduğu/olmadığı? anlamamız beklenecek!! 
+Dikkat!!
+Bu RAII'ninde önemini gösteriyor, çünkü eğer ki stack unwinding ile kaynak geri verimi garanti altında olmasaydı resource leak olurdu!!
+
+RAII'nin önemi exception handling söz konusu olduğunda ortaya çıkıyor, önemi bir kat daha artıyor!! Çünkü eğer RAII kullanmıyor olsaydık C'deki gibi şöyle yollar izleyecektik:
+void foo()
+{
+    DeckHandle h = open_deck(); //DeckHandle bir pointer türü
+
+    //code
+
+    close_deck();
+}
+bu geleneksel yapı da aslında yine bir resource management var, open_deck fonk. kendi içinde bazı kaynakları ediyor siz o kaynakları h handler yoluyla kullanıyorsunuz. close_deck 
+fonksiyonu da aslında o kaynakları geri veriyor. Bu aslında bu kadar kapalı olmak zorunda da değil:
+void foo()
+{
+    auto p = new char[n];
+
+    ///
+
+    delete p;
+}
+
+eğer böyle olsaydı ve biz fonksiyon içinde başka bir fonksiyon çağrısı yapıyorsak ve bu çağrı exception throw ederse ne olacak?
+void foo()
+{
+    auto p = new char[n];
+
+    ///
+    bar();
+    delete p;
+}
+programın akışı buradan çıkıcak burada delete ifadesi çalışmamış olucak. Yani resource release edilmeyecek! Ama kaynağı direk pointer'lara handle'lara bağlamak yerine bunu bir sınıf 
+olarak temsil edersek eğer :
+void foo()
+{
+    File myfile("necom.txt");
+    bar();
+} 
+burada 2 tane ihtimal var:
+1)exception throw etmez otomatik ömürlü nesnemiz onun scope'nun sonunu belirleyen closing brace'e programın akışı geldiğinde dtor'ı çağırılır.
+2)foo içinde çalışan kodlar'dan biri exception gönderirse programın  akışı bu closing brace'i görmeyecek, programın akışı buradan çıkıcak exception'ı handle eden koda girecek.
+Ama o zamanda exception yakalandığı için stack unwinding ile yine myfile otomatik ömürlü nesnenin dtor'ı çağırılacak böylece kaynak geri verilmiş olucak.!!!
+
+Eğer eski usül yazarsak:
+void foo()
+{
+    File *f;
+
+    try {
+        bar();
+    }
+    catch()
+    {
+        //kaynagin geri verilmesi
+    }
+    //exception gönderilmemisse de kaynagi burada geri vermemiz gerekiyor
+}
+1 tane pointer bile böyle olduğunda durumun ne kadar karmaşık olduğuna bakın!! Öte yandan RAII çok temiz bir kod yapısı oluşturuyor ben artık dtor'ın çağırılıcağına güvenerek 
+kaynakların geri verilemsi işini ona havale etmiş oluyorum!! Yani aslında burada görünmeyen şu fikir var, normal yolla hayatı biterse zaten dtor'ı çağırılacak ama exception 
+gönderimi ilw programın akışı örneğin buradaki foo'dan çıkarsa o zamanda bu exception yakalandığında stack unwinding sürecinde bu nesne destroy edilicek. Böylece kaynak sızıntısı
+olmayacak. Buradaki en kritik problem kaynak sızıntısı olucak mı olmayacak mı? kaynak sızıntısını ortadan kaldırmaya yönelik. Genel olarak bu konuya "exception safety" deniliyor.
+En önemli konulardan biri exception safety'dir!!!
