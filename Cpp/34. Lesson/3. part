@@ -1,0 +1,1217 @@
+Sonuç olarak throw statement'ta throw ifadesi sadece derleyicinin oluşturduğu exception object'i initialize etmek için kullanılır. 
+
+exception'ının yakalanması
+exception'ı yakalamaya aday kod bir try bloğu oluşturmak zorunda. Eğer try bloğu yoksa gönderilen bir exception'ının yakalanma ihtimali 
+de yok. 
+
+try bloğu bir blok, dolayısıyla onun içinde bildiiren bir değişken sadece o blokta kullanılabilir:
+try {
+    int x = 10;
+}
+
+catch (int) {
+    auto b = x; //syntax error
+}
+
+yani try bloğu ayrı bir sentaks yapısı ama sonuçta bir blok. Blok olduğu için bir kapsam(scope) belirliyor. Dolayısıyla bu blok içinde 
+bir isim oluşturursanız, bu ismi sadece o blok içinde kullanabiliriz. O bloğun dışında kullanamazsınız. Eğer burada çalışan kodlardan 
+gönderilen bir exception olursa bu exception'ı yakalamaya aday try bloğunu izleyen catch bloklarıdır. 
+
+catch (int) {
+   
+}
+parantezin içinde tanımlanan değişkene catch parametresi deniliyor. Dikkat ederseniz catch bloklarının sentaksı adeta fonksiyon tanımını 
+andırıyor. Tamamen aynı değil çünkü sadece andırıyor. 1) burada bir isim yok bir anahtar sözcük var, 2) bir geri dönüş değeri vs. gibi
+bir kavram yok, 3) fonksiyon olsaydı fonksiyonun n tane parametre değişkeni olabilirdi ama catch bloklarında sadece catch parantezi
+içinde 1 tane parametre oluşturma hakkınız var. Bu paramtere bir referans/pointer ya da bir nesne olabilir. Ancak çok büyük çoğunlukla 
+burada referans semantiği kullanılıyor. Eğer catch parantezi içine tanımlanan değişken blok içinde kullanılmayacaksa isim vermeyiniz.
+Bu zaten C++'ta önemli bir semnatik kural bir değişkeni kullanmıyorsan ona isim verme!! Örneğin programın akışının catch bloğu içine 
+girdiğini gösterelim:
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw 1;
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+    f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+    catch(int) {
+        std::cout << "exception caught in function main.. catch(int)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+try bloğu içindeki exception'ının yakalanması için catch parametresinin türü ile gönderilen exception nesnesinin türü tamamen aynı olması 
+gerekiyor. Sadece 1 2 tane istisna dışında bu hep böyledir. Yani örneğin gönderilen hata nesnesinin türü double ise bu catch bloğu hatayı
+yakalayamaz. Yani artık burada bildiğimiz anlamda tür dönüştürme yok.
+
+Soru: gönderilen hata nesnesinin türü ile catch parametresinin türü aynı olmasaydı hata yakalanacak mıydı?
+Cevap hayır!!
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw 'A';
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+    catch(int) {
+        std::cout << "exception caught in function main.. catch(int)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+burada gönderilen hata nesnesinin türü char normalde char'dan int'e dönüşüm var ama burada implicit dönüşüme izin verilmiyor. 
+char'dan int'e dönüşüm olması gönderilen hata nesnesinin türünün char olması durumunda int parametreli bir catch bloğunun bunu 
+yakalacağı anlamına gelmiyor. Yakalamadığında da ise yine uncaught exception oluyor, o zaman yine bu program çalışıp derlendiğinde 
+uncaught exception oldu terminate çağırıldı, terminate'de abort'u çağırdı.  
+
+
+Peki bir try bloğunu birden fazla catch bloğu izleyebilir mi?
+Kesinlikle farklı türden catch parametrelerine sahip birden fazla catch bloğu olabilir. 
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw 3.4;
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+    
+    catch(int) {
+        std::cout << "exception caught in function main.. catch(int)\n";
+    }
+
+    catch(double) {
+        std::cout << "exception caught in function main.. catch(double)\n";
+    }
+
+    catch(long) {
+        std::cout << "exception caught in function main.. catch(long)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+tıpkı break statement'lı switch gibi catch bloğu içinde programın akışı sonlanmazsa programın akışı try bloğunu izleyen en son catch 
+bloğundan sonraki kodla devam eder. 
+
+Eğer gönderilen hata nesnesini ya da onun kopyasını bir şekilde kullanacaksınız o zaman parametre değişkenine yani catch'in parametre
+değişkenine bir isim vermeniz gerekir. Yalnız burada kritik nokta tıpkı fonksiyon parametrelerinde olduğu gibi kopyalama semantiği 
+geçerli örneğimizde, her ne kadar örnekte gönderilen hata nesnesi türü int olsada tahmin ettiğiniz üzere çoğunlukla bu nesne bir 
+sınıf türünden olucak. Dolayısıyla sınıf türünden bir catch parametresi oluşturduğumuz zaman 2,3 yerde sorun yaşama ihtimalimiz var:
+1)Object silicing, eğer parametre referans olmazsa run time polymorphisim'inden faydalanamam. 
+2)copy ctor çağırılır, zaten exception'ı handle etmeye çalışıyorum ya copy ctor'de exception throw ederse:
+
+int main()
+{
+    try {
+        f1();
+    }
+    
+    catch(Myclass x) {
+        std::cout << "exception caught in function main.. catch(Myclass)\n";
+    }
+
+    catch(double) {
+        std::cout << "exception caught in function main.. catch(double)\n";
+    }
+
+    catch(long) {
+        std::cout << "exception caught in function main.. catch(long)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+
+O yüzden hemen her zaman exception referans semantiği ile yaılıyor!!
+int main()
+{
+    try {
+        f1();
+    }
+    
+    catch(Myclass &x) {
+        std::cout << "exception caught in function main.. catch(Myclass &x)\n";
+    }
+
+    catch(double) {
+        std::cout << "exception caught in function main.. catch(double)\n";
+    }
+
+    catch(long) {
+        std::cout << "exception caught in function main.. catch(long)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+exception'ının referans  semnatiği ile yakalanmasının nedeni: 2 tane önemli nedenine dikkat! 1)Object silicing olmayacak,
+dolayısıyla örneğin burada Myclass polymorphic bir  hiyerarşi içinde ki bir sınıf türünden ise ki çoğunlukla öyle olucak burada  bunun 
+bir sanal fonksiyonunu çağırdığımda virtual dispatch mekanizması devreye girecek. Bu referans olmasaydı sınıf türünden olsyadı bu durumda 
+object silicing olucaktı ve virtual dispatch mekanizması devreye girmeyecekti ve bu sefer programın akşı bu catch bloğuna geçtiğinde 
+catch parametresi için copy ctor çağırılıcaktı. copy ctor'ın kendisininde exception throw etme ihtimali olucaktı. Bu durum yine bir 
+felaketle sonuçlanırdı yani terminate fonksiyonunun çağırılmasıyla sonlanacaktı. 
+
+Bazı durumlarda da amaç gerçekten sadece yakalamak, bu referansı kullanmak gibi bir niyetim yok o zamanda isim vermemize gerek yok, isim 
+vermeyin.
+
+O exception yakalandığında derleyicinin oluşturduğu nesnenin de hayatı biter. 
+
+catch(...) {
+
+}
+bu şekilde oluşturulan catch bloğuna catch all bloğu deniliyor. Bunun özelliği gönderilen hata nesnesi hangi türden olursa olsun onun 
+türünden bağımsız o hata nesnesi yakalanıyor.
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw 3u;
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+    
+    catch(int) {
+        std::cout << "exception caught in function main.. catch(int)\n";
+    }
+
+    catch(double) {
+        std::cout << "exception caught in function main.. catch(double)\n";
+    }
+
+    catch(long) {
+        std::cout << "exception caught in function main.. catch(long)\n";
+    }
+
+    catch(...) {
+        std::cout << "exception caught in function main.. catch(...)\n";
+    }
+    std::cout << "main devam ediyor..\n";
+}
+yani gönderilen hata nesnesinin ne olduğundan bağımsız illa bu hatayı yakalayacağım diyorsanız o zaman try bloğunu izleyen en son, en son 
+olması önemli catch bloğu parametresini catch all yapacaksınız. 
+
+
+Soru bu sıra önemli mi?
+Cevap kesinlikle önemli, örneğin catch-all'ü yukarı koysaydık bunun kendisi sentaks hatası deği ama lojik bir hata. Çünkü bu durumda 
+artık gönderilen hata nesnesinin int olması durumunda onu yakalama imkanı kalamazdı. Yani dilin kuralı şöyle: yukarıdan aşağı gidiyor. 
+Derleyicinin ürettiği kodda gönderilen hata nesnesinin türü üstteki catch bloğundan alttaki catch bloğuna doğru gidiyor:
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw 3u;
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+
+    catch(...) {
+        std::cout << "exception caught in function main.. catch(...)\n";
+    }
+    
+    catch(int) {
+        std::cout << "exception caught in function main.. catch(int)\n";
+    }
+
+    catch(double) {
+        std::cout << "exception caught in function main.. catch(double)\n";
+    }
+
+    catch(long) {
+        std::cout << "exception caught in function main.. catch(long)\n";
+    }
+
+
+    std::cout << "main devam ediyor..\n";
+}
+Dolayısıyla özelden genele doğru oluşturmamız gerekiyor yapıyı. 
+
+
+İstisnalardan biri catch-all'du. Diğeri ise is-a relationship. public kalıtımında türemiş sınıf türünden bir nesne aynı zamanda taban sınıfı 
+türünden bir nesne olarak ele alınıyordu. İşte gönderilen hata nesnesi türemiş sınıf türünden ise o hata nesnesini o türemiş sınıfın 
+taban sınıfı türünden bir catch parametresi ile yakalama şansına sahibiz. 
+class Base {
+public:
+    virtual~Base() = default;
+};
+
+class Der : public Base {
+
+};
+
+class Ser : public Base {
+    
+};
+
+class Mer : public Base {
+    
+};
+
+class SDer : public Der {
+    
+};
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw Der{};
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+
+    catch(Der&) {
+        std::cout << "exception caught in function main.. catch(Der&)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+throw ifadesi Der sınıfı türünden, catch parametresi ise Der sınıfı türünden referans. Aslında bu kodda bile gönderilen hata nesnesinin
+Der{} olmadığını kanıtlamış oluyoruz. Çünkü gönderilen hata nesnesi o olsaydı o ifadenin value category'si PR val. expr. yani R val. expr.
+Fakat catch parametresi Der& sağ taraf değeri sol taraf referansına bağlanamaz! Eğer gerçekten yakalanan nesne Der{} olsaydı dilin sentaksını 
+çiğnemiş olurdum. Buranın ancak const Der& ya da Der&& olması gerekirdi. Bunu yakalayabilmesinin nedeni gönderilen hata nesnesinin bu 
+olmamasıdır!! Gönderilen hata nesnesi başta da söylediğimiz gibi derleyicinin oluşturduğu nesnedir, o da L val. expr'dir. 
+
+Örneği değiştirelim, gönderilen hata nesnesinin türünü SDer yapıyorum. SDer Base'den kalıtım yoluyla elde edilen Der'den kalıtım yoluyla 
+elde edilen sınıf türüdür. Yine yakalar çünkü her SDer bir Der:
+class Base {
+public:
+    virtual~Base() = default;
+};
+
+class Der : public Base {
+
+};
+
+class Ser : public Base {
+    
+};
+
+class Mer : public Base {
+    
+};
+
+class SDer : public Der {
+    
+};
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw SDer{};
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+
+    catch(Der&) {
+        std::cout << "exception caught in function main.. catch(Der&)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+
+Soru catch parametresi Base& olsa ynie yakalayacak mıydı?
+Yine yakalardı çünkü is-a relationship hala geçerli:
+class Base {
+public:
+    virtual~Base() = default;
+};
+
+class Der : public Base {
+
+};
+
+class Ser : public Base {
+    
+};
+
+class Mer : public Base {
+    
+};
+
+class SDer : public Der {
+    
+};
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw SDer{};
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+
+    catch(Base&) {
+        std::cout << "exception caught in function main.. catch(Base&)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+
+
+catch bloğu parametresini en tepedeki sınıf türünden referans yapsam ve blok içinde hatayı yakaladıktan sonra sanal fonksiyon olan 
+str'yi çağırırsam, o zaman bu sanal fonksiyon olduğuna göre bu fonksiyon çağrısıda taban sınıftan referansı ile yapıldığına göre 
+virtual dispatch devreye girer!!!
+
+class Base {
+public:
+    virtual~Base() = default;
+    virtual const char* str()const
+    {
+        return "Base";
+    }
+};
+
+class Der : public Base {
+    virtual const char* str()const override
+    {
+        return "Der";
+    }
+};
+
+class Ser : public Base {
+    virtual const char* str()const override
+    {
+        return "Ser";
+    }
+};
+
+class Mer : public Base {
+    virtual const char* str()const
+    {
+        return "Mer";
+    }    
+};
+
+class SDer : public Der {
+    virtual const char* str()const
+    {
+        return "SDer";
+    }
+};
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw SDer{};
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+
+    catch(Base& r) {
+        std::cout << "hata ayiklandi.. catch(Base&)\n";
+        std::cout << r.str() << '\n';
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+
+
+Örnek:
+class Base {
+public:
+    virtual~Base() = default;
+    virtual const char* str()const
+    {
+        return "Base";
+    }
+};
+
+class Der : public Base {
+    virtual const char* str()const override
+    {
+        return "Der";
+    }
+};
+
+class Ser : public Base {
+    virtual const char* str()const override
+    {
+        return "Ser";
+    }
+};
+
+class Mer : public Base {
+    virtual const char* str()const
+    {
+        return "Mer";
+    }    
+};
+
+class SDer : public Der {
+    virtual const char* str()const
+    {
+        return "SDer";
+    }
+};
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw Der{};
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+
+    catch(Base& r) {
+        std::cout << "hata ayiklandi.. catch(Base&)\n";
+    }
+
+
+    catch(Der& r) {
+        std::cout << "hata ayiklandi.. catch(Der&)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+derleyicinin ürettiği kod yukarıdan aşağı doğru sınadığı için, dolayısıyla önce Base& parametreli catch bloğuna bakıcak ve yakalanıcak.
+O yüzden bu şekilde catch bloklarını oluşturmanın bir esprisi kalmayacak. Çünkü artık Der türünden gönderilen hata nesnesinin Der&
+parametreli catch bloğu tarafından yakalanma ihtimali yok!
+
+catch bloklarının yerini değiştirirsem, işte o zaman Der& parametreli blok tarafından yakalanır exception.
+class Base {
+public:
+    virtual~Base() = default;
+    virtual const char* str()const
+    {
+        return "Base";
+    }
+};
+
+class Der : public Base {
+    virtual const char* str()const override
+    {
+        return "Der";
+    }
+};
+
+class Ser : public Base {
+    virtual const char* str()const override
+    {
+        return "Ser";
+    }
+};
+
+class Mer : public Base {
+    virtual const char* str()const
+    {
+        return "Mer";
+    }    
+};
+
+class SDer : public Der {
+    virtual const char* str()const
+    {
+        return "SDer";
+    }
+};
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw Der{};
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+
+    catch(Der& r) {
+        std::cout << "hata ayiklandi.. catch(Der&)\n";
+    }
+
+    catch(Base& r) {
+        std::cout << "hata ayiklandi.. catch(Base&)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+
+Fakat hata nesnesi olarak gönderilen nesne Der türünden olmasaydı örneğin Ser türünden olsaydı, bu durumda üstteki catch bloğu 
+hatayı yakalayamayacaktı ama alttaki catch bloğu hatayı yakalayacaktı:
+class Base {
+public:
+    virtual~Base() = default;
+    virtual const char* str()const
+    {
+        return "Base";
+    }
+};
+
+class Der : public Base {
+    virtual const char* str()const override
+    {
+        return "Der";
+    }
+};
+
+class Ser : public Base {
+    virtual const char* str()const override
+    {
+        return "Ser";
+    }
+};
+
+class Mer : public Base {
+    virtual const char* str()const
+    {
+        return "Mer";
+    }    
+};
+
+class SDer : public Der {
+    virtual const char* str()const
+    {
+        return "SDer";
+    }
+};
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw Ser{};
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+
+    catch(Der& r) {
+        std::cout << "hata ayiklandi.. catch(Der&)\n";
+    }
+
+    catch(Base& r) {
+        std::cout << "hata ayiklandi.. catch(Base&)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+
+Ser türünden değil de bambaşka bir türden olsaydı ve aşağıda catch-all bloğu olsaydı bu sefer de catch-all bloğu yakalayacaktı:
+class Base {
+public:
+    virtual~Base() = default;
+    virtual const char* str()const
+    {
+        return "Base";
+    }
+};
+
+class Der : public Base {
+    virtual const char* str()const override
+    {
+        return "Der";
+    }
+};
+
+class Ser : public Base {
+    virtual const char* str()const override
+    {
+        return "Ser";
+    }
+};
+
+class Mer : public Base {
+    virtual const char* str()const
+    {
+        return "Mer";
+    }    
+};
+
+class SDer : public Der {
+    virtual const char* str()const
+    {
+        return "SDer";
+    }
+};
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+ 
+
+void f4()
+{
+    std::cout << "f4 called!\n";
+    throw Der{};
+    std::cout << "f4 returns\n";
+}
+
+void f3()
+{
+    std::cout << "f3 called!\n";
+     f4();
+    std::cout << "f3 returns\n";
+}
+
+void f2()
+{
+    std::cout << "f2 called!\n";
+    f3();
+    std::cout << "f2 returns\n";
+}
+
+void f1()
+{
+    std::cout << "f1 called!\n";
+    f2();
+    std::cout << "f1 returns\n";
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+
+    catch(Der& r) {
+        std::cout << "hata ayiklandi.. catch(Der&)\n";
+    }
+
+    catch(Base& r) {
+        std::cout << "hata ayiklandi.. catch(Base&)\n";
+    }
+
+    catch(...) {
+        std::cout << "hata ayiklandi.. catch(...)\n";
+    }
+
+    std::cout << "main devam ediyor..\n";
+}
+
+exception object neden oluşturuluyor?
+Yukarıdaki kodlara hata hakkında bilgi vermek için, böylece üst katmandaki kodlar hangi hataya müdahale ediceklerse o hatayı yakalamaya 
+çalışıyorlar. Hata bilgisi üst katmandaki kodlara 2 ayrı mekanizma ile iletiliyor. Biri zaten exception object'in türü, örneğin:
+class MathException {}; sınıfı diye bir sınıf olsaydı ve gönderilen hata nesnesinin bu türden olması adı üstünde gönderilen hatanın 
+matematikle ilgili muhtemelen bir hata olduğunu ifade edicekti. Ama bu MathException yerine örneğin DateException isimli bir 
+fonksiyon olsaydı Date sınıfının işlemlerinde hatalı bir tarih oluşumuna yönelik hataları bildirmek için oluşturulan bir sınıf olduğundan 
+bu türden bir hatanın gönderilmesi tarih işlemleri ile ilgili bir hatanın gönderildiği anlamına gelecekti. Yani konvensiyonel olarak 
+bu tür sınıflar isimlendirilirken ya sonda exception konuluyor ya da başına çoğunlukla bad sözcüğü konuluyor. Örneğin class BadDate{};
+
+1)Hatanın ne olduğunun yukarıya iletilmesinde kullanılan en tipik mekanizma zaten nesnenin türünün ne olduğu. Örneğin standart kütüphanenin
+bad_alloc sınıfı türünden bir exception throw ederseniz allocation ile ilgili bir hata olduğunu yukarıya iletmiş oluyorsunuz. Veya 
+standart kütüphanenin out_of_range sınıfı türünden bir hata nesnesinin gönderilmesi örneğin bir dizinin taşırılması gibi bir hata olduğunu
+anlatıyor. Demekki gönderilen hata nesnesinin türü zaten hatanın ne olduğu ile ilgili en önemli bilgidir. 
+
+
+Çoğunlukla farklı amaçla farklı niyetle yakalamalar ve müdahelerler için hatalar farklı sınıflar oluşturularak bir sınıf hiyerarşisi
+oluşturularak genelden özeler doğru niteleniyor. Örneğin diyelim ki ben dosya işlemleri ile ilgili bir hata olduğunu göstermek 
+için FileError isimli bir sınıf oluşturabilirim, 
+class FileError {
+
+};
+böylece FilerError sınıfı türünden gönderilen bir hata işte adı üstünde dosya işlemleri 
+ile yapılan bir hata anlamaına gelebilir. Ama istersem bunu biraz daha özelleştirip örneğin dosyadan okuma yapılması esnasında oluşan 
+bir hata olduğunu gösteren bir hata olduğunu göstermek için :
+class FileReadError : public FileError {
+
+};
+böylece her FileReadError FileError olucak dolayısıyla gönderilen hata nesnesinin FileReadError olması bunun FileReadError türünden bir
+catch parametresi ile yakalanabileceği ya da FileError türünden catch parametresi ile yakalanabileceği anlamına gelir. Böylece izleyen 
+kod ben sadece dosyadan okuma yapılması durumundaki hataya müdahele yapmak istiyorum, diyorsa FileReadError türden bir catch parametresi    
+kullanacak ama okuma olmuş yazma olmuş önemli değil ben her türlü dosya hatasına müdehale etmek istiyorum diyorsa FileError türünden bir 
+catch parametresine sahip olucak. Yani bu şekilde genelden özele doğru kalıtım mekanizması ile ayrı hata sınıfları oluşturabilirsiniz!
+class FileWriteError : public FileError {
+
+};
+
+Dikkat! gönderilen fiilen bir nesne yani instance bu nesnenin bir değeri de olabilir. İşte hatayı iletmenin ilave bir yolu da nesnenin 
+kendi değeri:
+class FileError {
+private:
+    int m_line_no;
+};
+
+FileError sınıfının private veri elemanı dosyanın satır numarasını tutyor ve hata oluşması durumunda set edilen FileError nesnesi hata 
+dosyanın kaçıncı satrırına yazarken ya da dosyanın kaçıncı satırından okuma yaparken bu hata oldu? Pekala bu bilgiyi de tutabilir. Ya
+da daha da önemlisi hangi dosyadan okuma/yazma işlemi yaparken hata oluştu? Bunu da örneğin sınıfın bir string veri elemanı tutabilir. 
+Dolayısıyla FileError sınıfı türünden bir hata nesnesini yakalayan kod muhtemelen get fonksiyonları ile bu bilgileri de get edebilir. 
+
+
+O halde hatanın 2 farklı şekilde yukarıya getirilmesinde kast edilen: 1) gönderilen exception object'in türü zaten yeterince bilgi veriyor.
+2) bu instance'ın kendi değeri yani veri elemanları olabilir kendi değeri olabilir. Ve çok büyük çoğunlukla da burada run time'da 
+belirli yine bilgileri eklemek için virtual dispatch mekanizmasından faydalanılıyor. Örneğin standart kütüphanenin gönderdiği bütün 
+hatalar belirli bir sınıf türünden. Bu sınıfın ismi exception:
+std::exception {
+
+}; 
+exception sınıfı exception başlık dosyasında tanımlanan bir sınıf. C++ dili diyor ki ey programcılar eğer diyor bir exception 
+standart kütüphane tarafından gönderilmişse ya da dilin operator seviyesindeki araçlarının kullanımınından dolayı gönderilmişse 
+bilin ki diyor bu hata exception türündendir. Yani bu şu demek siz bir catch bloğunun parametresini exception& yaparsınız standart 
+kütüphanenin gönderdiği bütün hataları yakalayabilirsiniz demek. 
+
+hatanın ne olduğundan bağımsız olarak, söylenmek istenen şudur:
+try {
+    ///
+}
+
+catch(const std::exception &ex) {
+
+}
+şimdi try bloğu içinde gönderilen hata nesnesi standart kütüphanenin hangi bileşeninden gönderilirse gönderilsin catch bloğunun 
+yakalama garantisi var. Çünkü bütün hatalar o türden! Bu türden derken is-a relationshiple yani örneğin exception türünden olabileceği 
+gibi exception'dan kalıtım yoluyla elde edilen türden de olabilir. 
+
+
+aşağıdaki örnekte uncaught exception oluştur. Nedeni ise şudur, func içinde bulunan at fonksiyonu geçersiz bir indeks almıştır.
+at geçersiz bir indeks aldığında standart kütüphanenin out_of_range sınıfı türünden bir exception throw etti. Fonksiyon o nokta da 
+exception throw ettiği için ve bu exception yakalanamadığı için termiante ile abort'u çağırdı:
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+#include <string>
+
+void func(int x)
+{
+    std::string str{ "necati ergin" };
+    auto c = str.at(x);
+    //
+}
+
+int main()
+{
+    func(243);
+}
+
+fakat fonksiyon çağrısını bir try bloğu içinde yaparsak ve catch parametresi olarak std::exception verirsek:
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+#include <string>
+
+void func(int x)
+{
+    std::string str{ "necati ergin" };
+    auto c = str.at(x);
+    //
+}
+
+int main()
+{
+    try {
+    func(243);
+    }
+
+    catch(std::exception &ex) {
+        std::cout << "exception caught: \n";
+    }
+}
+bu durumda eğer gönderilen exception, exception hiyerarşisi içindeki bir sınıf türündense catch bloğu exception'ını yakalar. 
+
+catch parametresi out_of_range türünden olunca da exception yakanacak:
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+#include <string>
+
+void func(int x)
+{
+    std::string str{ "necati ergin" };
+    auto c = str.at(x);
+    //
+}
+
+int main()
+{
+    try {
+    func(243);
+    }
+
+    catch(std::out_of_range &ex) {
+        std::cout << "exception caught: \n";
+    }
+}
+çünkü burada gönderilen exception'nın türü std::out_of_range, out_of_range'de logic_error isimli bir sınıftan kalıtım yoluyla elde 
+edilmiştir. O zaman parametre logic_error olursa exception yine yakalanır. logic_error'de exception'dan elde edilmiştir.
+Yani buradaki hiyerarşiyi bu örnek için inceliyor olsaydık at fonks. gönderdiği exception'nın standart kütüphanedeki exception 
+hiyerarşisindeki en tepedeki taban sınıf olan std::exception'dan kalıtım yoluyla elde edilen std::logic_error'den kalıtım yoluyla 
+elde edilen std_out_of_range türünden olduğunu görecektik. 
+
+Dahası burada bir sanal fonksiyon var, standart kütüphanenin en tepedeki taban sınıfının sanal fonksiyonunun adı what'dır. 
+Geri dönüş değer cstring ve geri döndürdüğü yazı aslında o exception'ını betimleyen bir yazıdır. Yani hatanın neye ilişkin olduğunu 
+bir yazı şeklinde ifade etmek kullanmak istersem en tepedeki sınıfın sanal fonksiyonu olan what fonksiyonunu çağırıyorum:
+
+#include <iostream>
+#include <cstdlib>
+#include <exception>
+#include <string>
+
+void func(int x)
+{
+    std::string str{ "necati ergin" };
+    auto c = str.at(x);
+    //
+}
+
+int main()
+{
+    try {
+    func(243);
+    }
+
+    catch(std::logic_error &ex) {
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+}
