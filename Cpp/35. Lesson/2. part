@@ -1,0 +1,652 @@
+#include <iostream>
+#include <exception>
+
+class A {
+public:
+    A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklar edindi\n";
+    }
+    ~A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class B {
+public:
+    B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklar edindi\n";
+    }
+    ~B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class C {
+public:
+    C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklar edindi\n";
+    }
+    ~C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+void f4()
+{
+    A a1;
+    B b1;
+    (void)getchar();
+    throw std::exception();
+}
+
+void f3()
+{
+    C  c1;
+    f4();
+}
+
+void f2()
+{
+    A ax; B x; C cx;
+    f3();
+}
+
+void f1()
+{
+    B b1, b2, b3;
+    f2();
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+    catch(const std::exception& ex) {
+        (void)getchar();
+
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+}
+Peki bu nesneler dinamik ömürlü ise?
+Dinamik ömürlü nesneleri ve dinamik ömrü ayrı bir konu başlığında çok detaylı inceleyeceğiz. Fakat şunu söyleyebiliriz:
+1)Gereksiz yere dinamik ömürlü nesne kullanmak yazılabilecek en kötü kodlar arasında! Bazen Java ve C#'dan gelenler orada new sözcüğünün kullanılması ile bizdekini karıştırıyorlar;
+sanki nesne oluşturmanın doğal yolu new ile oluşturmak gibi. Otomatik ömürlü nesne oluşturmak yerine gereksiz dinamik ömürlü nesne oluşturuyorlar. Ama öyle yerler var ki dinamik
+ömürlü nesneler artık bir zorunluluk haline geliyor ya da olabilicek en iyi senaryo haline geliyor. Örneğin yukarıdaki örnekte dinamik ömürlü nesne kullanmanın en iyi olduğu 
+senaryo olduğunu düşünelim:
+#include <iostream>
+#include <exception>
+
+class A {
+public:
+    A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklar edindi\n";
+    }
+    ~A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class B {
+public:
+    B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklar edindi\n";
+    }
+    ~B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class C {
+public:
+    C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklar edindi\n";
+    }
+    ~C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+void f4()
+{
+    A* a1 = new A;
+    B* b1 = new B;
+    //throw std::exception();
+
+    delete a1;
+    delete b1;
+}
+
+void f3()
+{
+    auto c1 = new C;
+    f4();
+    delete c1;
+}
+
+void f2()
+{
+    A* ap = new A;
+    f3();
+    delete ap;
+}
+
+void f1()
+{
+    B* b1 = new B;
+    B* b2 = new B;
+    f2();
+    delete b1;
+    delete b2;
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+    catch(const std::exception& ex) {
+        (void)getchar();
+
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+}
+bu nesneler delete edildiğinde dtor'ları çağırılıyor. Ve operator delete fonksiyonunun çağırılmasıyla da allocate edilen bellek alanları 
+geri veriliyor. Yani exception gönderilmemiş olsaydı allocate edilen bellek alanları geri verilicekti, herhangi bir problem olmayacaktı.
+6 tane nesne hayata geldi dinamik ömürlü 6'sı içinde dtor çağırıldı. 
+
+
+Eğer exception gönderilirse exception yakalansa dahi, ki bizim örneğimizde yakalanıcak bu delete kodları çalışmayacak! O zaman dinamik 
+ömürlü nesneleri ayrıca ele almamız gerekiyor, çünkü aşağıdaki örnekte olduğu gibi exception yakalandı ama artık kaynak sızıntısı var!!
+Burada çözüm smart pointer'lar. Henüz detaylı incelemesekte smart pointer'ların en önemli varlık nedenlerinden biri bu: exception handling'de
+güvence sağlıyorlar.
+
+#include <iostream>
+#include <exception>
+
+class A {
+public:
+    A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklar edindi\n";
+    }
+    ~A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class B {
+public:
+    B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklar edindi\n";
+    }
+    ~B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class C {
+public:
+    C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklar edindi\n";
+    }
+    ~C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+void f4()
+{
+    A* a1 = new A;
+    B* b1 = new B;
+    throw std::exception();
+
+    delete a1;
+    delete b1;
+}
+
+void f3()
+{
+    auto c1 = new C;
+    f4();
+    delete c1;
+}
+
+void f2()
+{
+    A* ap = new A;
+    f3();
+    delete ap;
+}
+
+void f1()
+{
+    B* b1 = new B;
+    B* b2 = new B;
+    f2();
+    delete b1;
+    delete b2;
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+    catch(const std::exception& ex) {
+        (void)getchar();
+
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+}
+
+
+Biz pointer gibi davranan ama varlık nedeni dinamik ömürlü nesnelerin hayatını kontrol etmek olan sınıflar türünden nesnelere bağlasaydık
+bu dinamik ömürlü nesneleri, hayatını bunlarla kontrol etseydik, bunlar sınıf nesnesi olduğu için smart pointer sınıfının dtor'u 
+öyle ya da böyle çağırılıcaktı. 2 tane standart akıllı pointer sınıfı var: unique_ptr ve shared_ptr. Eğer ki yukarıdaki örnekte ham 
+pointer kullanmak yerine dinamik ömürlü nesneleri smart pointer sınıfı türünden nesnelerle kontrol etseydim, bunların başlık dosyası 
+standart kütüphanenin memory isimli başlık dosyasıdır:
+#include <iostream>
+#include <exception>
+#include <memory>
+
+class A {
+public:
+    A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklar edindi\n";
+    }
+    ~A()
+    {
+        std::cout << this << "adresindeki A nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class B {
+public:
+    B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklar edindi\n";
+    }
+    ~B()
+    {
+        std::cout << this << "adresindeki B nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+class C {
+public:
+    C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklar edindi\n";
+    }
+    ~C()
+    {
+        std::cout << this << "adresindeki C nesnesi kaynaklari geri verdi\n";
+    }
+};
+
+void f4()
+{
+    std::unique_ptr<A> ax{ new A };
+    std::unique_ptr<B> bx{ new B };
+
+    throw std::exception();
+}
+
+void f3()
+{
+    std::unique_ptr<C> cx{ new C };
+    f4();
+}
+
+void f2()
+{
+    std::unique_ptr<A> ax{ new A };
+    f3();
+}
+
+void f1()
+{
+    std::unique_ptr<B> bx1{ new B };
+    std::unique_ptr<B> bx2{ new B };
+    f2();
+    delete b1;
+    delete b2;
+}
+
+int main()
+{
+    try {
+        f1();
+    }
+    catch(const std::exception& ex) {
+        (void)getchar();
+
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+}
+unique_ptr, bir sınıf nesnesi bu sınıf nesnesinin ilişkin olduğu sınıf bir pointer interface'ine sahip örneğin operator * operator
+overloading mekanizması ile overload edilmiştir. Benzer şekilde içerik operator'ü derefencing operator'ü ve ok operator'ü. Yani bizi 
+ilgilendiren burada şu öreğin ax'e ham pointer gibi kullanabiliyoruz. Örneğin A sınıfının foo isimli fonksiyonu olsaydı: ax->foo();
+şeklinde ham pointer'ı kullanabildiğim gibi onu da kullanabilirdim. unique_ptr'ının ctor'ı aslında adresini aldığı dinamik ömrülü
+nesnenin adresini kendi veri elemanında saklıyor ve unique_ptr'ın dtor'ı da onu delete ediyor şeklinde basitçe düşünebiliriz.
+Yine aynı şekilde örneğin f4 fonksiyonunun içinde yer alan ax nesnesi herhangi bir exception gönderilmemişse ax'te otomatik ömürlü 
+bir sınıf nesnesi olduğu için hayatı daha önceki örneklerde olduğu gibi fonksiyonun enclosing brace'inde bitecek. Orada hayatı bittiği
+için unique_ptr'ın dtor'ıı çağırılacak. unique_ptr'ın dtor'ı bu sarmaladığı pointer'ı delete edicek. Ama programın akışı fonksiyonun 
+enclosing brace'ine kadar gelmezse, örnekte olduğu gibi bir exception gönderildiği oradan çıkarsa bu sefer de exception yakalandığında
+stack unwinding mekanizması ile o zaman dtor çağırılıcak. Böylece dinamik ömrülü nesneler exception handling tarafında bir problem 
+yaratmayacak, bir kaynak sızıntısına yol açmayacak. 
+
+Sonuç: dinamik ömürlü nesnelerin ham pointer'larla yönetilmesi exception safety açısından çok riskli onu  kontrol etmek için ya kendi 
+kodlarınızı yazacaksınız o zamanda kod çok karmaşıklaşıyor. Peki unique_ptr'ı kullandığımız zaman faydası yadsınamaz ama ilave bir 
+maliyet getiriyor mu? Hayır, ne bellek kullanımı açısından ne de çalışan kod açaısından yani yapılan işlem sayısı açısından ilave bir 
+maliyet getirmiyor!! Kursun başından beri söylediğimiz gibi C++'ın en büyük başarısı zero-cost abstraction. Yani sonuç olarak assembly 
+koduna baktığınız zaman normal pointer kullanmaktan çok özel birkaç senaryo dışında bir fark olamdığını söyleyebiliriz. O zaman dinamik
+ömürlü nesneleri iyisi doğrusu smart pointer'lar ile kontrol etmek. 
+
+Smart pointer modern C++ ile dile eklendir:  unique_ptr, shared_ptr ve  shared_ptr'ın bir yardımcı sınıfı olarak görebileceğimiz
+sınıf var. Daha önce eski C++'ta auto_ptr isimli bir sınıf vardı; kullanılması sıkıtılıydı çünkü o zaman taşıma semnatiği yoktu. 
+Sağ taraf referansları yoktu, taşıma semnatiği dile implemente edilemediği için auto_ptr problemli bir sınfıtı. Daha sonra bu auto_ptr 
+sınıfı önce deprecate edildi sonra da tamamen dilden kaldırıldı. 
+
+Dikkat!!
+Eğer exception yakalanmazsa stack unwinding garantisi yok! Yani bu garantiyi elde etmek için mutlaka ve mutlaka exception'ın yakalanması
+gerekiyor. 
+
+=======================================================================================================================================
+
+exception'ı yakalayınca ne yapıyoruz?
+catch(const NecEx& ex) {
+    ///
+}
+1) burada exception handle edilir, programın akışı en son catch bloğundan sonraki kodla devam eder. Eğer böyle bir durum varsa 
+ve gerçekten devam edecekse program kaynak sızıntısı olmadığına emin olmalıyız. Yani marifet kaynak sızıntısı olmadan programın 
+çalışmasının devam ettirilmesi. 
+
+2) 2. seçeneğe hocamız kısmi müdahale diyor. exception'ını yakalamak yapılması gereken işlemleri orada ne  ise o context'e yapmak 
+ve exception'ını tekrar göndermek. Örneğin f16 exception gönderiyor, aradaki stack frame'deki fonksiyonlardan biri f9 exception'ını 
+yakalıyor kendisi ile ilgili müdaheleyi yapıyor ama diyor ki ben de emir kuluyum benim de üat katmanımda kodlar var, ben kendi üstüme
+düşeni yaptım ama bundan sonra ne olacağına karar vericek daha yukarıdaki kodlar ve o exception'ını tekrar yukarı gönderiyor. Böylece 
+exception bu sefer tekrar daha üst katmanlardaki kodlar tarafından yakalanma potansiyeline giriyor. Yalnız burada 2 ayrı göndermeyi
+birbirinden ayırmamız gerekiyor!! Programcıların en fazla kafasını karıştıran noktalardan biri burası:
+void f4()
+{
+    try {
+        throw 1;
+    }
+
+    catch (int) {
+        //mudahele
+    }
+}
+
+exception'ı yakaladım müdahale mi yaptım 2 tane ihtimal var:
+1) exception nesnesini göndermek, yani derleyicinin oluştrduğu exception nesnesinin kendisini tekrar yukarı göndermek. 
+2) hayır onu değil başka bir exception göndermek
+
+1)aynı exception nesnesinin gönderilmesi
+Bunu yapan özel bir statement var, bu statement'a rethrow statement deniliyor. Ayrı bir sentaksa sahip. Burada özellikle konu ile yeni 
+tanışanların en tipik yanlış anladığı noktalardan biri şu:
+void f4()
+{
+    try {
+
+    }
+    catch(const std::exception& ex) {
+        throw ex;
+    }
+}
+bu rethrıw statement'mı? Hayır değil bu bambaşka bir şey. Bunun ayrı bir anlamı var. Peki şöyle yazmak ile yukarısı arasında bir fark
+var mı?
+void f4()
+{
+    try {
+
+    }
+    catch(const std::exception& ex) {
+        throw;
+    }
+}
+Cevap: Hem de çok önemli bir fark var!
+
+Aşağıda verilen kod hiç yapılmayacak bir şey değil nadiren bunu da yapabiliriz fakat ilk öğrenmemiz gereken şey:
+throw; ile throw ex; statement'larının anlamının tamamen farklı olması!! throw; rethrow statement iken throw ex; ise derleyicinin 
+oluşturduğu exception nesnesinin hayatı biticek, yani onun dtor'ı çağırılıcak siz derleyicinin yeni bir exception object oluşturmasını
+sağlayacaksınız. 
+void f4()
+{
+    try {
+
+    }
+    catch(const std::exception& ex) {
+        throw ex;
+    }
+}
+Burada 2 tane kritik nokta var: 1) derleyici 2. bir nesne oluşturuyor, 2) polymorphic exception hiyerarşisi söz konusu olduğunda 
+object silicing oluyor!!! Şimdi bunu göstermek için bir kod yazalım:
+#include <exception>
+#include <iostream>
+#include <memory>
+
+
+void bar()
+{
+    try {
+        throw std::out_of_range{ "value out of range" };
+    }     
+    catch(const std::exception& ex) {
+        std::cout << "hata bar fonksiyonunda yakalandi ...\n";
+        std::cout << "the address of the exception object is:" << &ex << '\n';
+        throw ex;
+    }
+
+}
+
+int main()
+{
+    try {
+
+    }
+    catch(const std::out_of_range& ex) {
+        std::cout << "hata main fonksiyonunda yakalandi ...\n";
+        std::cout << "out_of_range\n";
+        std::cout << "the address of the exception object is:" << &ex << '\n';       
+    }
+    catch(const std::exception& ex) {
+        std::cout << "hata main fonksiyonunda yakalandi ...\n";
+        std::cout << "exception\n";
+        std::cout << "the address of the exception object is:" << &ex << '\n';       
+    }
+}
+2 noktaya dikkat ediniz: 1) alttaki catch bloğuna girdiğine dikkat edin yani object silicing oldu!! Burada derleyici yeni bir exception
+nesnesi oluşturdu, derleyicinin oluşturduğu exception nesnesi dinamik türü korumadı! bar fonksiyonu içinde bulunan ex; ifadesinin türü
+std::exception olduğundan derleyicinin oluşturduğu exception nesneside std::exception türünden oldu. Ve özellikle adresin de farklı 
+olduğu bize neyi gösteriyor? Demek ki main'de yakalanan nesne ile main'de yakalanan nesne aynı adresteki nesne değil, yeni oluşturulmuş.
+
+Peki bar fonksiyonu içinde verilen throw statement'ı rethrow yaparsak:
+#include <exception>
+#include <iostream>
+#include <memory>
+
+
+void bar()
+{
+    try {
+        throw std::out_of_range{ "value out of range" };
+    }     
+    catch(const std::exception& ex) {
+        std::cout << "hata bar fonksiyonunda yakalandi ...\n";
+        std::cout << "the address of the exception object is:" << &ex << '\n';
+        throw;
+    }
+
+}
+
+int main()
+{
+    try {
+
+    }
+    catch(const std::out_of_range& ex) {
+        std::cout << "hata main fonksiyonunda yakalandi ...\n";
+        std::cout << "out_of_range\n";
+        std::cout << "the address of the exception object is:" << &ex << '\n';       
+    }
+    catch(const std::exception& ex) {
+        std::cout << "hata main fonksiyonunda yakalandi ...\n";
+        std::cout << "exception\n";
+        std::cout << "the address of the exception object is:" << &ex << '\n';       
+    }
+}
+bu şu anlama geliyor, aynı nesneyi göndermiş oluyoruz. Yani catch bloğu içinde gönderilen nesne ile derleyicinin oluşturduğu exception
+nesnesi aynı nesne! Yeni bir kopyalama yapılmıyor, object silicing olmuyor. Sonuca baktığımız zaman adreslerin aynı olduğunu görüyoruz,
+diğer önemli nokta ise bu sefer main içindeki üstteki catch bloğunun exception'ını yakalamasıdır. Çünkü dinamik tür korundu!
+
+O zaman rethrow statement;
+1) yeni bir nesne oluşturulmasını sağlamıyor, eski aynı nesneyi gönderiyor. Aynı exception nesnesine daha yukarıdaki kodların 
+müdahalesini sağlıyor. 
+
+Şuna da dikkat edelim; yaptığımız örneklerde hep standart kütüphanenin exception hiyerarşisini kullandık. Şöyle bir şey olabilirdi:
+catch(NecEx& ex) {
+    ex.add_info();
+    throw;
+}
+catch param. const olmadığına göre ben ex nesnesini de değiştirebilirim. Örneğin bu sınıfın tipik add_info isimli bir fonksiyonu 
+olsaydı ben hatayı yakaladığım yerde add_info fonksiyonunu çağırsaydım. Diyelim ki bu fonksiyon aslında what fonksiyonu gibi bir 
+fonksiyonun döndürdüğü yazıya başka bir yazıyı contanete ediyor olsun. Ondan sonr ada rethrow statement olsaydı bu catch bloğu aldığı 
+exception nesnesini değiştirmiş ama aynı nesneyi yine göndermiş olurdu! Yani bizim örneklerimizde const sınıf türünden referansları 
+yakalamamızın nedeni örneklerimizde o nesneyi değiştirmeye yönelik bir eylemde bulunmamamız. Bu durumda hem o nesneyi değiştirip hem 
+de sonra aynı nesneyi tekrar yukarı gönderebilirim. 
+
+2. çok tipik bir yol var:
+buna popüler olarak exception'ını translate etmek deniyor. Bu da çok sık kullanılan bir yöntem. exception'ını yakalıyor ilgili 
+katmandaki kod, kendisini ilgilendiren daha alt seviyeli bir exception'ını yakalıyor. Ama kendi client'larına kendi interface'ine
+yönelik ayrı bir exception gönderiyor. Bu belki de en tipik senaryolardan biri. 
+Örneğin:
+(bad_alloc operator new fonks. işini yapamaması durumunda gönderilen hata nesnesinin türü)
+örneğin foo fonksiyonu gui interface ile ilgili fonksiyonlardan biri. Yani daha yukarıdaki kodlar gui ile bir iş yaptıkarı için
+bu fonk. çağırmışlar. Şimdi o da bad_alloc'u gönderse pek iyi olmaz onları ilgilendiren  değil ki. Örneğin onları ilgilendiren bir 
+pencerenin belki oluşturulamaması vb. 
+void foo()
+{
+    try {
+        ///
+    }
+    catch(std::bad_alloc) {
+        throw BadGuiComponent{};
+    }
+}
+Bu da çok sık tercih edilen durumlardan biri, exception'ı yakalıyorum ama aynı exception nesnesini göndermek yerine kendi işime/durumuma
+/context'imw göre daha uygun bir exception throw ediyorum. 
+
+Bazen de şu olabiliyor; yaptığım işin kritirliği gereği ne olursa olsun bütün exception'ları yakalamam gerekiyor ama kendime uygun bir 
+exception gönderebiliyorum gibi seçenekler olabilir.
+void foo()
+{
+    try {
+        ///
+    }
+    catch(...) {
+        throw BadGuiComponent{};
+    }
+}
+
+Her zaman seçeneklerden biri de belirli katmandaki bir kodun exception'ı yakalayıp programı sonlandırması da olabilir. Belirli önlemleri 
+alıp programı sonlandırabilir. Çünkü her durumda program çalışmaya devam edecek diye bir şey yok. Örneğin işletim düzeyinde bir problem,
+bellekle ilgili recovery edilemeyecek bir senaryo varsa vb. Tabii her programın sonlanmaya karşı toleransı da aynı değil yani öyle 
+programlar var ki exception throw ederse etsin tekrar çalıştırırım ama bazıları da exception handling mekanizmasını hiç kullanamayabiliriz.
+Örneğin bazı real time sistemlerde bu mekanizma belirli yerlerde hiç kullanılmayabilir. 
+
+exception handling'in programın çalışma zamanı açısından  bir maliyeti var mı?
+Bunu 2' ye ayırmakta fayda var: a) exception gönderilmese de bir maliyeti var mı? Aslında günümüzde yok ya da ihmal edilebilir düzeyde. 
+Ama eskiden böyle değildi, derleyicilerin kullandığı yöntemler/teknolojiler/algoritmalar geliştikçe bu ilave maliyet oluşturmayacak 
+kalitede kod üretebiliyorlar. b) ama şüphesiz exception gönderilmesinin yakalanmasının açık bir şekilde maliyeti var.
+
+
+exception propagate
+exception emit 
+
+void foo()
+{
+    bar(); //throws an exception
+}
+bar fonk. bir exception throw ediyor, eğer bu exception'ını bar'da yakalıyorsanız ve bu exception buradan yukarı çıkmıyorsa yani rethrow
+edilmiyorsa ya da başka bir exception gönderilmiyorsa işte burada local olarak handle edilmiş demek. Bu durumda bar kendi içinde işi 
+hallediyor, foo'yu çağıran bundan etkilenmiyor. Ama burada gönderilen exception a) yakalanamadığı için buradan çıkmış olabilir, 
+b) yakalandığı için buradan tekrar exception gönderilmiş olabilir. İşte burada exception tekrar buradan çıkması yukarı doğru yükselmesi 
+anlamında kullanılan terimler: exception'ın propagate etmesi ya da o exception'ının emit etmesi. 
+
+Burada exception'ını yakalamak mesel değil, örneğin main fonksiyonunu komple try bloğu içine al, bütün exception'ları yakalarsın. Burada önemli olan exception'ının y
+yakalanması durumunda programın sağlıklı bir şekilde çalışmaya devam etmesi. Fonksiyonlar, bu bir üye fonk. olabilir ki çoğunluka bu member func. için bu kavram daha 
+çok önemli. Bir fonksiyonun kodunun çalışması durumunda bir exception throw etmesi söz konusu ise örneğin vector'ün push_back fonk. çağırılıyor, push_back fonk. içinden
+bir exception throw ettiğini düşünelim. Bu durumda ne olabileceği konusundan birkaç tane ihtimal var/hangi güvencelerin verilebileceği konusunda. Bunlarda popüler
+olarak bazı terimler ile ifade ediliyor ve bu terimler aynı zamanda standart kütüphanenin fonksiyonlarının dokümante edilmesinde de kullanılıyor. exception'ının yakalanması
+durumunda bir kerek kabul edilmeyecek senaryolardan biri:
+kaynak sızıntısı, eğer örneğin bir sınıfın bir üye fonk. exception gönderdiğinde o exception yakalandığında bir kaynak sızdırılmış ise bu kesinlikle kabul edilebilir bir 
+durum değil!! Örneğin:
+void func()
+{
+    new Nec;
+    bar(); //throws an exception
+    delete p;
+}
+exception yakalanıcak ama kaynak sızdırılmış olucak. Bu kaynak sızıntısı illa örnekteki gibi bir delete yapılamadı için değil: dinamik ömürlü bir nesne delete edilmediği için,
+bir tane C API'si vardır işte tipik open-close fonk. ya da create-destroy fonk. vardır, open fonk. çağırılmıştır ama close fonk. çağırılmamıştır. Ya da klasik bazı C apilerinde 
+olduğu gibi bir cleanup fonk. vardır o cleanup fonk. çağırılmamıştır exception gönderilmesi ile. Bu kesinlikle kabul edilebilir bir durum değil. Yani böyle bir duruma sebebiyet 
+veriyorsanız programcı olarak 1. dereceden bu durumdan sorumlusunuz. 
+
+Kabul edilebilir minimum senaryoya basic guarantee deniliyor. Yani bir fonksiyon minimal basic guarantee'yi sağlamakla mükellef. Temel garanti(basic guarantee) şudur: exception
+gönderildiğinde hiçbir kaynak sızıntısı olmayacak ve program geçerli bir state'de kalıcak. Bu şu anlama gelir:
+
+örneğin diyelim ki ben bir vector sınıfı yazıyorum.
+Vector::PushBack()
+{
+
+}
+Aşağıda verilen fonk. da benim yadığım vector sınıfının push_back fonksiyonu ve bu bir kaynak sızdırmıyor ama bu garanti yeterli
+değil örneğin buradadan bir exception gönderildiğinde bu exception yakalandığında bizim vector nesnemiz hala hayatta olabilir ki bu fonksiyon içinden exception gönderilmesi
+bu vector nesnesinin hayatının bittiği anlamına gelmez ki. Ama diyelim ki şöyle bir senaryo var, vector'e fiilen eklem yapıldı fakat size fonk. çağırdığım zaman size fonk. ekleme
+yapılmamış gibi bana hala eski size döndürüyor. Yani sınıf nesnesinin state'i artık bozulmuş. Dolayısıyla program geçerli bir state'de değil. Burada çok sık kullanılan terim 
+sınıfın invariant'ları. class invariant'ı şu demek her zaman doğru olması gereken durum örneğin vector'de kaç tane öğe tutuluyorsa size fonksiyonunun geri döndürdüğü değer o 
+değer olmak zorunda. Eğer vector'de 15 tane öğe tutuluyorsa fakat size'ı çağırdığım zaman bana 15 değilde 14 veya fazlasını döndürüyorsa o sınıf nesnesinin invariant'ları bozulmuş 
+demektir. Artık onu kullanmak başka riskler doğrur. Yani program geçerli state'ini korumak zorunda. Hayatı devam eden nesnelerin hepsi kullanılabilir durumda olmak zorunda. Yani 
+onların invariant'ları bozulmamış olmak zorunda. 
+
+
+Dikkat!!!
+Basic guarantee şunu kapsamıyor: diyelim ki push_back fonk. çağırıldı ve push_back fonk. çağırılmadan önce size 10'du ve çağırıldıktan sonra  size 11 oldu. Ve gerçekten de 11 tane 
+nesne tutuyor yani nesne kararlı kullanılabilir durumda ama diyelim ki nesnenin eski değerini state'ini koruma garantisi yok bu olabilir mi? Olabilir! Örneğin bir fonk. çağırıldığında 
+bir dosyaya bir şeyler yaızyor ama normalde 50 tane değer yazması gerekirken 20 tane değeri yazmış fakat kapatılması gerektiği gibi dosyayı kapatmış exception gönderilmiş, program 
+eski state'inde değil çünkü çağırılmadan önce dosyaya o veriler yazılmamıştı fonk. çağırıldı 50 tane değil 20 tane veri yazdı ama herhangi bir şekilde nesnelerin tekrar yeni
+kullanılabilirliği ile ilgili bir problem yok. Bu halen basic guarantee demek. Yani basic guarantee sınıf nesnelerinin kararlı durumunu devam ettirmekle birlikte fonk. çağırılmadan 
+önceki state'i koruma garantisi vermiyor...
+
+Basic guarantee'nin üstündeki garantiye strong guarantee(commit or rollback) deniliyor. commit or rollback ya işini yap ya da işini yapmadan önceki state'i koru demek.  Yani eğer 
+bir fonk. strong garanti veriyorsa o strong garanti veren fonksiyon bir exception throw ederse ya işini yapmış olmak zorunda ya da işini yapmaya başlamadan önceki state'i korumak 
+zorunda. Yani bu bir exception gönderildiğinde de nesnede bir state değişikliği olmayacağı anlamına gelir!! Bu da tipik olarak strong guarantee ya mecburiyet sonucu verebiliyor 
+ya da ilave birtakım maliyet içeriyor. Çünkü nesneyi değiştirmeden önce ayrı bir nesne üstünde birtakım değişiklikleri yapıyorsunuz exception gönderilmediği zaman tipik olarak 
+örneğin bir swap işlemi yapıyorsunuz. O swap işlem, ile artık exception gönderilmeyeceği garanti altında oluyor. Yani nesneyi değiştirmek yerine diyelim ki bir kopya üstünde 
+kısmen bazı işlemleri yaptınız, zaten kopya üstünde işlem yaptığınızda exception gönderilirse sizin nesneniz değeri değişmedi ama exception throw etmezsede bu sefer o değişiklik 
+kalıcı hale getirildi. 
+
+strong guarantee'nin üstünde de olan garantiye: exception göndermeme garantisi var. Yani fonksiyon diyor ki ben exception göndermeme garantisi veriyor. Yani ben diyor fail 
+olmayacağım, yani benden exception gönderilmeme garantisine güvenebilirsin!! Özellikle bu garanti derleyicinin compile time'da yaptığı bazı kod seçimi optimizasyonlarında 
+büyük fayda sağlıyor!!!
