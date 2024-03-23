@@ -1,0 +1,166 @@
+operator overloading 
+Bu arada sırada kullanılan bir araç değil adeta dilin bel kemiğinin oluşturan bir araçtır; başta standart kütüphane olmak üzere 3 parti kütüphanelerden de 
+operatör overloding aracından mekanizmasından oldukça sık faydalanılıyor. Dilin en faydalı araçlarından birinden bahsediyoruz burada.
+
+Bir nesne sadece adres operatörünün sizeof operatörünün veya member selection operatörlerinden olan nokta operatörünün operada olabiliyordu fakat operatör overloding sayesinde 
+sınıf nesnelerini diğer operatörlerin de operanda yapabiliyoruz; toplama operatörünün örneğin karşılaştırma operatörlerinin lojik değil operatörünün mod operatörünün operandı
+yapabiliyoruz. Bu durumda derleyici bir operatörün operandı olan sınıf nesnesi ifadesini bir fonksiyon çağrısına dönüştürüyor 
+yani biz sınıf nesnesini operatörün operandı yaparak bir fonksiyonu çağırmış oluyoruz. İşte operatör overloading bu demek.
+
+Bu mekanizmayı kullanmamız run time yönelik herhangi bir ek yük getirmez çünkü bu mekanizma yine compile time yönelik bir mekanizmadır. 
+
+Primitif türlerde bütün operatörlerin kullanılması oldukça açık ve kompakt bir görünüm sağlıyor ve işi çok kolaylaştırıyor operatör overloading sayesinde 
+sınıf nesnelerinde bu şekilde kullanmamız bizim için oldukça avantaj sağlayan bir durumdur. Operatör overloding konusu standart kütüphanede de oldukça çok kullanılan bir mekanizmadır 
+o yüzden bu konuyu iyi anlamamız oldukça  önemlidir.
+
+
+ Standart kütüphanede operatör overloding olan birkaç örnek inceleyelim:
+
+cout  değişkenini bitsel sola kaydırma operatörünün sol operandı yaparak aslında bir fonksiyonun çağırlmasını sağladık
+
+ #include <iostream>
+
+ int main()
+ {
+    using namespace std;
+
+    int ival{45};
+
+    cout << ival;//
+ }
+
+ String sınıfı, vektör sınıfı türünden nesnelerin köşeli parantezin operatörünün operandı olması arka planda bir fonksiyon çağrısına dönüştürülüyor yani aslında burada 
+ köşeli parantez operator fonksiyonu çağrılıyor.
+
+ #include <iostream>
+
+ int main()
+ {
+    using namespace std;
+
+    string name{"atakan"};
+
+    name[0] = '!';    
+}
+
+Örneğin bir diğer örnekte string nesneleri karşılaştırma operatörünün operandı oluyor aslında burada derleyici bu ifadeyi bir fonksiyon çağrısına dönüştürüyor:
+
+
+ #include <iostream>
+ #include <string>
+
+ int main()
+ {
+    using namespace std;
+
+    string name1{"atakan"};
+    string name2{"aydanur"};
+
+    ///
+
+    if(name1 == name2)
+
+     
+}
+ veya toplama operatörünün dahil edildiği bir operator overloading örneği de olabilir:
+
+ #include <iostream>
+ #include <string>
+
+ int main()
+ {
+    using namespace std;
+
+    string name1{"atakan"};
+    string name2{"aydanur"};
+
+    string surname;
+
+    ///
+
+    if(name1 + name2 + "oglu" == surname)
+     
+}
+
+Yine bir diğer  örnek uniqu_ptr sınıfı olan bir nesne ok operatörünün içerik operatörünün operandı olabiliyor; eğer operatör overloding olmasaydı bu sınıf bir 
+pointer olmadığı için o operatörünün operandı olamazdı:
+
+ #include <iostream>
+ #include <string>
+ #include <memory>
+
+ int main()
+ {
+    using namespace std;
+
+    unique_ptr<string> uptr{new string{"necco"}};
+
+    *uptr = "necati";
+
+    auto len = uptr->size();
+     
+}
+
+Operatör overloding bizim için iki taraflı bir araçtır; 1) kullanıcısı olduğumuz sınıflar var başta standart kütüphanenin sınıfları yani client programcı rolünü oynuyoruz.
+O sınıflar kullanıcısı olduğumuz sınıflar operatörleri overload etmiş o sınıf türünden nesleri operatörlerin operandı yaparak fonksiyonların çağrılmasını sağlıyoruz. 
+Fakat bazen de operatör overlodingi implemente eden programcı olacağız kendimiz bir sınıf oluşturacağız ve bir nedenden dolayı örneğin o sınıf türünden nesnelerin
+ karşılaştırma operatörünün operandı olmasını isteyeceğiz Bu yüzden kendi sınıfımız için popüler  tabiriyle karşılaştırma operatörlerini overload edeceğiz.
+
+
+ Operatör overloding mekanizmasının genel kuralları 
+
+Bu mekanizma ile çağrılan fonksiyonlara operatör fonksiyonu(operator function) denir. Bir operatör fonksiyonu ya bir free fonksiyon ya da non-static member function olmak zorunda.
+
+Sınıfların statik üye fonksiyonları operatör fonksiyonu olamaz!!!
+
+Bir operatörün bu mekanizmadan faydalanabilmesi için operatörün en az bir operandının bir sınıf türünden ya da bir numaralandırma türünden olması gerekir!!!
+
+Olmayan operatörler overload edilemez örneğin c++'da @ operatörü diye bir şey yok, o halde @ operatörünün overload edilmesi diye bir şey olamaz!!!
+
+Dilimizin kurallarına göre overload edilemeyen operatörler vardır yani bütün operatörler overload edilemez dilin kurallarına göre bazı operatörler için operatör fonksiyonu yazılamaz:
+::      scope resolution
+.       member selection .(dot)
+sizeof  
+ternary ? :
+.*      
+
+
+Bu mekanizmanın bize sağladığı avantaj operatörlerin primitif türleri için verdiği çağrışımlardan istifade etmek; böyle bir avantaj 
+yoksa operatörü asla asla asla overlok etmememiz gerekir!!!
+
+overload edilen operatörlerden bazılar:
+->
+*ptr
+[]
+!
+
+Operatör overloding mekanizmasında kullanılan fonksiyonlar keyfi olarak isimlendirilemezler, bu fonksiyonların isimleri şu formata uymak zorundadır:
+İsim operatör keyword'ünü taşıyacak fonksiyon hangi operatöre overload ediyorsa operatör keyword'ünü o operatör token'ı izleyecek ;
+operator+
+operator!
+operator<<
+operator->
+operator%
+operator+=
+operator*=
+operator>>=
+operator-=
+
+İşte bu yüzden sınıfın special number factionlarından biri olan atama operatör fonksiyonunun isminin de operator= olması gerektiğini anladık 
+çünkü onlar da operatör overloading mekanizması'nın bir parçası;
+operator=
+
+ O halde fonksiyonun çağrı operatörünü overload eden fonksiyonun ismi şu şekilde olur:
+ operato()
+
+
+ Bazı operatörler global operatör fonksiyonu olarak overload edilemiyorlar:
+ Aşağıdaki operatörler yalnızca member operator function olabilir:
+ []
+ ->
+ ()
+ =
+ tür dönüştürme operatörleri
+
+Biri hariç hiçbir operatör fonksiyonu varsayılan argüman(default arguman) alamaz!!!
+function call
