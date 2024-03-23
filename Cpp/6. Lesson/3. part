@@ -1,0 +1,176 @@
+Not: sizeof operatöründe türünün uzunluğunu bulmak istaediğimiz ifadeyi parantez içine almak zorunda mıyız?
+Bu sadece sizof operatörüne bir tür ifade olarak gelirse zorunludur. Aksi halde parentez olmadan operand direk yazılabilir:
+sizeof(int) //operand tür olduğu için parantez zorunlu
+double dval = 12.5;
+sizeof dval //operand bir tür olmadığı için (operand dval bir değişken ismi) operanda parantez eklemek zorunlu değildir.
+
+Farklı adres türleri arasındaki dönüşümlere çok ama çok dikkat etmeliyiz. Çünkü dikkatsiz davranma sonucu ub oluşma ihtimali oldukça yüksektir.
+ub olmayan farklı adres türlerinin birbirine atanması:
+int main()
+{
+    double dval{87234.87235};
+    unsigned char *p = (unsigned char*)&dval;
+    for(size_t i = 0; i < sizeof dval; ++i) {
+      
+      printf("%u\n", p[i]);
+    }
+}
+
+int main()
+{
+
+    int x = 10;
+    unsgined int *p = (unsigned int *)&x;
+}
+
+yapı nesnesinin kendi adresi ile yapı nesnesinin ilk elemanının adresi aynı olmak zorundadır. Dolayısıyla aşağıda verilen kod parçacığı ub'ye neden değildir:
+
+struct Nec {
+    int a;
+    double b, c;
+}
+
+int main()
+{
+    Nec neco = {32, 3.4, 7.8};
+    int *iptr = (int *)&neco;
+}
+
+ub'a neden olan farklı adres türlerinin birbirine atanması örneği:
+int main()
+{
+    double dval{87234.87235};
+   int *p = (int *)&dval;
+}
+Yani farklı adres türleri arasındaki dönüşümlere çok ama çok dikkat etmeliyiz.
+
+
+C++'ta c-style-cast dışındaki tüm tür dönüşüm operatörlerinin sentaksı aynıdır:
+xxx_cast<target type>(expr)
+
+
+static_cast
+tam sayı ve gerçek sayı türleri arasındaki dönüşümler bu operatör ile yapılır. Numaralandırma türleri ile tamsayı türleri arasında, tam sayı türleri ile numaralandırma türleri arasında ve farklı enum türleri
+arasında dönüşüm içinde static_cast kullanılmalıdır. Pointer'lardan tam sayı türüne dönüşüm ve pointer'dan pointer'a static_cast ile yapılan tek dönüşüm senaryosu void*'dan diğer pointer türlerine 
+yapılan dönüşüm senaryosudur ( T *'dan void *'a zaten örtülü dönüşüm var!! o sebeple orada tür dönüştürme operatörü kullanılmaz.) 
+
+const_cast                                               
+const T*'dan T *'a yapılan dönüşümlerde veya bazen T *'dan const T *'a (her ne kadar örtülü dönüşüm de olsa) yapılan dönüşümlerde bazen explicit dönüşüm gerekebilir bu durumda const_cast kullanılır.
+
+reinterpret_cast 
+Bir nesneyi sanki farklı türdenmiş gibi yorumlanması gereken durumlarda kullanılır.
+
+dynamic_cast
+Her ne kadar bir tür dönüştürme operatörü olsada bu gruptan tamamen ayrıdır. C'de bir karşılığı yoktur. Çünkü bu operatör kalıtım ile ilgilidir. Programın çalışma zamanında bir nesnenin dinamik türünün 
+belirlenmesine yöneliktir (RTTI (Run Time Type Identification)). Taban sınıftan türemiş sınıfa yapılan dönüşümün güvenli olup olmadığını sınamak için kullanılan bir operatördür. Diğer dönüşüm operatörlerin aksine
+run time yönelik bir dönüşüm compile time yönelik bir dönüşüm değildir.
+
+int main()
+{
+    int i1 = 19, i2{3};
+
+    static_cast<double>(i1) / i2;
+    static_cast<long long>(i1) *i2;
+    //dönüşüm örtülü yapıla 
+}
+
+//dönüşüm örtülü yapılacak fakat narrowing conversion'u kendi isteğim ile yaptığımı belirtmek istediğim bir örnek:
+
+int main()
+{
+    int i1 = 10;
+    double dval{5476.32485};
+    i1 = static_cast<int>(dval);
+    
+}
+
+Birçok kodlama hatası, bug tür dönüşümleri nedeni ile oluyor. C++'ta bulunan bu operatörler olası hataları oldukça azaltmaya yara.
+
+int main()
+{
+    int x{4};
+    reinterpret_cast<char *>(&x);
+    
+}
+
+DİKKAT: Bir defada 2 dönüşüm yoktur. 
+
+int main()
+{
+    int x = 20;
+    const int *cp = &x;
+
+    char *p = reinterpret<char *>(cp); //sentaks hatası hem const hem de int olan bir tür için dönüşüm yapılmaya çalışılıyor.
+    //bunu şu şekilde yapabiliriz:
+    auto p1 = reinterpret_cast<char *>(const_cast<int *>(cp));
+    auto p2 = const_cast<char *>(reinterpret_cast<const char*>(cp));
+}
+
+int main()
+{
+    int x = 10;
+
+    void *vptr = &x;
+    int *p = static_cast<int *>(vptr);
+}
+
+
+C++'ta numaralandırma türleri
+C++'ta modern C++ ile yapılan ekleme ile 2. bir enumaration kategorisi dile eklenmiştir. Buna standartların kullandığı terimle "scoped enums" deniliyor. Popüler olaral "enum class" da deniliyor.
+
+enum class is not a class.
+
+C'den gelen enum'lara "conventional enum's" veya "unscoped enum's" denilmektedir.
+
+unscoped enum's
+enum Color {Blue, Black, Green};
+
+scoped enum's
+enum class Color {Blue, Black, Green};
+scoped enum's'ların dile eklenmesiyle beraber unscoped enum's'ların kullanımı çok çok azalmıştır. Programcıların %98'i scoped enum's'ları kullanır. 
+
+Neden eski enum'lar varken bu yeni enum'lar dile eklendi?
+Eski enum'larada bazı özellikler eklendi,
+scoped enum's dile eklendi. Eklenme nedenini anlamak için eski enum'ların 3 tane önemli problemini anlamamız gerekir:
+1. numaralandırma türlerinden tam sayı türlerine örtülü dönüşümün olması
+enum Color {Blue, Black, Green};
+
+int main()
+{
+    Color myColor{Black};
+    long int x = 2;
+
+    x = myColor;
+}
+2. nerede bir identifier varsa orada bir kapsam vardır. Her ne kadar enum türünde bulunan enumaratörler birer sabit olsada aynı zamanda onlar birer identifier'dır. Dolayısıyla aynı kapsamda aynı isim 
+birden fazla varlığa ilişkin olamaz. Bu çok büyük bir problemdir. Çünkü aynı kaynak koda dahil başlık dosyarında aynı isimde numaralandırma sabiti bulunma ihtimali göz ardı edilemez.
+
+//lib1.h
+enum Color {Blue, Black, Green};
+
+//lib2.h
+enum trafficLight {Red, Yellow, Green};
+
+Bunu önlemek için birkaç tane teknik vardır:
+//lib1.h
+enum Color {Blue, Black, Green};
+
+//lib2.h
+enum trafficLight {trafficLightRed, trafficLightYellow, trafficLightGreen}; şeklinde isimlendirme yapıp çakışma riskini çok aza düşürebiliriz.
+
+
+Bir başka yöntem class scope içine almak bunu C'de de yapabiliriz:
+//lib1.h
+enum Color {Blue, Black, Green};
+
+//lib2.h
+class Traffic {
+
+enum trafficLight {Red, Yellow, Green}; // numaralandırma türünün skobu class oldu
+
+}
+
+Ya da namespace kullanmak.
+
+3. numaralandırma sabitlerinin değerine bağlı olarak underline type'ın(derleyici tarafından kullanılan enumarator sabitinin türünün derleyiciden derleyiciye değişebilmesi) değişebilmesi.
+enum Color {Blue = 762343, Black = 892437, Green = 76234}; numaralandırma sabitlerinin türü derleyiciden derleyiciye değişebilir.
