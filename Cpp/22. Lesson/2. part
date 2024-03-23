@@ -1,0 +1,471 @@
+Sonuç olarak sınıfın static veri elemanını eğer başlık dosyasında class definition içinde tanımlamak istiyorsak ya const static tam sayı türünden olmalı
+ya da C++17 standardı ile inline anahtar sözcüğü ile tanımlanmış static veri elemanı olacak. Aksi halde .cpp dosyasında bir tanıma ihityacımız olucak.
+
+static veri elamanlarının en tipik karşımıza çıkma biçimi özellikle standart kütüphanenin kullanımında sınıfların constexpr static veri elemanları 
+şeklindedir. Çünkü bunlar doğrudan sınıfa ilişkin sabit olarak kullanılmaktadır. Yani C dilinde object like macro'ları kullandığımız yerlerin 
+önemli bir kısmında C++'ta sınıfların constexpr static veri elemanlarını kullanıyoruz. 
+
+örneğin Date isimli bir sınıfın rastgele sayı üreten static bir üye fonksiyonu var fakat üretilen rastgele sınıfın/tarihin en düşük olabileceği yıl
+ya da en yüksek olabileceği yıl birer sabit olsun. Bu da örneğin şöyle bildirilmiş olabilir:
+(constexpr impilictly inline zaten)
+
+//date.h
+class Date {
+
+public:
+    constexpr static int ms_min_year = 1940;
+    constexpr static int ms_max_year = 2020;
+
+};
+
+int main()
+{
+    Date::ms_max_year //bu bir const expr. böylece sabit gereken yerlerde bunu kullanabilirim 
+
+    constexpr auto mean_year = (Date::ms_max_year + Date::ms_min_year) / 2; //ms_max_year ve ms_min_year birer sabit olmasaydı sentaks hatası olurdu 
+                                                                            //çünkü eşittir operatörünün sağında constexpr anahtar sözcüğü vardır
+}
+Dolayısıyla sınıfın veri elemanı pekala bu şekilde bildirilebilir. Herhangi bir client dosya date başlık dosyasını include edip artık bu sabitleri kullanabilir.
+Biz bu veri elemanlarının adres operatörü ile adresini almadığımız sürece derleyici tipik olarak optimizasyon yapar ve bunlara bir bellek alanı alocate etmez.
+Aynı şey static const veri elemanları içinde geçerlidir.
+
+standart kütüphanede constexpr anahtar sözcüğü ile tanımlanmış sınıfların static veri elemanları:
+string sınıfının npos elmanı:
+#include <string>
+
+int main()
+{
+    std::string::npos 
+    //const olduğunu kanıtlamak için contexpr anahtar sözcüğü ile nitelenmiş bir değişkeni bu ifade ile initialize ediyoru:
+    constexpr auto x = std::string::npos;
+
+}
+
+yine iostream başlık dosyasında bulunan ios'un badbit'i, failbit'i, err'i, beg'i , cur'ü, end'i:
+#include <iostream>
+
+int main()
+{
+    std::ios::badbit
+    std::ios::failbit
+    std::ios::err
+    std::ios::beg
+    std::ios::cur
+    std::ios::end
+}
+
+Sınıfların statik üye fonksiyonları 
+
+aşağıda verilen non-static üye fonksiyonun call edilmesi sentaks hatası, çünkü fonksiyonu çağırabilmek için nesne gereklidir hatta bu nesnenin adresi 
+gizli parametreye argüman olarak geçiliyordu(this pointer'ı):
+
+#include <iostream>
+
+class Myclass {
+public:
+    void foo();
+};
+
+int main()
+{
+    Myclass::foo();
+}
+
+sınıfın static üye fonksiyonları ise this pointer'ı olmayan; yani gizli olarak  herhangi bir nesnenin adresini istemeyen görünürde kaç tane parametre değişkeni 
+varsa assembly kodda da aynı sayıda parametresi olan fonksiyondur. 
+
+#include <iostream>
+
+class Myclass {
+public:
+    void foo();//assembly kodda ki karşılığında bir tane parametresi var Myclass * olan
+    static void bar();//bu sınıfın parametre değişkeni yok çünkü static anahtar sözcüğü ile bildirilmiş
+};
+
+static üye fonksiyonları instance için çağırılan fonksiyonlar değildir; doğrudan sınıf için çağırılan fonksiyonlardır. Yani bunların C'deki karşılığı 
+yine global fonksiyonlar ama gizli parametre değişkenleri sınıf türünden pointer yok!
+
+global function                                                                                     
+1)sınıfın private bölümüne friend bildirimi yapılmışsa erişebilir yoksa erişemez!!
+2)gloabl fonk. adı üstünde namespace skopta
+
+static member function
+1)sınıfın private bölümüne erişebilir
+2)class skopta, isim arama kuralları class skopba göre değerlendirilir.
+
+class Myclass {
+public:
+    static void bar();
+};
+
+int main()
+{
+    bar();//sentaks hatası 
+
+    Myclass::bar();
+    Myclass m1 ,m2;
+    Myclass *p;
+
+    m1.bar();
+    m2.bar();
+    p->bar();
+}
+static üye fonksiyonlarının da . ve -> operatörü ile çağırılabilir olması yer yer faydalı olsa da bazen soruna neden olur:
+örneğin 2 fonksiyon ismi birbirine benzer ise yanlışlıkla; non-static member func. çağırmak istediğimiz bir senaryoda static
+member func. çağırabiliriz. Bu durumda instance için işlem yaptığımızı düşünürken sınıf nesnesi için olan static member function'ı
+çağırmış oluruz; ayrıca nesnenin adresi gizli parametreye argüman olarak geçer, fakat static member func. böyle bir parametresi yoktur!
+
+class Myclass {
+public:
+    static void bar();
+    void baz();
+
+};
+
+int main()
+{
+    Myclass mx;
+    mx.bar();//yanlislikla static fun. call edilmis
+    mx.baz();
+}
+
+
+Diğer sınıfın üye fonksiyonlarında olduğu gibi sınıfların static üye fonksiyonları:
+a)inline olarak sınıfın tanımı içinde tanımlanabilir:
+class Myclass {
+public:
+    static void bar()
+    {
+        //.....
+    }
+
+};
+b)static anahtar sözcük ile bildirilebilir, .cpp dosyasında da tanımlanabilir.
+class Myclass {
+public:
+    static void foo(int);
+    static void bar()
+    {
+        //.....
+    }
+
+};
+!!fonksiyonu kaynak dosyada tanımlarken tıpkı static veri elemanlarında olduğu gibi static anahtar sözcüğü kesinlikle kullanılmamalıdır!!
+(kullanılırsa sentaks hatası olur)
+
+//myclass.cpp
+void Myclass::foo(int x)
+{
+    //..
+}
+
+Her ne kadar bazı programcılar tarafından sevilmesede aynı kaynak dosyada aynı parametre sayısına sahip static ve non-staic üye fonksiyonlarının hangisinin
+static olduğunu belirtme amacıyla şöyle bşir macro kullanabiliriz(hocamız da kullananlardan):
+
+//myclass.h
+class Myclass {
+public:
+    void foo(int);
+    static void bar(int x);
+};
+
+//myclass.cpp
+#define STATIC
+
+void Myclass::foo(int x)
+{
+    //...
+}
+
+STATIC void Myclass::bar(int x)
+{
+    //...
+}
+STATIC ÜYE FONKSİYONLAR İÇİN KURALLAR
+
+1)static üye fonksiyon içinde this anahtar sözcüğünü dolayısıyla this pointer'ını kullanamayız çünkü this pointer'ı yok.
+statik üye fonksiyonunun gizli parametresi yoktu, dolayısıyla aşağıda this atanması illegaldir:
+class Myclass {
+
+public:
+    static void foo()
+    {
+        auto p = this; //sentaks hatası
+    }
+
+private:
+    int mx;
+};
+
+2)yine this pointer'ı olmadığından fonksiyon içinde mx'e yani veri elamanına atama yapmak sentaks hatası, bu kimin mx'i?
+non-static'te mx = 5; aslında this->mx = 5; demekti yani fonksiyon hangi nesne için çağırılmışsa onun veri elemanına değer
+atanmış oluyordu.
+
+class Myclass {
+
+public:
+    static void foo()
+    {
+        mx = 5; //sentaks hatası
+    }
+
+private:
+    int mx;
+};
+
+3)non-static üye fonksiyonlarda kullandığımız const anahtar sözcüğünü static fonk. kullanmak sentaks hatasıdır:
+class Myclas {
+
+public:
+    static void foo()const //sentaks hatası
+    {
+
+    }
+private:
+    int mx;
+};
+
+4)aşağıda verilen kod legaldir çünkü veri elamanı static veri elamanıdır const olan non-static üye fonksiyon içinde bunu
+değiştirmem legal çünkü static bunun  this pointer'ı ile bir alakası yok ki, static olmasaydı *this'in mx'ini değiştirmiş 
+olacaktım ve sentaks hatası meydana gelirdi:
+
+class Myclas {
+
+public:
+    void foo()const 
+    {
+        mx = 10;//legal
+    }
+private:
+    static int mx;
+};
+yani sınıfın non-static const üye fonksiyonu sınıfın static veri elemanını tabii ki değiştirebilir. Aksi yönde bir durum yok ise sentak 
+olarakta semantik olarakta uygun bir durumdur.
+
+5)Sınıfın static üye fonksiyonları sınıfın static veri elemanlarını tabii ki kullanabilir,  herhangi bir şekilde nitelenmiş bir isim
+kullanılması mecburi değildir.
+
+class Myclas {
+
+public:
+    static void foo() 
+    {
+        mx = 10;//legal
+    }
+private:
+    static int mx;
+};
+
+6)Aşağıda foo isimli 2 fonksiyonun skoplarının farklı olduğunu unutmayınız; dolayısıyla function overloading yok!!
+
+class Myclas {
+
+public:
+    static int foo();
+private:
+    
+};
+
+void foo(int a);
+
+7)!!mülakatlarda gelen bir soru, name lookup ile ilgili static veri elemanına ilk değer veren ifadeki isim önce class skopta aranır:
+
+#include <iostream>
+
+class Myclass {
+
+public:
+    static int foo()
+    {
+        return 1;
+    }
+    static int x;
+};
+
+int foo()
+{
+    return 99999;
+}
+
+int Myclass::x = foo();
+
+int main()
+{
+    std::cout << Myclass::x << '\n'; //1
+}
+
+unary çözünürlük operatörünü kullanıp global namespace'de aranmasını sağlasaydım değeri 99999 olurdu:
+int Myclass::x = ::foo();
+
+8)aşağıda non-static üye fonksiyonlar inline olarak tanımlandığı için isim arama .cpp dosyasında nasıl yapılıyorsa yine aynı yapılıyor
+dolayısıyla sentaks hatası meydana gelmez:
+
+class Myclass {
+
+public:
+    void foo()
+    {
+        bar();//legal
+    }
+
+    void bar()
+    {
+
+    }
+};
+
+çünkü yukarıda yazılan kod şununla eşdeğerdir:
+
+class Myclass {
+
+public:
+    void foo();
+
+    void bar()
+    {
+
+    }
+};
+
+//myclass.cpp
+
+void Myclass::foo()
+{
+    bar();//legal
+}
+
+aşağıdaki örnekte bar ismi arandğında class skopta olan bar bulunur ve isim arama biter; fakat global olab bar'a yapılan çağrıymış
+gibi parametreye argüman geçilmesi sentaks hatası ile sonuçlanır çünkü name lookup sonucu bulunan sınıfın non-static üye fonksiyonu
+olan bar'ın parametresi yoktur:
+
+void bar(int);
+
+class Myclass {
+
+public:
+    void bar()
+    {
+        mx = 5;
+        foo();
+        func();
+        bar(5);//sentaks hatası
+    }
+
+    int mx ;
+    void foo() {}
+    void func() {}
+
+};
+
+aşağıda verilen örnekte ise global isim sınıf tanımından sonra tanımlandığı için sentaks hatası oluşur çünkü global isim alanında aramak demek
+tanımdan önceki global alan demek diğer türlü zaten dilin kuralına aykırıdır:
+
+class Myclass {
+
+public:
+    void bar() 
+    {
+        g = 10;//sentaks hatası aranan değişken bulunamadı
+        //::g = 10; olsa da sentaks hatası zaten üst satırda da global alanda aradık
+    }
+
+private:
+
+};
+
+int g = 5;
+
+9)aşağıda verilen kod parçasında bar'ın içinde foo'nun çağırılması sentaks hatası ile sonuçlanır, bunun nedeni name lookup değildir,
+name lookup'tan sonra foo(); için de aslında gizli parametre olan this'i argüman olarak alır yani foo bir nesne için çağırılır
+fakat bar'ın böyle bir parametresi olmadığı için sentaks hatası meydana gelir:
+
+class Myclass {
+public:
+    static void bar()
+    {
+        foo(); //sentaks hatası
+    }
+
+    void foo()
+    {
+
+    }
+};
+
+fakat bar şöyle bir tanıma sahip olsaydı legal olurdu:
+
+class Myclass {
+public:
+    static void bar(Myclass m)
+    {
+        Myclass x;
+        m.foo();
+        x.foo(); 
+    }
+
+    void foo()
+    {
+
+    }
+};
+
+
+foo private bölümde alınca da static üye fonksiyon içinde foo'nun çağırılması sentaks hatası olmaz çünkü bar sınıfın static üye fonksiyonudur:
+
+class Myclass {
+public:
+    static void bar(Myclass m)
+    {
+        Myclass x;
+        m.foo();
+        x.foo(); 
+    }
+
+private:
+
+    void foo()
+    {
+
+    }
+};
+
+ 10)Sınıfın static ve non-static üye fonksiyonun aynı imzaya sahip olması geçerli değil:
+//sentaks hatası
+ class Myclass {
+public:
+    void bar();
+    static void bar();
+ };
+ //legal
+ class Myclass {
+public:
+    void bar();
+    static void bar(int);
+ };
+
+
+
+11)Aşağıda static üye fonksiyon private bölüme erişebildiği için private bölümde yer alan converison ctor'a 
+erişebildiğinden sentaks hatası meydana gelmez fakat global bir fonksiyon olan mainde m1 private bölüme erişemediği
+için access control'e takılır ve sentaks hatası meydana gelir.
+
+class Myclass {
+public:
+    static Myclass create(int x) 
+    {
+        return Myclass{x};
+    }
+
+private:
+    Myclass(int);
+ };
+
+ int main()
+ {
+    Myclass m1{4};//sentaks hatası
+
+    auto m2 = Myclass::create(243);
+ }
+Yani sınıfın static  bir üye fonksiyonuna nesne oluşturma görevi verebiliyoruz; ve sınfın ctor/ctorlarını private
+yaparsam bu durumda bu sınıf türünden nesne oluşturmaya bu static üye fonksiyonu çağırma yoluyla yapabiliriz.
+üstelik sınıfın copy ctor'u delete edersem tek yol bu fonksiyonu çağırmak olur.
