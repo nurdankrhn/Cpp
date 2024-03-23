@@ -1,0 +1,247 @@
+Referans semantiği ve Pointer semantiği arasındaki farklar
+
+Bir araç eklenmesiyle, programcının işini kolaylaştıralım cpp dilinin diğer araçları ile uyumu arttıralım. Programcı initialize ederken ne adres operatörünü kullansın ne de dereference etmek zorunda kalsın.
+Değişkenin ismini kullandığı zaman zaten arka planda nesnenin gösterdiği yere ulaşşın, işte bu "referans" semantiği demektir.
+
+
+Referansları şöyle düşünebiliriz:
+
+int main()
+{
+    int x = 10;
+    int* const ptr = &x; // int& r = x;
+}
+
+
+DİKKATTTT: L value referansların R value expression ile initialize edilmeleri sentaks hatası!!!
+Yani bir L value reference değişkeni init eden ifade L value expression değer kategorisinde olmalı.
+int& r = 10; //sentaks hatası
+
+int main()
+{
+	int x = 10;
+ 	int *p{&x};
+
+   	int& r = *p; //geçerli
+
+ 	r = 99; //x'e 99 değeri atandı
+
+}
+
+int main()
+{
+
+
+ 	int x = 7;
+  	int& r1 = x;
+   	int& r2 = r1;
+	int& r3 = r2;
+
+ 	++r1;
+  	++r2;
+   	++r3;
+
+ 	std::cout << "x  = " << x << "\n"; //x=10 yazar
+}
+
+int* türünden bir nesnenin türünden referans tanımı:
+
+int main()
+{
+
+ 	int x = 9;
+  	int *p{&x};
+
+   	int*& r = p; //int* türden p r referansına bağlandı yani r p'ye referans r demek p demek
+
+ 	++*r; //x'in değeri 10 oldu
+}
+
+int main()
+{
+
+	int *p = nullptr;
+
+ 	//ismi r olan referansı p'ye bağlayınız:
+  	int*& r = p; // p'nin türü int* referans dekleratörü de & olduğundan bu şekilde yapılır
+}
+
+
+
+int main()
+{
+	int x = 5;
+
+ 	int *p = &x;
+  	int **ptr = &p;
+   	int**& r = ptr;
+	**r = 99; //x inn değeri 99 oldu
+}
+
+NOT: Operatör bir ifadede olur, ama bir bildirimdeki *, (, [, & gibi tokenlara deklaratör denir.
+int main()
+{
+
+	int x = 10;
+ 	int *p = &x; //buradaki * deklaratör, & ise operatördür.
+  	*p = 15; //buradaki * ise artık bir oparatör statüsündedir.
+}
+
+int main()
+{
+
+	int x = 10;
+ 	double dval{};
+
+  	int& r = dval; //sentaks hatası arka planda yine pointer olduğundan int *'a double türünden bir nesnenin adresini atayamayız!!!
+}
+
+
+5 boyutlu bir int dizimizi (dizinin hepsini gösteren) bir pointer tanımını şu şekilde yapıyorduk:
+
+int main()
+{
+	int a[5] {1, 2, 3, 4, 5};
+ 	int (*p)[5] = &a;
+
+   //soru bu şekilde bir bildirim sentaks hatası mıdır?
+   //int *ptr = *p; hayır çünkü ---> int *ptr = &(*p)[0] demek oluyor!!!
+   //int *ptr = a; deseydim array dikey ile sorunsuz bir kod olacaktı o sebeple sorun yoktur!!
+}
+
+Nasıl diziyi gösteren pointer varsa diziyi bir değişkene referans edecek bir referans değişkeni de vardır:
+int main()
+{
+	int a[5] {1, 2, 3, 4, 5};
+ 	int (&r)[5] = a; // r demek a demek, yani r 5 elemanlı int bir diziye referans
+
+  	for(int i = 0; i < 5; i++) {
+   		printf("%d %d", r[i], a[i]);
+	}
+
+}
+
+
+Dizi pointer'larının ve dizi referanslarının tür eş ismi kullanılması ile daha kolay anlaşılması:
+
+typedef bildirimi için pratik  yol: hangi türe eş isim vericeksek o türden bir değişken tanımlayıp, başına typedef koyun ve değişkenin ismini tür ismi olarak değiştirin.
+Örneğin beş boyutlu dizi türü için bir typedef yapalım:
+
+typedef int inta[5];
+
+int main()
+{
+	int a[5]{1, 2, 3, 4, 5};
+
+	//inta5& r = a;
+	int(&r)[5] = a;
+	inta5* p = &a;
+	//int (*p)[5] = &a;
+}
+
+L value referasnlar ne işe yarıyor??
+call by reference semantiğini daha yüksek düzeyde implemente etmeye yarıyor, yani en çok kullanıldıkları yer fonksiyonların parametre değişkenleri:
+void foo(int& r);
+
+int main()
+{
+	int x = 10;
+	foo(x);
+}
+
+2 değişkenin değerinin birbiriyle yer değiştiren fonksiyonun:
+
+1 pointer ile yapılması:
+
+void iswap(int *p1, int *p2)
+{
+	int temp = *p1;
+	*p1 = *p2;
+	*p2 = temp;
+}
+
+int main()
+{
+
+	int a = 60, b = 30;
+	iswap(&a, &b); //call by reference
+}
+
+2 reference ile yapılması:
+
+void iswap(int& r1, int& r2)
+{
+	int temp = r1;
+	r1 = r2;
+	r2= temp;
+}
+
+int main()
+{
+
+	int a = 60, b = 30;
+	iswap(a, b);
+}
+
+Reference dil katamınında bir kavram yani her 2 kodun assembly karşılığı aynı olup dolayısıyla hızları da aynı olur.
+
+
+Dikkat edilirse fonksiyon bildirimi görülmeden fonskiyon çağrısında çağrılan parameterenin kendisi üzerinde mi yoksa kopyası ile mi çalışıldığı asla bilinemez
+Fonksiyon parametresi T türünden de olabilir, T ref türünden de olabilir!!!!
+Fakat C'de bu net bir şekilde bellidir, çünkü call by reference olanlar çağrıda & operatörünün operandı olarak yer almaktadır.
+
+Referansların en çok kullanıldığı yerler:
+a)Fonksiyon parametresi
+b)Fonskiyon geri dönüş değeri
+
+int g = 50;
+
+int& foo()
+{
+	return g;
+}
+
+
+int main()
+{
+	foo() = 999; //C'de hiçbir zaman fonksiyon çağrı operatörü ile oluşturulmuş bir ifade; atama operatörünün sol operandı olamaz!!! C++ de bu sık kullanılan,
+														//normal bir durumdur
+	//Fonksiyonun geri dönüş değeri L value referans ise fonskiyon çağrı ifadesi de L value expression olur, yani bu fonksiyon hangi nesneyi dönderiyorsa
+	//atama o nesneye yapılır.
+
+	++foo(); //gayet normal
+	
+}
+
+
+Buradan şöyle bir sonuç çıkıyor: Fonskiyonun geri dönüş değeri referans türü değilse, bu fonksiyona yapılan çağrı ifadesi bir PR value expression'dır.
+Fakat fonskiyonun geri dönüş değeri bir L value referans ise bu fonksiyona yapılan çağrı ifadesi artık bir L value expression'dır yani ++, =, & vb operatörlerin 
+operandı olabilir çünkü bir nesneye karşılık geliyor.
+
+
+ DİKKATTT: Otomatik ömürlü nesnenin adresini döndürmek dangling pointer'dır ve ub'dir.
+
+int* foo()
+{
+	int x;
+	scanf("%d", &x);
+	return &x; //dangling pointer
+}
+Eğer bu değişken statik ömürlü bir nesne olsaydı tanımsız bir davranış olmazdı:
+
+int* foo()
+{
+	static int x;
+	scanf("%d", &x);
+	return &x; //statik ömürlü gayet normal
+}
+
+Veya mallocla dinamik olarak tahsis ettiğimiz değişken adresini de return etmemiz ub olmazdı.
+
+Yine string literalleri de statik ömürlü olduğundan fonksiyon geri dönüşünde kullanılabilir:
+
+const char* foo(void)
+{
+	//code
+	return "myString";
+}
