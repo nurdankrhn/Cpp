@@ -1,0 +1,131 @@
+
+Olabilicek en yüksek garantinin no throw garanti olduğunu söyledik. Yani fonksiyon diyor ki ben exception throw etmeyeceğim. no throw garanti son derece önemli bir garanti 
+dilin sentaksı ile de 1. derecede ilgilidir. no throw garantisi eski C++ ile modern C++ arasında sentaks açısından ciddi bir farklılık oluşturdu. 
+
+eski C++'ta no throw garantisi nasıl yapılırdı?
+eski sentaksta exception specification vardı, exception specification: exception specification bir fonksiyonun bildiriminde ya da tanımında fonksiyonun exception gönderme 
+ihtimali olup olmadığını değil sadece exception gönderilicekse hangi tür ya da türlerden exception gönderilebiliceğinin bildirimiydi. Hem sınıfların static/non-static üye 
+fonksiyonları hem de   global fonksiyonlar tarafından kullanılabilir bir bildirimdi. Sentaks ise şöyleydi:
+void func(int x);
+eğer fonksiyonun bildiriminde herhangi bir şekilde birazdan ele alacağımız sentaks üyesi bulunmazsa bu fonk. herhangi türden bir exception gönderebiliceği anlamına geliyor demek. 
+
+eğer fonksiyonun exception gönderme ihtimali bildiriliyorsa throw keyword'den sonra bir parantez yer alıyordu, bu parantezin içinde comma seperated list yani virgüllerle 
+ayrılmış liste ile bu fonksiyonun gönderebileceği exception türleri listeleniyordu:
+void func(int x) throw(std::bad_alloc, std::out_of_range); 
+o halde eskiden bu bildirim func fonk. bad_alloc ya da out_of_range throw edebiliceği anlamına geliyordu. 
+
+Fakat  bu parantezin içini boş bırakmak bu fonksiyonun exception throw etmediği garantisini veriyordu:
+void func(int x) throw();
+yani no throw garanti bu şekilde bildiriliyordu. Bu sentaksları legacy kodlarla uğraşmadığımız sürece kullanamayacağız!!
+Burada eğer bu garanti çiğnenirse örneğin exception throw etmeme garantisi vermesine rağmen run time'da exception throw ederse ismi unexpected exception denililen exception meydana 
+gelir. Ve bu durumda stadart kütüphanenin std::unexpected isimli fonksiyonu çağırılıyordu. unexpected fonksiyonunun default davranışı vardı ve bu yine terminate fonksiyonunu 
+çağırmaktı. terminate'ın default davranışı ise bildiğimiz gibi abort fonk. çağırmak. Ama unexpected'ın default davranışını değiştirmek için çağırılan fonk. adı ise set_unexpected'dır.
+
+Artık bu exception specification sentaksı geçerli değil yani önce deprecate edildi sonra dilden kaldırıldı. O halde günümüzdeki sentaksı inceleyelim:
+
+Modern C++ ile dile yeni bir anahtar sözcük eklendi: noexcept
+Öncelikle noexcept 2 ayrı görevde:
+1)noexcept specifier'ı var birde,
+2)noexcept diye bir operator var. 
+
+1)noexcept specifier
+Fonksiyonun bildiriminde bu yine bir sınıfın member function'ı olabilir ya da bir free/global function olabilir. Sentaks her ikisi de geçerli. Örneğin foo isimli fonksiyonu bildirelim:
+void foo(int)noexcept; buraya noexcept specifier'ını koymak açık ve net bu fonksiyon exception throw etmeme garantisi veriyor demek. Bunun eski sentakstaki karşılığı ise şudur:
+void foo(int) throw(); Bu yeni sentaks dilin bundan sonra öğreneceğimiz bazı başka araçların sentaksında da çok önem taşıyacak: örneğin lambda kütüphanelerinde
+
+what fonksiyonundan bahsederken exception sınıfının şöyle bir üye fonksiyonu olduğunu söylemiştik:
+virtual const char* what()const noexcept; demek ki what fonk. exception throw etmeme garantisi veriyormuş. noexcept anahtar sözcüğü imzanın bir parçasıdır ama orada bir rezerv var.
+İmzanın bir parçası olduğu için noexcept hem bildirimde hem de tanımda olmalıdır!!!! 
+
+noexcept specifier'ının 2. bir kullanım biçimi daha var:
+void func()noexcept(); ----> noexcept parantezi içine bir compile time constant expression koyarsak bu durumda noexcept'i izleyen parantezin içindeki ifade compile time'da evaluate 
+ediliyor, zaten eğer ki sabit ifadesi değilse sentaks hatası meydana gelicek. Eğer bu ifade true ise o zaman noexcept garantisi vermiş oluyor. Fakat bu ifade false ise no throw
+garantisi vermemiş oluyor:
+void func()noexcept(sizeof(int) > 2);
+Bu şu demek eğer bu ifade true ise o zaman no throw garantisi veriyor fakat bu ifade  false ise no throw garantisi vermemiş oluyor. Yani fonksiyonu şöyle bildirmek ile
+void func()noexcept; şöyle bildirmek
+void func()noexcept(true); parantez içine true sabitini yazmak arasında hiçbir fark yoktur. Bu özellikle generic programlama paradigmasında önem kazanıcak. Biz o parantezin içine 
+öyle bir compile time expression yazacağız ki bunun true ya da false olduğu compile time'da derleyici tarafından derleme zamanında değerlendirilecek. 
+
+void func()noexcept(false); yazmak ile 
+void func(); eş değerdir. 
+
+Burada yine çok kritik bir kural var: bir fonksiyon noexcept garantisi vermiş olsun:
+void foo()noexcept; 
+Peki bu fonksiyon run time'da çalışırken exception throw ederse ne olur?
+terminate fonksiyonu çağırılır. Bu çok önemli bir kuraldır!!! Eğer no throw garantisi veren bir fonksiyon run time'da kodu çalışırken exception throw ederse o zaman terminate 
+fonksiyonu çağırılır. Diikat, exception throw ederse o exception'ını yakalama şansımız yok!! exception yakalanamadığı için terminate fonksiyonu çağırılır demiyoruz, doğrudan
+exception throw etmesinin kendisi terminate fonksiyonun çağırlmasına neden oluyor!
+#include <exception>
+#include <iostream>
+
+void bar()
+{
+    throw std::runtime_error{ "hata hata hata!!!!" };
+}
+
+//main.h
+void foo()noexcept;
+
+
+//main.cpp
+void foo()noexcept
+{
+    bar();
+}
+
+int main()
+{
+    try {
+        foo();
+    }
+
+    catch(const std::exception& ex) {
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+}
+foo çağırıldı, foo bar'ı çağırdı bar exception throw etti dolayısıyla foo'nun no  throw garantisi run time'da çiğnenmiş oldu. 
+Soru 1: bu compile time yönelik bir hata mı? Hayır yani böyle bir senaryo compile time'da saptanamaz. run time'da ise catch bloğu tarafından yakalanamaz; terminate fonk. çağırılır. 
+Çünkü eğer noexcept olarak bildirilen bir fonk. run time'da çağırıldığında exception throw ederse ve bu exception fonksiyondan sızarsa bu durumda yine terminate çağırılıyor!!
+
+Dolayısıyla no except garantisi veriyorsak dikkatli olmalıyız!! Yani yukarıdaki örnekte olduğu gibi gidip başka fonksiyon(lar) çağırıyorsanız, onların exception throw etme ihtimali
+yok diye düşünüyorsanız ama onlardan herhangi biri exception throw ediyorsa program çöker, terminate fonk. çağırılacak!!! Bundan biz sorumlu oluruz!!!
+
+
+
+2)noexcept operator
+noexcept aynı zamanda bir operator. noexcept operator'ü herhangi bir yerde herhangi bir context'te kullanılabilir. noexcept operator'ü şöyle bir operator:
+noexcept(expr); parantez içindeki ifade compile time'da ele alınıyor. Ve bu ifadenin yürütülmesi durumunda bir exception throw etmeme garantisi varsa noexcept
+operator'ü true değer üretiyor. Aksi halde false değer üretiyor. Örneğin:
+
+int main()
+{
+    int x = 10;
+    noexcept( x + 5 );
+}
+x + 5 ifadesinin exception throw etme ihtimali yok, o zaman noexcept(x + 5); true sabiti'dir, türü bool'dur. Hiçbir zaman primitive türlerle yapılan işlemler bir exception throw etmez. 
+O halde noexcept operator'ü:
+a) boolean türden bir değer üreten operator'dür. 
+b) noexcept operator'ü ile oluşturulan ifade bir constant expression'dur. O halde aşağıdaki örnekte sentaks hatası oluşur mu?
+
+int main()
+{
+    int x = 10;
+    constexpr bool b = noexcept( x + 5 );
+}
+sentaks hatası yok, çünkü constexpr anahtar sözcüğü ile tanımlanan bir değişkene ancak ve ancak bir constant expr. ile ilk değer verebilirim. Eğer noexcept bir constant expr. 
+olmasaydı derleyici b değişkeninin tanımı için bize sentaks hatası verirdi. 
+
+Örnek:
+
+class Myclass {};
+
+void func()noexcept(noexcept(Myclass{}));
+Sizce bu kod ne anlama geliyor, kodu ayrıştırınız?
+void func()noexcept kısmındaki noexcept, noexcept specifier öte yandan (noexcept(Myclass{})); içindeki noexcept, noexcept operator'üdür. O halde böyle bir bildirim şu anlama 
+gelir, (noexcept(Myclass{})); olan noexcept operator'ü true değer üretirse func fonksiyonu no throw garantisi vermiş olucak. Ama false değer üretirse func fonksiyonu
+exception throw etmeme garantisi vermemiş olucak. Çünkü parantez içi false değer ürettiği için. (noexcept(Myclass{})); olan noexcept operator'ünün ifadesi olan Myclass{} ise 
+Myclass sınıfı türünden bir geçici nesne ifadesidir. Myclass sınıfı türünden geçici nesneyi oluşturmak için sınıfın default ctor'ının çağırılması gerekir. Peki Myclass sınıfının 
+default ctor'ı exception throw etmeme garantisi veriyor mu? İlerleyen derste göreceğiz, evet veriyor. O zaman (noexcept(Myclass{})); true değer üretir. O halde func fonk. 
+exception throw etmeme garantisi veriyor. Ama Myclass sınıfının default ctor'ı exception throw etmeme garantisi vermiyor olsaysı (noexcept(Myclass{})); false olucaktı. Bu şu demek,
+func fonksiyonunun exception throw edip etmeme garantisi verip vermediği Myclass sınıfının default ctor'ının exception throw etmeme garantisi verip vermemesine bağlı oluyor. 
