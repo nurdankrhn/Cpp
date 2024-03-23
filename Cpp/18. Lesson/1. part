@@ -1,0 +1,340 @@
+20 Şubat 2023 - Pazartesi 18. Ders Günü
+
+Eğer otomatik ömürlü bir değişkenimiz varsa ve fonksiyonun return ifadesi otomatik ömürlü (L value expr. olsa dahi) ise bunun için copy ctor çağırılmalıyıdı;
+çünkü L value expr'ydi fakat burada özel bir dönüşüm yapılıyor ve L value expr X value expr.'ye dönüştürülüyor ondan sonra aktarım yapılıyor.
+
+Bu da şu anlama gelir; otomatik ömürlü bir nesne döndüren fonksiyonlar için bu tür durumlarda move ctor veya move assigment çağırılması anlamnına gelir.
+class Myclass
+{
+private:
+    /* data */
+public:
+    Myclass(const Myclass&) = default;
+    Myclass(Myclass&&) = default;
+    Myclass();
+
+    Myclass& operator=(const Myclass&)
+    {
+        std::cout << "copy assigment\n";
+        return *this;
+    }
+
+    Myclass& operator=(Myclass&&)
+    {
+        std::cout << "move assigment\n";
+        return *this;
+    }
+};
+
+Myclass foo()
+{
+    Myclass x;
+    //
+    return x;
+}
+
+int main()
+{
+    Myclass x;
+    
+    x = foo(); ---> çıktı olarak move assigment yazısı çıkar
+}
+
+Bu çok önemli çünkü programcı bunu bilmediğinde foo fonksiyonunda taşıma semantiği desteklensin diye şöyle bir müdahale yapmasına neden olur:
+
+Myclass foo()
+{
+    Myclass x;
+    //
+    return std::move(x);
+}
+bunun negatif etki yapacağı senaryolar vardır; böyle bir şey asla asla yapmamalıyız. Böyle bir R value cast'e pessimistic move deniliyor.
+
+Özellikle move-only type'lar için bu çok çok önemli: 
+int main()
+{
+    using namespace std;
+
+    unique_ptr<int> up1{new int};
+    auto up2 = up1;//sentaks hatası sınıfın copy ctor'ı delete edilmiş
+    unique_ptr<int> up3{new int};
+    up3 = up1;//sentaks hatası sınıfın copy assiment'ı delete edilmiş
+}
+örneğin bir fonksiyonun unique_ptr sınıfı türünden bir nesne döndürdüğünü düşünelim.
+Bu sınıfın copy member'ları delete edilmiş çünkü move-only type'dır.
+
+std::unique_ptr<int> foo()
+{
+    unique_ptr<int> up1{new int};
+
+    return up1;//up sol taraf değeri olmasına rağmen return ifadesine operand olunca örtülü bir dönüşüm oluyor ve X value expr.'ye cast ediliyor. 
+            //böylece L value expr. için copy assigment yerine move assigment çağırılır böylece move only type sınıfı olan unique_ptr'ı fonksiyonun
+            //tanımında sentaks hatası meydana gelmeden kullanabildik
+
+}
+Yani bir fonksiyon  doğrudan otomatik ömürlü move only type türünden bir nesneyi döndürebilir.
+
+Örneğin ofstream sınıfı da move-only bir type fakat az önce bahsettiğimiz nedenden dolayı bir fonksiyonun bu türden bir yerel geri dönüş değeri olabilir:
+
+#include <iostream>
+#include <fstream>
+
+std::ofstream creta_text_file(const std::string& file_name)
+{
+    std::ofstream ofs{file_name};
+
+    if(!ofs) {
+        throw std::runtime_error{file_name + "cannot be created!"};
+    }
+
+    return ofs;//asla asla return std::move(ofs) yazmayın!!!
+}
+
+int main()
+{
+    auto fs = creta_text_file("ali.txt");
+}
+
+std::move'u kullanacağımız senaryolar için konuşmuştuk; bunu kullanacağımız senaryolar örneğin;
+bir fonksiyon yazmak istiyoruz fakat bu L value ve R value için farklı çalışacak L value için  kopyalama R value için ise taşıma yapmasını 
+istediğimiz senaryolarda std::move'u kullanırız:
+void func(const std::string& s)//L value olalar bu fonksiyona gelir
+{
+    auto sc = s; //s L value expr. olduğundan sc için copy ctor çağırılır
+}
+
+void func( std::string&& s)//R value olalar bu fonksiyona gelir
+{
+    auto sc = std::move(s); //s L value expr. fakat std::move(s) ile R value expr. olduğundan sc için move ctor çağırılır
+}
+
+ Fonksiyon bloğu içinde move ctor/assigment veya copy ctor/assigment çağrısına neden olucak ifadeler olmalıdır. Örnerğin aşağıdaki kod
+ parçasında kaynak çalınmış mıdır? sorusunun cevabı HAYIR'dır:
+ #include <iostream>
+
+ void func(std::string&& s)
+ {
+        //blok içi boş taşımaya neden olucak herhangi bir ifade yok
+ }
+
+ int main()
+ {
+    std::string (10'000, 'A');
+    func(std::move(str));//taşıma yok--> move doesn't move
+ }
+
+ taşıma olması için fonksiyon kodu bu şekilde yazılmalıdır:
+ 
+ void func(std::string&& s)
+ {
+        std::string str = std::move(s); 
+        //veya atama yaparız move assigment çağırılır.
+
+}
+
+void foo(std::string s);
+void bar(const std::string& s);
+
+int main()
+{
+    std::string str(100'000, 'a');
+
+    foo(str);//fonksiyon parametresi için copy ctor çağırılır
+    bar(str);//fonk. parametresi için ne copy ctor ne de başka bir şey çağrılır çünkü burada olan refarans semantiği yani arka planda pointerlar var 
+}
+Bu iki fonksiyon arasında hocamız tabii ki bar isimli fonksiyon tanımını/bildirimini öneriyor.
+
+Fakat örneğin bar fonksiyonu içinde string olarak alınan nesnenin kopyalaması gereken bir durum örneğin yazının tersini bulup onu kullanmamızın gerekli olduğu 
+bir durum olduğunu düşünelim:
+
+#include <iostream>
+#include <algorithm> //reverse func. bu başlık dosyasında
+
+
+void foo(std::string s)
+{
+    reverse(s.begin(), s.end());//burada kopyalamaya gerek kalmadan direk parametre değişkeni reverse ettik
+                                //çünkü parametre değişkeni diğer nesnenin kendsi değil ki zaten
+}
+void bar(const std::string& s)
+{
+    auto sc = s;//s nesnenin kendisi olduğu için tersleme işlemi için yeni bir nesne tanımladık ve kopyalama gerçekleştirildi
+    reverse(sc.begin(), sc.end()); 
+}
+örneğin bar'ı şu şekilde call etseydim:
+int main()
+{
+    const char *p;
+    bar(ptr);
+}
+burada bir geçici nesne oluşturulacaktı, fonksiyonun parametresi bu geçici nesneye referans olucaktı ve onun bir daha kopyası
+alınacaktı yani iki kere kopyalamaya neden olur.
+
+O halde böyle bir durumda foo tarzında olan fonksiyonu yazmak daha mantıklı olur.
+
+class Person {
+public:
+    //Person(const std::string &adr): m_addr{adr} {}//1
+    Person(std::string adr) : m_address {std::move(adr)} {}//2
+private:
+    std::string m_address;
+};
+
+int main()
+{
+    std::string x;
+    //
+    Person per(x);
+}
+
+Person per(x); ifadesi için 1. ctor çağırılırsa  sol taraf referansına bağlanmış olacaktı, burada bir kopyalama yok
+fakat parametreden veri elemanına bir kopyalama olurdu copy ctor çağırılırdı. 2. ctor çağırıldığında ise argümandan fonksiyon parametresine
+kopyalama copy ctor varken parametreden sınıfın veri elemanına taşıma move ctor olur. Fakat eğer çağırılma PR value expr. ile yapılırsa
+2. ctor'da argümandan parametreye doğrudan copy elision olurken parametreden sınıfın veri elmanına taşıma yapılırdı yani copy ctor
+yok çünkü copy elision + taşıma ile sonuçlanır. 1. ctor çağırılsaydı referansa aktarılması için fiilen bir geçici nesne oluşturup
+ve parametreden sınıfın veri elemanına aktarım için kopyalama gerekicek yani bu şartlar altında 2. ctor daha avantajlıdır ve genellikle
+tercih edilen bildirim de budur. yani eğer ki   fonksiyon parametresi string ise ve veri elemanına  initialize edilecek ise programcıların
+artık çoğunlukla tercihi 2. ctor olmalı yani parametreyi const string referans yapmak yerine doğrudan  string türünden yapıyorlar.
+
+
+reference qualifiers 
+Modern C++ ile dile eklenen bir özelliktir. 
+Bir üye fonksiyonun sadece L value expr. olan sınıf nesneleri için çağırılmasını yolu reference qualifiers'dır. Sentaks olarak fonksiyon parametre parantezinin kapanmasınıdan 
+sonra & dekleratörünü yazarak reference qualifiers sentaksını sağlamış oluruz:
+//reference qualifier
+class Myclass{
+public:
+    void set()&;//artık sadece L value'lar için çağırılabilir
+};
+
+int main()
+{
+    Myclass m;
+
+    m.set();
+
+    Myclass{}.set();//sentaks hatası
+
+    std::move(m).set();//sentaks hatası
+}
+
+Özellikle atama operatörü için oldukça önemli:
+Örneğin aşağıda geçici nesneye atama yapılmıştır ve bu oldukça anlamsızdır:
+
+class Myclass{
+public:
+    void set();
+    Myclass& operator=(const Myclass&);//derleyicinin bildirdiği operator eşittir fonks.
+};
+
+int main()
+{
+    Myclass x, y;
+
+    Myclass{} = y;//geçici nesneye y'nin değeri atandı anlamsız 
+    Myclass{}.set();//geçici nesneye değerinin değişmesini sağlayacak set fonksiyonu çağrısı yapıldı, anlamsız
+    Myclass{}.operaor=(y);//geçici nesneye y'nin değeri atandı anlamsız 
+}
+Burada yapılan atamalar mantıksız olmasına rağmen legaldir bunun nedeni derleyicinin yazıdığı operator eşittir
+fonksiyonun R value expr.'yide argüman olarak kabül etmesinden kaynaklanır eğer ki reference qualifiers yaparsak
+artık R value expr. ile fonksiyona yapılan çağrılar sentaks hatası meydana getirir:
+
+class Myclass{
+public:
+    void set();
+    Myclass& operator=(const Myclass&)&;
+};
+
+int main()
+{
+    Myclass x, y;
+
+    Myclass{} = y;//sentaks hatası
+    Myclass{}.set();//sentaks hatası 
+    Myclass{}.operaor=(y);//sentaks hatası
+}
+
+Modern C++'ta bunu yapmak için operator atama fonksiyonunu şu şekilde de tanımlayabiliriz:
+derleyiciden tanımlamasını istedim fakat R value expr.'ye atama yapılmasını istemediğim için reference qualifiers'ı ekleyip sonradan default bildirimi 
+ile default ediyorum:
+class Myclass{
+public:
+    Myclass& operator=(const Myclass&)& = default;
+};
+
+int main()
+{
+    Myclass mx;
+
+    Myclass{} = mx;//sentaks hatası
+}
+
+L value reference qualifiers olduğu gibi R value qualifiers'da vardır.
+
+class Myclass{
+public:
+    void foo()&; //only for L value objects
+    void foo()&&; //only for R value objects
+};
+
+int main()
+{
+    Myclass m;
+
+    m.bar();//sentaks hatası
+
+    Myclass{}.foo();//sentaks hatası
+
+    Myclass{}.bar();
+}
+
+Bir sınıfın non-static üye fonksiyonu farklı reference qualifiers ile overload edilebilir:
+class Myclass{
+public:
+    void foo()&
+    {
+        std::cout << "foo for L values\n";
+    }
+    void foo()&&
+    {
+         std::cout << "foo for R values\n";
+    }
+};
+
+int main()
+{
+    Myclass m;
+
+    m.foo();
+
+    Myclass{}.foo();
+}
+
+bu fonksiyonlar const parametreli de olabilir
+class Myclass{
+public:
+        void foo()const &
+    {
+        std::cout << "foo for const L values\n";
+    }
+    void foo()&
+    {
+        std::cout << "foo for L values\n";
+    }
+    void foo()&&
+    {
+         std::cout << "foo for R values\n";
+    }
+};
+
+int main()
+{
+    Myclass m;
+
+    const Myclass cm;
+
+    m.foo();
+    cm.foo();
+
+    Myclass{}.foo();
+}
