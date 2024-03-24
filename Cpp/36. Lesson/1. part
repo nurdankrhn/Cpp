@@ -1,6 +1,6 @@
 10 Nisan 2023 - Pazartesi
 
-Bir fonksiyon no throw garantisi vermek için yani exception göndermemek için ister sınıfın static/non-static üye fonksiyonu ister bir global/free function olsun
+Bir fonksiyon no throw garantisi vermesi için yani exception göndermemek için ister sınıfın static/non-static üye fonksiyonu ister bir global/free function olsun
 bildiriminde noexcept keyword'ünü içeriyor. 
 void foo(int)noexcept;
 Burada ki noexcept imzanın bir parçası! Dikkat imzanın bir parçası ama overloading amaçlı kullanılamıyor!! Yani örneğin:
