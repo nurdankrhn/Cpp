@@ -1,0 +1,204 @@
+10 Nisan 2023 - Pazartesi
+
+Bir fonksiyon no throw garantisi vermek için yani exception göndermemek için ister sınıfın static/non-static üye fonksiyonu ister bir global/free function olsun
+bildiriminde noexcept keyword'ünü içeriyor. 
+void foo(int)noexcept;
+Burada ki noexcept imzanın bir parçası! Dikkat imzanın bir parçası ama overloading amaçlı kullanılamıyor!! Yani örneğin:
+void foo(int)noexcept;
+void foo(int);
+noexcept olup olmamasına bağlı olarak bir fonksiyonu overload edemiyorsunuz. Örneğin yukarıdaki gibi 2 bildirim birbiri ile çelişkli olduğundan sentaks hatası oluşturucak.
+
+buradaki anlamda noexcept, bu fonk. exception throw etmeme garantisi veriyor demek. Yani bu fonksiyona çağrı yaptığımız da eminiz ki bu fonksiyon exception throw etmeyecek.
+Eğer bu run time'da çiğnenirse std::terminate çağırılıcak. Bu da şu anlama gelir, bir fonksiyonu noexcept yapıcaksanız no throw garantisi vericekseniz çok dikkatli olmanız 
+gerekir, bunun altında kalmamalısınız. Çünkü terminate çağırılıcak, düzeltme şansı kalmıyor!! Dolayısıyla öyle olur olmaz fonksiyonları kimi neyi çağrıdığını bilmediğimiz 
+fonksiyonları noexcept belirleyicisiyle bildirmemeliyiz.
+
+exception throw etmemeye aday, exception throw etmemesi gereken hatta dilin sentaks kurallarında dahilinde biri zaten bu garantiyi her zaman veriyor. Ki bu sınıfların dtor'ı
+ama bazı fonksiyonlarda var ki noexcept olması gerekiyor. Yani olağan dışı bir durum söz konusu değilse zaten bazı fonksiyon gruplarının exception throw etmeme garantisi
+vermesi gerekiyor. 
+
+//noexcept garantisi verenler
+void foo(int)noexcept;
+void foo(int)noexcept(true);
+
+//exception throw edebilir olarak bildirilenler(noexcept garantisi vermeyenler)
+void bar(int);
+void  bar(int)noexcept(false);
+
+Bir de noexcept operator'ü vardı:
+noexcept operator'ü bir compile time ifadesi oluşturuyor: noexcept(expr.); parantez içine  yazılan ifadenin yürütülmesi bir exception throw etme ihtimali doğuruyorsa o zaman compile 
+time'da false değeri üretir. Anca parantez içindeki ifadenin yürütülmesi exception throw etme ihtimali doğurmuyorsa o zaman true değer üretir. 
+1)noexcept(expr.); bir sabit ifadesi mi? Evet 
+2) Bu sabit ifadesinin türü ne? boolean
+3)Bu sabit ifadesinin türü ne? it depends, parantez içindeki ifadenin yürütülmesi ile bir exception throw edip etmeme ihtimaline bağlı. false ya da true olur. 
+
+noexcept(expr.) ifadesinin bir sabit ifadesi olduğunu kanıtlayan örnek:
+int main()
+{
+    int x = 10, y = 4;
+
+    constexpr auto b = noexcept(x / y);
+}
+çünkü sabit ifadesi olmasaydı bu durumda constexpr değişkene ilk değer veren ifade sabit ifadesi olmazsa sentaks hatası olur. Ama sentaks hatası olmadığını görüyoruz. 
+
+
+noexcept operator'ü unevaluated context oluşturuyor. 
+
+unevaluated context: öyle yerler var ki biz bir ifade kullandığımızda derleyici o ifade için bir işlem kodu üretmiyor. Derleyicinin o ifade için bir işlem kodu üretmemesi 
+bize 2 tane garanti veriyor:
+1) side effect olmayacak
+2) o ifade yürütülseydi ub olurdu dediğimiz senaryoda ub olmayacak. Örnek: typeid operator, sizeof operator, noexcept operator ve decltype!!
+
+#include <iostream>
+
+int main()
+{
+        int x = 10, y = 4;
+
+    constexpr auto b = noexcept(x++ / y++);
+
+    std::cout << "x:" << x << '\n'; //10
+    std::cout << "y:" << y << '\n'; //4
+}
+kodu çalıştırdığımız zaman x ve y'nin değerlerinin değişmediğini göreceğiz. Dolayısıyla noexcept operator'ü içindeki ifadeler ub örneğin null pointer dereferencing, diziyi taşırma 
+ifadeleri olsaydı ub olmayacaktı! Çünkü derleyici noexcept operator'ünün operandı olan ifade için işlem kodu üretmiyor.
+
+Bazı dillerde 0'a bölme exception throw etse de C++'ta tam sayı işlemleri asla exception throw etmez!! 
+int main()
+{
+    x / y
+}
+exception throw edilebilmesi için ya C++'ın bazı ifadelerinin kullanılması gerekiyor ya da C++'ın standart kütüphanesinin bir fonksiyonunun çağırılması gerekiyor. Yani
+standart kütüphane tarafında ya da çağırdığınız bir fonksiyonu fiilen exception throw etmesi gerekiyor. Yani artimetik işlemler vb. normal durumda exception throw etmez. 
+
+noexcept operator'ünün aslında generic programlama tarafını ele aldığımız zaman asıl kullanım fikrinin şu olduğunu göreceğinin şöylemiştik:
+template <typename T>
+void foo(T)noexcept; //exception throw etmiyor demek fakat bunun yerine şöyle yaparsam:
+
+template <typename T>
+void foo(T)noexcept(noexcept(??)); noexcept operator'ünün operandı olan ifadede T türünün bir niteliğini yazarsam o zaman bu fonksiyon bildirimi conditional olarak bu ifadeye 
+bağlı olarak compile time'da T türünün ne olduğuna bağlı olarak exception throw etmeme garantisi vericek ya da vermeyecek. Örneğin ifade için şunu yazabilirim: T türünün copy 
+ctor'ı/move ctor'ı eğer exception throw etmeme garantisi veriyorsa benim fonksiyonumda exception throw etmeme garantisi veriyor. O zaman operan olan ifade için öyle bir ifade
+yazmalıyım ki a) bu compile time expression olmalı, b) compile time'da bu expression T'nin ne olduğuna bağlı olarak örneğin T Myclass isimli bir sınıf olacaksa buna template
+argümanı deniliyor; örneğin Myclass sınıfının move ctor'ı exception throw etmeme garantisi veriyorsa o zaman benim fonksiyonumda exception throw etmeme garantisi vericek gibi.
+noexcept operator'ünün birincil kullanım fikri bu!
+
+exception garantilerini tekrar gözden geçirelim:
+1)exception garantisinin verilmemesi(ama bu kabul edilebilir bir durum değil)
+    basic garanti
+    strong garanti
+    no throw garanti
+no throw garanti en iddiali olanı, bunun sentaks'taki karşılığı noexcept belirleyicisini kullanmak. 
+no throw garantisi vericekseniz şunlara dikkat etmelisiniz: 
+    kesinlikle  o fonksiyon içinde çağırdığınız fonksiyonlarında no throw garantisi vermesi gerekiyor.
+
+===============================================================================================================================================================================
+
+rethrow statement
+rethrow statement şuydu: bir kod exception'ını yakalar, aynı exception'ını tekrar yukarı gönderir. 
+int foo();
+
+void func()
+{
+    try {
+        foo();
+    }
+    catch(const std::exception&) {
+        //code
+        throw;
+    }
+}
+orjinal exception nesnesinin kendisini gönderiyor ve burada dynamic_type korunuyor demiştik. 
+
+Burada şöyle bir şey de olabilir: rethrow statement başka bir fonksiyon içinde olabilir:
+int foo();
+
+void baz()
+{
+    throw;
+}
+
+void func()
+{
+    try {
+        foo();
+    }
+    catch(const std::exception&) {
+        //code
+        baz();
+    }
+}
+yani try catch bloğu içinde olmam gerekmiyor fiziksel olarak, ben rethrow statement'ı herhangi bir fonksiyon içinde kullanabilirim. O halde bu legal bir yapı ve hiçbir problem yok.
+Fakat hiçbir problem olmaması için bu fonksiyonun catch bloğu içinde çağırılması gerekiyor, eğer catch bloğu içinde çağırılmazsa yani örneğin main fonksiyonu içinde doğrudan baz
+fonksiyonu çağırılsa ortada yakalanmış bir exception olmadığı için terminate fonksiyonu çağırılır!! Bu da dilin kuralıdır. O halde eğer bu şekilde bir şey yaparsak baz fonksiyonunun
+exception gönderilmesi yani catch bloğu dışında çağırılmadığından da bir şekilde emin olmalıyız!!! Buradaki araç gerçekten gönderilen ve catch'in yakaladığı exception'ı rethrow
+etmiş oluyor. Yani catch bloğu içinde rethrow edilmesiyle catch bloğu içinde baz fonk. çağırılarak onun aracılığıyla rethrow edilmesi arasında bir fark yoktur. 
+
+Bu çok önemli bir tekniği de doğuruyor, exception handling ile ilişkin çok önemli bir idiomatik bir yapı. Bu idiomik yapıya exception dispatcher deniliyor.
+
+
+C++'ta bazı fonksiyonların exception throw etmemesi gerekiyor. Ve bu konuda da Modern C++'ta da bir değişiklik yapıldı:
+
+class Myclass {
+public:
+    Myclass();
+    ~Myclass();
+};
+Myclass sınıfının dtor'ını no throw garantisi vericek şekilde bildirmedim!
+
+int main()
+{
+    Myclass x;
+    constexpr auto b = noexcept(x.~Myclass());
+}
+//noexcept(x.~Myclass()) ifadesinde ub'ye neden olur mu? Çünkü x'in dtor'ı çağırılmış ve x bir de blok sonunda destruct edilicek: cevap hayır çünkü noexcept operator'ünün 
+//operandı unevaluated context. O sebeple bir sorun olmaz! b'nin değerine baktığımız zaman sonucun true olduğunu gördük fakat biz dtor'ı noexcept olarak bildirmemiştik.
+İşte bu modern C++ ile değişti, eski C++'ta böyle değildi, eski C++'ta zaten noexcept yoktu. Ama yinede dtor no throw garantisi vermiyordu. Şimdi dtor için isteseniz de 
+istemeseniz de dtor'lar noexcept garantisi veriyor kabul ediliyor. Yani dtor'ı ~Myclass(); şeklinde bildirseniz dahi dtor her zaman no throw garantisi veriyor. 
+
+Dikkat!!!
+Sınıfın dtor'ları exception throw etmemeli ve zaten dilin kurallarına göre siz isteseniz de istemeseniz de bütün dtor'lar no throw garantisi veriyor kabul ediliyor. 
+dtor içinde exception throw ederseniz  ve exception dışarıya sızarsa bu durumda terminate çağırılıcak!! Yani asla asla exception dtor'dan propagete etmemeli, propagete 
+ederse o zaman terminate çağırılıcak. 
+
+Peki neden böyle bir kural var?
+Yani neden örneğin eski C++'ta zorlanmıyordu bu ama ilkeydi; dtor asla exception throw edilmemeli diye. Yeni C++'ta da neden bu daha da pekiştirildi?
+Bunu anlamamız çok önemli. Nedeni son derece basit. Bir dtor 2 nedenle çağırılabilir: 1) bir nesenin ömrü bitmiştir, 2) bir exception gönderilmiştir, exception yakalanmıştır
+stack unwinding sürecinde  stack frame'lerden çıkarken otomatik ömürlü nesnelerden birinin dtor'ı çağırılmıştır. Yani stack unwinding sürecinde.
+Dolayısıyla exception handler edilirken dtor çağırılıyor. Peki bu durumda o dtor'da exception throw etse olmaz yine terminate çağırılacak. O sebeple dtor'lar her zaman no throw 
+garantisi veriyor, yani implicitly noexcept!!!
+
+Soru: dtor içinde asla exception throw etmemeliyim, cümlesi doğru mudur? Yanlış problem dtor içinde exception throw etmemek değil, exception'ının propagete etmesi problem. Yani
+örneğin exception throw edip dtor içinde yakalarsanız o zaman bir problem yok, problem exception'ının dtor'dan çıkması!!! dtor'dan exception çıkmaması konusu hayati derecede önem 
+taşıyor, bize temel seviyede sorulabilicek sorulardan biri!
+
+Dolayısıyla aşağıda verilen her iki yazım arasından bir fark yoktur:
+class Myclass {
+public:
+    Myclass();
+    ~Myclass();
+};
+ile 
+class Myclass {
+public:
+    Myclass();
+    ~Myclass()noexcept;
+};
+
+swap fonksiyonlarını noexcept yapınız fakat swap fonksiyonu için implicitly noexcept diye bir şey yok. Biz kendimiz swap fonksiyonlarını, memory'de allocate eden fonksiyonları
+ve cleanup dediğimiz tarzdaki fonksiyonları noexcept yapmalıyız. Çünkü bu fonksiyonlar zaten exception handle edildiğinde çağırılmaya aday fonksiyonlar. Örneğin siz exception
+handle edildiğinde bu işlemler yapılacak, bu işlemler yapıldığında bunlarda exception throw ediyorsa o zaman dtor'daki problemin aynısı olucak yani terminate fonk. çağırılıcak. 
+
+Neden fonksiyonları noexcept yapıyoruz? sorusunun önemli bir cevabı daha var: Doğrusu bazı fonksiyonların noexcept olup olmaması çok önemli değil. Yani şu mantıkla çokta yaklaşmamak 
+gerekiyor: ben bir fonksiyona  bakarım fonksiyonun eğer exception throw etmeme ihtimali yoksa onu noexcept yapayım. O kadar zorlamamıza ve risk almamıza kesinlikle gerek yok!!
+
+Ama öyle fonksiyonlar var ki, bu fonksiyonlar noexcept olduğu zaman ki template meta programing tarafına geldiğimizde göreceğiz, derleyici agresif optimizasyon yapabiliyor. 
+örneğin öyle yerler var ki bazı fonksiyonların strong exception garanti vermesi gerekiyor. strong exception garanti vermesi için uyması gereken bazı şartlar var. Ama örneğin 
+move ctor ya da move assigment bazı durumlarda exception throw etme ihtimali varsa strong exception garanti veremediği için ve fonksiyon bu garantiyi vermek zorunda olduğu 
+için move ctor yerine copy ctor çağırıyor. Dolayısıyla sınıfınızın move ctor'ının ve move assigment operator'ünün no throw garanti vermesi özellikle bu sınıflar türünden nesnlerin
+container'da tutulması durumlarında derleyicilerin çok daha iyi compile time'da optimizasyon yapma olanağı veriyor. Buradaki optimizasyon doğrudan derleyicinin ürettiği assembly
+koduna ilişkin değil. Bu optimizasyon compile time'daki kod seçimi. Yani derleyici template koddan kodu yazarken compile time'da sınıfın  move ctor'ının noexcept olup olmadığına 
+bakıyor move ctor noexcept ise örneğin vector'ün kapasitesi büyüdüğünde yani reallocation yapıldığında eski bellek alanındaki nesneler yeni bellek alanına kopyalanması gerekiyor. 
+Eski bellek alanından yeni bellek alanına kopyalanırken bu copy ctor ile değil de move ctor ile taşınmasını isteriz. Çünkü eski bellek alanındaki nesneler kullanılmayacağına göre 
+neden gereksiz yere deep copy yapalım ki. İşte orada derleyici move ctor'ın noexcept olup olmadığına bakıcak. noexcept olduğunu görünce yeni allocate edilmiş bellek bloğundaki 
+öğeleri eski bellek bloğundaki öğelerin kaynaklarını çalarak yani oradaki nesneler için move ctor çağırarak hayata getirecek. 
