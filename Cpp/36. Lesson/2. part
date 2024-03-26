@@ -1,0 +1,457 @@
+Kursta işlenmeyen veya tam olarak işlenmeyen aşağıdaki konuları mutlaka iyi bir kaynaktan okuyunuz, bunlar hem üretimde hem de mülakatlarda karşımıza çıkabilir:
+1)Derleyicinin yaptığı temel optimizasyon faaliyetleri hakkında bilgi sahibi olmanız  gerekiyor. 
+    örneğin döngü deyimleri ile ilgili optimizasyonlar, constant folding vb. 
+2)Derleyicinin kod seçimi(template meta programing tarafında göreceğiz), yani generic programla tarafında derleyiciye kod seçtirme
+3)Link time optimization (LTO)
+4)Dilden bağımsız olarak işlemci seviyesinde yapılan optimizasyonlar
+    branch prediction, prefetching, vb. 
+======================================================================================================================================================================================
+SOLID ilkelerinin meşhur L'sinden bahsetmiştik. Bu "liskov substitution principle"'iydi.  liskov yerine geçme ilkesi basit olarak  taban sınıfı türünden nesne
+yerine türemiş sınıf türünden nesne kullanılabilir. Fakat biraz daha derinlemesine incelerseniz konunun o kadar  basit olmadığını göreceksiniz:
+//polymorhic işlemi yapan fonksiyon
+void func(Base &baseref)
+{
+
+}
+liskov substitution principle diyor ki buraya gelen Der Base gibi kullanılmalı. Her Der bir Base'dir, is-a relationship dolayısıyla Base yerine buradaki hiyerarşideki 
+herhangi bir is-a relationship oluşturulan türemiş sınıf türünden nesne kullanabilirim. Ama biraz daha derinlemesine bakarsanız şunları da içerir: örneğin Base'in sağladığı 
+birtakım garantiler varsa yani Base client'lara birtakım garantiler veriyorsa fakat Base'den kalıtım yoluyla elde edilen sözde is-a Base olan bir sınıf garantilerin bir kısmını
+vermiyorsa burada problem olabilir değil mi? Çünkü bu fonksiyon tamamen Base'in interface'ine göre tasarlanmış. Dolayısıyla örneğin Base'in verdiği garantiyi child class olan 
+Der sınıfı vermiyorsa o zaman burada problem olucak çünkü o garantiye güvenenlerin güvenleri boşa çıkıcak. 
+
+Yine aynı şekilde Base'in sunduğu bazı kısıtlamalar olabilir. Ve bu fonksiyonu çağıranlar o kısıtlamalara uymak zorunda ama onlar Base'in kısıtlamalarını biliyorlar. Peki 
+bir türemiş sınıf o kısıtlamalardan daha fazla kısıtlama talep ediyorsa örneğin fonksiyon diyorsa ki bana gönderdiğin argüman 0-9  arasından bir değer olucak, bu durumda bu 
+fonksiyona 0-9 arasında argüman göndermek o kısıtlamaya uymak demek. Ama örneğin türemiş sınıf 0-5 arasında olucak gibi bir kısıtlama koyarsa o zaman örneğin buraya 7 değeri 
+gönderildiğinde türemiş sınıfın fonksiyonu çağırıldığında problem olucak. Bunu açıklayan ilkemsi bir söz vardı: require no more promise no less 
+Bu dilin kurallarına da yansımış durumda; örneğin:
+
+class Base {
+public:
+    virtual void func()noexcept;
+};
+
+class Der {
+public:
+    virtual void func()override; //syntax error
+};
+Soru: excepion throw etmeme garantisi verdim mi? Vermedim ama override ettim. Bu require no more promise no less ilkesine uymuyor, şimdi bu fonksiyon/override çağırıldığında 
+herkes bunun exception throw etmeme garantisine güvenicek ama bu exception throw edebilirim diyor. Kodu derlediğimizde sentaks hatası olduğunu görüceğiz. Yani bu aynı zamanda 
+sentaks hatası, burada önemli olan bunun dilimizin kurallarına göre (modern C++, zaten eski C++'ta noexcept yoktu) sentaks hatası olmasıdır! 
+
+!!!Dikkat eğer taban sınıfın sanal fonksiyonu noexcept olarak bildirilmişse türemiş sınıfın override mutalaka noexcept olarak bildirilmeli. Ve bu sentaks düzeyinde kontrol 
+ediliyor. Ama taban sınıfın sanal fonksiyonu zaten ben exception throw edebilirim diyorsa türemiş sınıfın sanal fonksiyonun override'ı o noexcept garantisi verebilir:
+class Base {
+public:
+    virtual void func();
+};
+
+class Der {
+public:
+    virtual void func()noexcept override; 
+};
+
+Bu sadece function overriding tarafında değil, fonksiyon göstericileri tarafında da geçerli:
+noexcept anahtar sözcüğü dile hiç eklenmemiş olsaydı, func gibi bir fonksiyonu gösterecek pointer/bir function pointer  auto type deduction'dan da faydalanmasaydık, şu şekilde 
+bildirilicek:
+void func(int);
+
+int main()
+{
+    void (*fp)(int) = &func;
+    //veya
+    //void (*fp)(int) = func; şeklinde olabilir.
+}
+
+Az önce override'da noexcept anahtar sözcüğünün imzanın bir parçası olduğunu söylemiştik. Function pointer'da da imzanın bir parçası. Yani bir function pointer şu 2 şekilde de 
+tanımlanabilir:
+void func(int);
+
+int main()
+{
+    void (*fp1)(int)noexcept; //veya aşağıdaki gibi de tanımlanabilir:
+    void (*fp2)(int);
+
+}
+Sonuç olarak fonksiyon pointer'larının bildiriminde de tanımında da noexcept anahtar sözcüğü kullanılabilir. Siz void (*fp2)(int); şeklinde bir fonksiyon pointer'ı tanımladığınız 
+zaman aslında şunu da ima ediyorsunuz bu fonksiyon pointer'ı ile yapılan fonksiyon çağrıları  exception throw edebilir. Öte yandan void (*f1)(int)noexcept; gibi bir fonksiyon 
+pointer'ı tanımladığınız zaman burada da bu fonksiyon pointer'ı ile bir fonksiyon çağrısı yapıldığında bu exception throw etmeme garantisi veriyor. 
+
+Soru1: Aşağıda main içinde yapılan atama sentaks hatası mı, değil mi?
+void func(int)noexcept;
+
+int main()
+{
+    void (*fp)(int) = &func;
+}
+cevap: Sentaks hatası değil, fakat biraz yanıltıcı bir soru. Çünkü fp'nin taahhütü benim vasıtam ile yapılan fonksiyon çağrıları exception throw etmeyecek garantisi vermiyor
+şeklinde. Yani exception throw edebilir diyor. Dolayısıyla exception throw edebilir bir fonksiyonun adresini tutmasıda exception throw etmeme garantisi veren bir fonksiyonun 
+adresini tutması da son derece normal. 
+
+Soru2: Yukarıdaki fonksiyon noexcept olmasaydı, fakat fonksiyon göstericisi noexcept olsaydı, bu sentaks hatası olur mu?
+void func(int);
+
+int main()
+{
+    void (*fp)(int)noexcept = &func;
+}
+fp taahhüt olarak exception throw etmeme garantisinde bulunuyor fakat bu taahhüt'ü vermeyen bir fonksiyonun adresini tutuyor. Biz bu taahhüte güvenerek bunun gösterdiği 
+fonksiyonu çağırırsak fonksiyon bizi yanıltacak, taahhüt çiğnenmiş olucak. Çünkü func exception throw edebilir. Bu da sentaks hatasına neden oluyor. 
+
+==============================================================================================================================================================================
+
+constructors & exceptions
+
+ctor bir nesneyi hayata getiren fonksiyon, ctor bir nesneyi hayata getirdiği için ctor işini başaramadığını anladığında eğer bazı yerler var ki exception throw edemiyoruz yani 
+exception handling'i hiç kullanamıyoruz; onun dışında mutlaka ve mutlaka yapmanız gereken exception throw etmek!! Son derece önemli yani ctor'ın exception throw etmesi kadar 
+doğal bir  durum yok. Öte yandan ctor'ın kodu yürütüldüğü zaman nesne hayata gelmiş kabul ediliyor, işte şöyle bir terimde kullanılıyordu eskiden: "zombie object". İşte o zaman 
+zombi nesneler ortaya çıkıyor. Yani eğer ctor exception throw etmiyorsa, o zaman mecburen sınıf nesnesinin içinde bir flag oluyor, o flag sınıf nesnesinin kullanıp 
+kullanılamayacağını gösteriyor. Yani ctor gidiyor mesela nesnenin kullanılamayacağını belirten şekilde nesneyi set ediyor, bu da tabii ki tercih ettiğimiz bir şey değil. Yani 
+nesne hayatta ama o nesneyi kullanamıyoruz. Ondan sonra nesnenin kullanılabilir olup olmadığını sınamamız gerekiyor. Dolayısıyla ctor'ın üstüne düşen vazife exception throw
+etmesidir. ctor exception  throw etmeye en büyük aday. 
+
+Fakat ctor'a dikkat etmemiz gerekiyor. Çünkü kursun başında da belirttiğimiz gibi bir nesnenin hayata gelmiş olması için ctor'ının kodunun tamamının çalışması gerekiyor,
+ctor'ın return etmesi gerekiyor. Yani örneğin ctor'dan başka bir nedenden programın akışı çıkarsa özellikle de exception gönderildiği için o nesne hayata gelmedi!!! O nesne
+hayata gelmedi zaten hayata gelmediyse nesne de diyemem ona. O bir varlık olmadı. Dolayıısyla hayata gelmiş nesnenin dtor'ı çağırılabilir. Bizim örneğimizde bu nesne hayata 
+gelemedi.
+
+#include <iostream>
+#include <stdexcept>
+
+class Myclass {
+public:
+    Myclass(int x)
+    {
+        std::cout << "Myclass(int)\n";
+        if(x > 10) {
+            throw std::runtime_error{ "hata" };
+            //code
+        }
+    }
+    ~Myclass()
+    {
+        std::cout << "~Myclass()\n";
+    }
+};
+
+int main()
+{
+    Myclass x{ 45 };
+}
+bu kod çalıştığında ekranda Myclass(int) yazısı olur ve ardından abort fonk. çağırıldığı için, program çöker.
+
+eğer nesne tanımını catch bloğu içine alırsak:
+#include <iostream>
+#include <stdexcept>
+
+class Myclass {
+public:
+    Myclass(int x)
+    {
+        std::cout << "Myclass(int)\n";
+        if(x > 10) {
+            throw std::runtime_error{ "hata" };
+            //code
+        }
+    }
+    ~Myclass()
+    {
+        std::cout << "~Myclass()\n";
+    }
+};
+
+int main()
+{
+    try {
+        Myclass x{ 45 };
+    }
+    catch(const std::exception& ex) {
+
+    }
+}
+bu kod çalıştığında ekranda Myclass(int) yazısı olur ve ardından abort fonk çağırılmaz. çağırılmaz. Fakat nesne oluşturulamadığı için dtor'da çağırılmaz.
+
+Not: bütün exception sınıfları exception başlık dosyasında değil, exception sınıflarının çoğu stdexcept başlık dosyasında!
+
+Aşağıdaki örnekte ctor içinde dinamik bellek alanı alocate edildip sonra exception throw edilseydi. exception throw edilmeden önce dinamik bellek alanı 
+allocate edilmiş olacaktı ama exception throw edildiği için bu nesne için dtor çağırılmayacaktı. Dolayısıyla bu tarz konulara dikkat etmemiz gerekiyor!!
+#include <iostream>
+#include <stdexcept>
+
+class Myclass {
+public:
+    Myclass(int x)
+    {
+        mp = new int[x];
+        //throws an exception
+    }
+    ~Myclass()
+    {
+        delete[] mp;
+    }
+    int *mp;
+};
+Yani stack unwinding ile falanda herhangi bir şey olmayacak çünkü nesne hayata gelmediği için dtor'ı çağırılmayacak ki. Dolayısıyla bu tür durumlarda işi yine RAII'ye bağlamalısınız!!
+Sonuç olarak ctor eğer exception throw ederse dtor çağırılmayacak dolayısıyla ctor içinde edindiğiniz kaynağı dtor geri veriyorsa ctor içinde exception throw edildiğinde o kaynak 
+geri verilmeyecek. Çünkü hayata gelmemiş o varlık için dtor çağırılmayacak!!
+
+Fakat örneğin bu örnekte ben mp = new int[x]; yerine bir RAII idiomuna bağlasaydım örneğin bir unique_ptr kullansaydım böyle bir problem olmayacaktı çünkü otomatik ömürlü nesne 
+olduğu için yine onun dtor'ı çağırılacaktı!! İşte yine RAII'nin çok önemini vurgulayan yerlerden biri. 
+
+member object'ler içinde aynı durum geçerlidir:
+class Member {
+public:
+    Member()
+    {
+
+    }
+};
+
+class Nec()
+{
+public:
+    Nec()
+    {
+        
+    }
+private:
+    Member mx;
+}
+Nec'in ctor'ı çağırıldığında Nec'in ctor'ının ana bloğuna girmeden Member'ında ctor'ı çağırılıyor. Peki Member'ın ctor'ı exception throw ederse, Nec'in dtor'ı mı yoksa Member'ın 
+dtor'ımı çağırılır? Cevap, her ikiside çağırılmaz; çünkü Member hayata gelmediği için Member'ın dtor'ı çağırılmaz. Öte yandan Member hayata gelmediği için doğal olarak Nec'de 
+hayata gelmemiş olucak dolayısıyla Nec'in dtor'ıda çağırılmayacak. 
+
+Ama örneğin:
+class Member {
+public:
+    Member()
+    {
+
+    }
+};
+
+class Nec()
+{
+public:
+    Nec()
+    {
+        
+    }
+private:
+    Member mx1, mx2;
+}
+şeklinde olsaydı ve mx1 hayata gelmiş olsaydı ama sıra mx2'ye geldiğinde mx2 için çağırılan ctor exception throw etseydi bu durumda stack unwinding sürecinde mx1'in dtor'ı 
+çağırılacaktı. Yani member object'ler içinde yine aynı durum söz konusu. Burada yine çok dikkatli olmamız gereken yerlerden biri elemanı dinamik ömürlü nesne olarak edinmek.
+Çok tehlikeli bir durum, doğrudan pointer'a bağlamak:
+class Member {
+public:
+    Member()
+    {
+
+    }
+};
+
+class Nec()
+{
+public:
+    Nec() : mp { new Member } {}
+    ~Nec()
+    {
+        delete mp;
+    }
+private:
+    Member* mp;
+}
+Burası yine tehlike arz eden bir senaryo. Çünkü eğer Nec'in ctor'ı exception throw ederse Nec'in dtor'ı çağırılmayacak, Nec'in dtor'ının çağırılmaması durumunda kaynak sızıntısı
+olucak. Dolayısıyla artık modern C++'ta dinamik ömürlü nesnelerin hemen her zaman smart pointer'larla yönetildiğini anlamış oluyoruz. exception safety açısından da çok önemli!!
+
+Burada dilin önemli bir kuralı daha var: 
+class Nec {
+public:
+    Nec()
+    {
+        //throws an exception
+    }
+};
+
+int main()
+{
+    Nec *p = new Nec;
+}
+burada ctor exception throw ederse programın akışı main'den çıkıcak. exception'ının yakalandığını düşünelim, bu durumda zaten dtor çağırılmayacak çünkü nesne hayata gelmediği için 
+ben bunu delete etmeyeceğim. Ama ben dinamik ömürlü bir nesne oluşturduğumda bu 2 aşamalı bir işlem olarak yürütülüyordu. 1) allocation(operator new fonk. yapıyor), 
+2) ctor'a yapılan çağrı. Eğer Nec'in ctor'ı exception throw ederse zaten operator new fonksiyonu başarılı olmuş ki programın akışı ctor'a girmiş. Çünkü eğer operator new exception 
+throw etseydi o zaman zaten programın akışı ctor'a girmezdi. Bu durumda ben bu exception'ını yakalarsam operator new'in allocate ettiği bellek bloğu olan sizeof Nec allocate etmiş 
+olucak, o allocation benim sorumluluğumda değil orada derleyicinin ürettiği kod onu deallocte yapıyoryani  memory leak oluşmaz!!
+
+Sonuç olarak dinamik ömürlü bir nesnenin ctor'ı exception throw ederse operator new ile allocate edilen bellek bloğu deallocate ediliyor. Bu sizin sorumluluğunuzda değil.  
+
+Standart kütüphanede dökümante edilmiş şekilde bazı sınıfların bazı üye fonksiyonları belirli exception'ları throw ediyor. Bunlardan örneğin out_of_range sınıfı türünden throw
+edilen bir exception örneği incelemiştik. string sınıfı bazı işlemlerle de length_error isimli sınıf türünden exception throw ediyor. Yani herhangi bir işlem oluşacak string'in 
+ya da string'in yeni değerinin taşıyabileceği uzunluğu üstünde bir değer oluşturma durumunda orda da bazı fonksiyonlar exception throw ediyor. Orada throw edilen exception'ının 
+türüde logic_error sınıfı türünden length_error. Yani string sınıfının aslında exception throw edebileceği 2 tane exception türü var: length_error ve out_of_range 
+
+Fakat standart kütüphanenin bazı fonksiyonlarının dışında operator seviyesinde de yani C++'ın operator'lerinin ya da bazı ifadelerinin kullanılması sürecinde de exception throw
+edebiliyor. İşte bunların başında bad_alloc geliyor. Dinamik ömürlü nesneleri C'deki gibi düşünmememiz gerektiğini söylemiştik. C'de biz fiilen malloc'u çağırıyoruz, malloc 
+başarısız olursa null pointer döndürüyor. Ama biz dinamik ömürlü bir nesne oluşturduğumuzda arka planda operator new fonksiyonu çağırılıyor malloc benzeri bir fonksiyon. Ama 
+operator new başarısız olduğunda null pointer döndürmüyor, operator new'in mallo ile imzası aynı olsa da operator new başarısız olduğunda std::bad_alloc sınıfı türünden exception
+throw ediyordu. İşte o std::bad_alloc yine o en tepedeki exception hiyerarşisi içindeki sınıflardan biri yani exception'dan doğrudan kalıtım yoluyla elde ediliyor. bad_alloc 
+throw ettiğini gösteren örnek:
+class Myclass {
+public:
+    unsigned char buffer[1024 * 1024] {};
+};
+
+std::vector<Myclass *> gvec; 
+int main()
+{
+    try {
+        for(int i = 0; i < 2000; ++i) {
+            gvec.push_back(new Myclass);
+            std::cout << i << '\n';        }
+    }
+    catch(const std::bad_alloc& ex) { //std::bad_alloc yerine std::exception yazsakta olur
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+
+    std::cout << "gvec.size() = " << gvec.size() << '\n';
+}
+ben Myclass nesnesini dinamik olarak oluşturduğum zaman aslında her dinamik ömürlü nesne için operator new fonk. çağırılıyor. O da sizeof(Myclass) değeri ile çağırılıyor. 
+Yani döngünün her turunda 1024*1024 byte'lık sizeof(Myclass) dinamik bellek alanı allocate ediliyor.
+
+Standart kütüphanenin exception sınıfına bir diğer örnek dynamic_cast'teydi. Örneğin:
+class Base {
+public:
+    virtual ~Base() {}
+};
+
+class Der : public Base {
+
+};
+
+class Mer : public Base {
+
+};
+
+//RTTI
+void foo(Base& baseref)
+{
+    Der& dr = dynamic_cast<Der&>(baseref);
+}
+
+int main()
+{
+    try {
+        Mer mx;
+        foo(mx);
+    }
+
+    catch(const std::exception& ex) {
+        std::cout << "exception caught: "<< ex.what() << '\n';
+    }
+}
+şüphesiz catch parametresi bad_cast'te olabilir, çünkü zaten gönderilen exception bad_cast türünden:
+
+
+class Base {
+public:
+    virtual ~Base() {}
+};
+
+class Der : public Base {
+
+};
+
+class Mer : public Base {
+
+};
+
+//RTTI
+void foo(Base& baseref)
+{
+    Der& dr = dynamic_cast<Der&>(baseref);
+}
+
+int main()
+{
+    try {
+        Mer mx;
+        foo(mx);
+    }
+
+    catch(const std::bad_cast& ex) {
+        std::cout << "exception caught: "<< ex.what() << '\n';
+    }
+}
+
+Bir başka örnek ise typeid operator'ü ile ilgili:
+class Base {
+public:
+    virtual ~Base() {}
+};
+
+class Der : public Base {
+
+};
+
+class Mer : public Base {
+
+};
+
+//Base polymorphic bir sınıf olduğu için typeid operator'üde polymorphic olarak davranıcak
+void foo(Base* baseptr)
+{
+    if(typeid(*baseptr) == typeid(Der)) {
+        std::cout << "evet\n";
+    }
+}
+
+int main()
+{
+    Der *p;
+    try {
+        foo(p);
+    }
+
+    catch(const std::exception& ex) {
+        std::cout << "exception caught: "<< ex.what() << '\n';
+    }
+}
+ekranda exception'ının ne olduğu ile alakalı şunu yazdı: Attempted a typeid of nullptr pointer. Bunun nedeni normalde polymorphic davranacaktı typeid operator'ü 
+yani örneğn foo'ya Der nesnesi gelseydi typeid(*baseptr) Der sınıfının type_info nesnesi olucaktı ama buraya nullptr geldiğinde exception throw etti. O halde polymorphic 
+pointer'ı dereference etme  ifadesini typeid operator'ünün operandı yaparsanız ama run time'da pointer null pointer ise bad_typeid sınıfı türünden exception throw ediyor. 
+
+O halde bu örneği bad_typeid ile de yakalayabiliriz:
+class Base {
+public:
+    virtual ~Base() {}
+};
+
+class Der : public Base {
+
+};
+
+class Mer : public Base {
+
+};
+
+//Base polymorphic bir sınıf olduğu için typeid operator'üde polymorphic olarak davranıcak
+void foo(Base* baseptr)
+{
+    if(typeid(*baseptr) == typeid(Der)) {
+        std::cout << "evet\n";
+    }
+}
+
+int main()
+{
+    Der *p;
+    try {
+        foo(p);
+    }
+
+    catch(const std::bad_typeid& ex) {
+        std::cout << "exception caught: "<< ex.what() << '\n';
+    }
+}
+
+bad_typeid'de bad_cast'te, bad_alloc'ta hepsi exception sınıfından kalıtım ile elde edilmiştir. 
