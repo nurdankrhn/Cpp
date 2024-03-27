@@ -1,0 +1,323 @@
+Standart kütüphanenin bütün exception'ları std::exception türünden ve std::exception sınıfınında what fonksiyonu olduğunu biliyoruz. what fonksiyonu noexcept fonksiyondur. 
+Hatta what fonksiyonunun noexcept olması modern C++ ile dile eklendiği için eğer siz standart kütüphanenin bir exception sınıfından kalıtım yoluyla kendi sınıfınızı elde ederseniz 
+bazen bunu yapmak isteyeceksiniz. Bu durumda what fonksiyonunu override ederken modern C++ öncesi fonksiyonunuzu noexcept olarak bildirmeniz gerekmiyordu doğal olarak,
+fakat şimdi o fonksiyon noexcept olduğundan sizinde override'ınızın noexcept olması lazım bir önceki derste konuştuğumuz gibi. 
+
+Bir diğer önemli nokta ise bazen burada kein ayrım yapmak zor olsa da aslında semantik yapı şu: 2 tane aslında semantik sınıf kategorisi var: logic_error sınıfı ve ondan kalıtım 
+yoluyla elde edilen sınıflar ve  runtime_error sınıfı ve ondan kalıtım yoluyla elde edilen sınıflar. Buradaki semantik ayrım aslında şudur: logic_error sınıfınızın ya da kodunuzun 
+invariantları çiğnendiği zaman gönderilen exception'lar. Yani bu şu demek programda bir bug var yani normalde eğer bunun kontrolü, bütün kodlar bizde olsaydı client tarafından 
+herhangi bir problem olmasaydı bunlar assertions ile halledilecekti. Ama sonuçta bizim kodlarımız dışında kodlar bu invariant'ları çiğnediğinde lojik_error sınıfı türünden 
+hata gönderilmesi normal. runtime_error ise örneğin network fail olduğunda veya bir dosya açılamadığında vb. Buradaki genel ayrım aslında biri içinde bir bug olması fakat 
+diğeri onun dışındaki nedenlerden. Onu da ayırmak için 2 tane temel sınıf oluşturulmuş: logic_error ve runtime_error. 
+
+Buradaki sınıflarla ilgili bilmemiz gereken noktalardan biri bazı sınıfların default ctor'ının olmadığıdır. Eski C++'ta bu sınıfların const char* parametrerli ctor'ları vardı,
+string parametreli ctor'ları yoktu. Modern C++'la birlikte bu exception sınıflarının const char* yani cstring ctor'larının yanında string parametreli ctor'ları da eklendi. 
+Dolayıısyla bazen örneğin programcılar exception throw etmek istediklerinde şöyle yazıyorlar:
+int main()
+{
+    throw std::runtime_error{}; //syntax error
+}
+sentaks hatası oluyor, bunun nedeni runtime_error'ün default ctor'ının olmayışı. Dolayısıyla bazı sınıflar hatta çoğunluğu da diyebiliriz default ctor'ı yok. exception'ının default
+ctor'ı var ama az önce de belirttiğimiz gibi bazı sınıfların  bu kalıtım hiyerarşisinde default ctor'ı yok. Bunlara bir cstring ya da string argüman vermeniz gerekiyor!!
+==================================================================================================================================================================================
+
+
+Ne throw edeyim???
+Aslında burada ne throw ettiğinizin birçok durumda önemi yok ve aslında her şeyi throw edebilirsiniz; int, double, hatta throw ifadeniz bir vector nesnesi olabilir. Yani teknik 
+olarak bu konuda herhangi bir engel yok. Eğer throw ettiğiniz exception bir exception sınıfı türündense burada bilmeniz gereken std::exception ile yakalanabilir. Ne throw ettiğiniz
+aslında ne tür hata olduğunu bildiren bir etiket sizin için. Dolayısıyla ne throw ettiğiniz hatanın ne ile ilgili olduğunu anlatıyor!! Eğer gönderilen hata herhangi bir şekilde 
+özel bir şekilde handle edilmeyecekse yani onun için özel bir exception handling gerekmiyorsa pekala runtime_error throw edebilirsiniz. 
+Fakat eğer 2 hata senaryosu arasında onları handle edicek senaryo arasında bir farklılık olmayacaksa o zaman farklı exception sınıfları oluşturmanıza gerek yok ya da farklı 
+exception throw etmenize gerek yok. 
+
+exception ile ilgili temel ilkeler:
+(burada anlatılanlar Herb Sutter ile Bjarne Stroustrup'un başlattığı C++ core guidelines'tan)
+Herhangi bir şey yoksa runtime_error throw edebilirsiniz. Eğer exception yakalanacaksa o zaman kendi exception sınıfınızı oluşturabilirsiniz. 
+Yani o hataya ilişkin özel bir exception handling gerekiyorsa o hatayı temsil eden ayrı bir exception sınıfı oluşturmanız normal. 
+ 
+Ayrıca burada gereksiz yere hiyerarşi oluşturmayın yine C++ core guidelines'ta. Yani eğer kendiniz bir exception sınıfı oluşturucaksanız bunlar arasında bir handling açısından bir 
+fark varsa o zaman bir özelleştirmeye gidilebilir; onun dışında gereksiz yere bir exception hiyerarşisi oluşturmakta iyi bir fikir değil.  
+
+Bu konu ile alakalı birkaç tane alt başlığımız var ama bunların bir kısmı bu dersin kapsamında değil. Örneğin exception_ptr ve nested_exception konusu bu dersimizin kapsamında 
+değil, kursun sonunda vakit kalırsa buraya geri dönüp ele alacağız kalmazsa iler C++ kursunda ele alınacak. Ama o konularıda bir şekilde öğrenmeniz gerekicek. 
+==================================================================================================================================================================================
+
+function try block 
+Öncelikle bu function try block sentaksı Modern C++ ile dile eklenen bir araç değil. Yani Modern C++ öncesinde de function try block vardı. function try block özel bir sentaks. 
+Aslında özel bir amaçla kullanılıyor, fakat bu özel amacın dışında tüm fonksiyonlara uyarlayabiliyorsunuz. Fakat doğrusu ctor'lar için kullandığımız bir sentaks aracıdır. 
+Ama ctor dışında diğer fonksiyonlar içinde kullanılabiliyor olsa da kullanmanın getiriceği fazla bir avantaj yok. 
+
+Biz ilk olarak ctor değilde diğer herhangi bir fonksiyon bir sınıfın üye fonksiyonu olabilir, global fonksiyon olabilir. Onun üstünde gösterelim:
+diyelim ki bir fonksiyonun kodunun tamamını bir try bloğu içine almak istiyorsunuz, normalde şöyle yazıyorsunuz:
+void func()
+{
+    try {
+        //all function code
+    }
+    catch(const std::exception &) {
+        //..
+    }
+}
+bunu yapmanın bir yolu daha var, işte burada uygulanan sentaksa function try block deniliyor. Sentaks şöyle:
+void func()
+try{
+
+}
+catch(const std::exception&)
+{
+
+}
+artık func'ın açılıp kapanan brace'in oluşturduğu blok hem try blok hem de fonksiyonun ana bloğudur. Yani örneğin oradan bir exception throw edilirse o exception'ını altındaki catch
+bloğu yakalayabilir demek. 
+int func()
+try{
+    return 1;
+}
+catch(const std::exception&)
+{
+
+}
+soru 1: try bloğu içinde exception throw ederse altındaki catch bloğu ya da blokları bu exception'ını yakalayabilir mi? Evet.
+
+soru 2: altta verilen catch bloğu içinde return statement olabilir mi? Evet.
+int func()
+try{
+    return 1;
+}
+catch(const std::exception&)
+{
+    return 2;
+}
+
+soru 3: try bloğu içinde bir yerel değişken olsa catch bloğu içinde bu yerel değişkeni kullanabilir miyiz? Hayır, çünkü 2'si farklı bloklar ve yine block scope kuralları geçerli olur.
+int func()
+try{
+    int x = 5;
+    return 1;
+}
+catch(const std::exception&)
+{
+    ++x; //syntax error
+}
+
+soru 4: fonksiyon bir parametre değişkenine sahip olursa, bu parametre değişkenini catch bloğu içinde kullanabilir miyiz? Evet.
+int func(int x)
+try{
+    return 1;
+}
+catch(const std::exception&)
+{
+    auto y = x;
+}
+
+Doğrusu böyle bir fonksiyon için function try block kullanımı yaygın değil! Çünkü function try bloğunun dile eklenmesinin bambaşka bir nedeni var! 
+
+Soru:
+class Myclass {
+
+};
+
+int func(Myclass)
+try{
+    return 1;
+}
+catch(const std::exception&)
+{
+
+}
+diyelim ki bu fonksiyon çağırıldığında fonksiyon parametresi Myclass sınıfı türünden olduğundan Myclass sınıfının copy ctor'ı çağırılacak. copy ctor, yani parametre değişkeninin 
+hayata gelmesinden kaynaklanan exception'ını catch bloğu yakalayamaz!! Burada fonksiyonun parametre değişkenlerinin hayata gelmesi sürecindeki exception herhangi bir şekilde 
+yakalanmıyor. Yani bu sentaks ile fonksiyonun ana bloğunda meydana gelen exception'ları yakalayabilirsiniz ama fonksiyonun parametre değişkeninin hayata gelmesi örneğin copy ctor 
+ya da başka ctor çağırıldığında onun göndereceği exception'ları böyle function try block ile yakalamak mümkün değil!
+
+Peki function try block ne işe yarıyor?
+Çünkü pekala ben bunları fonksiyon ana bloğunda try blok ile de yapabilirdim. Cevabı anlamak için yine sınıfların member'larının initialize edilmesinden bahsedelim:
+diyelim ki siz Nec sınıfının ctor'ı içinde Member'ın initialization'ını sürecinde gönderilicek exception'ını yakalamak istiyorsunuz, Nec'in ctor'ını içinde try bloğu 
+bloğu oluşturursak acaba bu exception yakalanır mı?
+class Memer {
+public:
+    Member(int x)
+    {
+        if(x > 10) {
+            throw std::runtime_error{"error!!!"};
+        }
+    }
+};
+
+class Nec {
+public:
+    Nec(int x) : mx{ x }
+    {
+        try {
+
+        }
+        catch(const std::exception& ex) {
+            std::cout << "exception caught: " << ex.what() << '\n';
+        }
+    }
+private:
+    Member mx;
+};
+
+int main()
+{
+    Nec mynec{ 23 };
+}
+Cevap, hayır yakalanmadı! uncaught exception oldu ve terminate fonk. çağırıldı!!
+
+
+ama eğer ctor'da fınction try block kullanırsanız o zaman exception'ı yakalarsınız:
+class Memer {
+public:
+    Member(int x)
+    {
+        if(x > 10) {
+            throw std::runtime_error{"error!!!"};
+        }
+    }
+};
+
+class Nec {
+public:
+    Nec(int x) try : mx{ x }
+    {
+    }
+    catch(const std::exception& ex) {
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+private:
+    Member mx;
+};
+
+int main()
+{
+    Nec mynec{ 23 };
+} 
+exception yakalandı hem de abort çağırıldı, bu da dilin kuralı!!!
+1) function try block oluşturursanız function try bloğun ektisi şudur: ctor initializer list ile member initialization sırasında gönderilen exception'ları yakalama şansımız var! 
+Ama burada şöyle bir kural var exception'ını yakalıyorsunuz ama burada programın akışı catch bloğuna giriyor fakat catch bloğu içinde exception'ını siz kendiniz rethrow etmezseniz 
+ya da başka bir exception throw etmezseniz ya da programı sonlandırıcak bir çağrı yapmazsanız derleyici buraya rethrow statemen ekliyor. Yani aslında catch bloğu içinde exception 
+yine rethrow etti. O da rethrow ettiği için uncaught exception oldu. Burada yine dikkat, benzer şekilde Nec'in örneğin ctor'ının parametresi Myclass sınıfı türünden olsaydı 
+yine ctor'ının parametresinin hayata gelmesi sürecinde ki exception'ını function try block burada da yine   yakalayamayacaktı. rethrow edilen exception'ını görebilmek için:
+class Memer {
+public:
+    Member(int x)
+    {
+        if(x > 10) {
+            throw std::runtime_error{"error!!!"};
+        }
+    }
+};
+
+class Nec {
+public:
+    Nec(int x) try : mx{ x }
+    {
+    }
+    catch(const std::exception& ex) {
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+private:
+    Member mx;
+};
+
+int main()
+{
+    try {
+        Nec mynec{ 23 };
+    }
+    catch(const std::exception& ex) {
+        std::cout << "exception caught: " << ex.what() << '\n';
+    }
+} 
+
+O halde function try block 
+a) temel varlık nedeni ctor'lar. ctor'da member initializer liste yani sınıfın veri elamanlarının initialize edilmesi aşamasında bir exception gönderildiğinde o exception'ı 
+ctor'da yakalamak isterseniz tek yönteminiz function try block!! Bu durumda exception yakalandığında programın akışı ctor'ı izleyen catch bloğunun içine giricek buradaki kodlar 
+çalışacak ama sonrasında orada herhangi başka bir kod olmazsa exception rethrow edicek, exception rethrow etmesi bir hata değil yani  bilerek zaten function try block oluşturyorsunuz.
+Ama eğer rethrow edilmesini istemiyorsanız örneğin birtakım müdahele ile sonra exception'ını translate edip başka bir türden exception göndermek istiyorsanız onu da yapabilirsiniz. 
+Yani şöyle bir beklenti de olmayın; catch bloğu içinde exception'ını yakaladım, devamında fonksiyonun kodu çalışmaya devam etti nesne de hayata geldi değil!! Zaten saçma olurdu,
+zaten nesne hayata  gelemediği için exception yakalıyorum dolayısıyla exception'ının rethrow edilmesi burada son derece doğal!
+
+Burada tipik bir problem de şu, bazen alt seviyeli bir exception yakalıyoruz fakat bir takım kismi müdahaleden sonra kendimiz ayrı bir exception gönderiyoruz. Ama şöyle bir problem 
+de doğuyor, bizim gönderdiğimiz exception'ını yakalayan kodun sadece bizim gönderdiğimiz exception'ını değil, bizim yakaladığımız exception'la ilgili bir takım bilgileri de 
+edinmesini istiyoruz. Bu durumda ya gidip özel bir sınıf kullanıp oraya birtakım bilgiler eklemeniz  gerekiyor,  ya da eskiden daha problemli olan gönderdiğimiz exception'ına
+kendi exception'ınızı(yakaladığınız exception'ını) nested olarak ekleyebilme yöntemi. İşte bunu oluşturan yapı da nested-exception'dır.  
+
+Öte yandan exception'ının bir yere taşınmasını sağlayan exception_ptr sınıfı var ve onunla ilgili bazı fonksiyonlar var. Onları generic programlama paradigmasından sonra eğer 
+vait bulursak ele alacağız. 
+
+======================================================================================================================================================================================
+
+generic programming and templates
+
+Öncelikle generic programlama ne demek, onu inceleyelim. Buradaki generic sözcüğü türden bağımsız anlamında. Programla dilinden bağımsız olarak generic programlama dendiğinde 
+aklınıza şu gelmeli: birtakım belki fonksiyonlar, sınıflar, vs. Ama özellikle de fonksiyonlar. Fakat fonksiyon sadece belirli bir türe yönelik olarak değil birden fazla türe 
+hizmet verebilicek şekilde yapıya sahip. Yani bir şekilde tür bilgisinden arındırılmış. Bu farklı farklı araçlarla yapılabilicek bir implementasyon olabilir. Mesala türden 
+bağımsız programlama dendiğinde ilk olarak aklımıza gelen C++ dili ile hiç tanışmamış olsak başka programlam dillerini öğrenmiş olsak; özellikle de C'yi generic programlama da
+neler var?
+Örneğin C'de generic programlama terimini hakedicek hangi öğeler var? void *. C'de gerçekten de türden bağımsız programlama orada da çok kullanılıyor ve bu C'de void pointer 
+türünün temel neredeyse varlık nedeni bu. C'deki bazı standart fonksiyonları düşünün, örneğin strinh.h başlık dosyasında yer alan:
+memset
+memcopy
+memmove
+memchr
+memcmp
+bu fonksiyonlar türden bağımsız, bunların parametreleri void* ve void* parametreye eşlik eden size_t parametre var. Bunlar şu şekilde çalışıyor: diyorlar ki bana gelen nesne adresinin 
+hangi türden nesne adresi olduğunu bilmem ben o nesnelere bir bellek bloğu bir byte/vector gibi muamele ederim. örneğin memcpy fonksiyonu C++'ta da bazı yerlerde çok sık çağırılıyor,
+bir bellek bloğundaki byte'ları o byte'ların ne anlam ifade ettiğinden bağımsız olarak başka bir yere kopyalıyor. Bu belki de en tipik generic fonksiyon memcpy. Sizin kopyaladığınız
+byte'lar bir yapı nesnesinin byte'ları da olabilir bir char dizinin byte'ları da olabilir, genel amaçlı kullanılan bir buffer'ın byte'ları da olabilir. Ya da int bir dizinin 
+elemanlarının byte'ları olabilir. Burada türden bağımsız hizmet veren bir fonksiyon söz konusu. Eğer biraz daha kompleks tarafa gidersek, örneğin yine C'nin standart kütüphanesindeki
+qsort ve bsearch; qsort fonk. türden bağımsız olarak bir diziyi sıralayan fonksiyon, bsearch fonksiyonu binary search fonksiyonu yine türden bağımsız sıralanmış bir dizide bir değeri
+binary search algoritması ile arayan fonksiyondur. 
+
+Türden bağımsızlığın aslında 2. bir yolu kalıtım. Orada da türden bir bağımsızlık var, yani türe bağlı bir türden bağımsızlık. Base sınıfından kalıtım yoluyla elde edilen bütün 
+sınıflar Base sınıfı türünden kabul edildiğine göre siz parametresi Base* ya da Base& olan bir fonksiyon yazdığınızda bu fonksiyon için Base olması yeterli. Aslında fonksiyon 
+kendisine gelen nesnenin gerçekte türünü bilmiyor. Bazı garantilere güvenerek, onlarının hepsinin aynı interface'e sahip olduğunu aynı sözleri verdiğini, daha fazla kısıtlama 
+talep etmediğini bilerek yazılıyor. 
+
+C++'ın türden bağımsız programlama araçlarının oluşturduğu kümeye "templates" deniliyor. C++ sentaksının belki yarıya yakını bu template dediğimiz araçlarla ilgili. Ve C++'ın 
+standart kütüphanesinin tamamına yakını template'lerden oluşuyor. 
+
+template aslında derleyiciye kod yazdıran bir kod. Özel bir sentaksa sahip, sentaksın amacı derleyicinin kod yazmasını sağlayan bir kod yazmak. C ve C++ arasındaki en büyük 
+farklılıklardan biri C derleyicisi sadece kodu derliyor ama C++ derleyicisinin asıl faydalı yönlerinden biri bizim için aynı zamanda kod yazabilir olmasıdır. Derleyiciye 
+kod yazdıran koda template deniliyor. 
+
+Dildeki büyüme genişleme en çok template dediğimiz araçlarla ilgili. Örneğin C++20 ile dile eklenen en önemli araçlardan biri concepcts, concepcts tamamen bir template. Yine 
+C++23 standart'ı ile de  template'lere yönelik çok sayıda araç eklendi. O sebeple  template'leri öğrenmemek gibi bir şansa sahip değiliz çünkü öğrenmezsek C++'ın standart 
+kütüphanesini doğru bir şekilde kullanma imkanımız olmaz. 
+
+template nedir?
+Bir template bir meta koddur. Meta terimini hocamız şu anlamda kullanıyor; bu bir kod ama kodun amacı kod yazdırmak. Derleyiciye kod yazdırma gayesi taşıyan koda C++'ta template 
+deniliyor. Bu template'lar birden fazla kategoriye sahip. Derleyiciye yazdırmak istediğiniz kodun ne olduğuna bağlı olarak farklı farklı template kategorileri kullanabiliyorsunuz. 
+
+TMP template meta programming demek. Yani burada kast edilen bizim şimdiye kadar yazdığımız kodların yazılması değil derleyiciye kod yazdıran kodların yazılması konusu. Bizim 
+yeni girdiğimiz bir paradigma. İşte bu alandaki programlama faaliyetlerine popüler olarak TMP deniliyor. 
+
+template kategorileri:
+1) function template: öyle bir meta kod ki derleyiciye fonksiyon kodu yazdırmayı amaçlıyor. Derleyici fonksiyon şablonundan hareketle onlarca, yüzlerce ayrı fonksiyon yazabilir. 
+Tipik olarak fonksiyonlar bir algoritmayı implemente ediyor ve algoritma birçok durumda türden bağımsız. Örneğin 2 değişkeni takas etme algoritması; fakat örneğin swap'ın kodunu 
+biz yazmak istersek örneğin C kodu olsaydı 2 pointer parametreli fonksiyon yazacaktık, türe bağımlı hale gelecekti: int*, int* ama 2 double nesneyi takas etmek isteseydik o zamanda
+double*, double* parametreli ya da 2 string nesnesini takas etmek isteseydik string*, string* ya da tabii C++'ta tercihen referans semantiğini kullanacaktık. Madem bunların kodları 
+genel olarak aynı o zaman bu işi yapacak bu kodu yazdırıcak kodu oluşturursak derleyici duruma göre bizim yazdığımız kod  formülünden/meta koddan faydalanarak ihtiyaç duyduğumuz her 
+yerde türünün compile time'da belli olması durumunda ya da bizim söylememiz durumunda bizim verdiğimiz meta koddan faydalanarak farklı farklı swap fonksiyonları yazabilir. Dolayısıyla
+bunun sağladığı avantajlardan da faydalanabiliriz. Ki standart kütüphanede böyle onlarca fonksiyon şablonu var; çoğunlukla da bizim yazmamız gerekmiycek standart kütüphane zaten 
+işimizde gerekli olan fonksiyon şablonlarının çoğunu bize vericek. 
+
+2) class template'da var: nasıl function template derleyiciye fonksiyon kodu yazdırma aracıysa class template'da derleyiciye sınıf kodu yazdırma aracıdır. Bir class şablonu 
+derleyiciye bir sınıf kodu yazdırmanın bir aracıdır. Bizim oluşturduğumuz sınıf şablonundan hareketle derleyici compile time'da bize farklı farklı sınıflar yazabilir. 
+
+template onla sınırlı olmamakla beraber en çok veri yapılarını implemente eden sınıflarda işimize yarıyor. İşte STL'de böyle sınıflara container sınıflar deniliyor. Örneğin 
+bir bağlı liste sınıfını düşünün bağlı liste sınıfının algoritmaları biliniyor, oradaki implementasyon tekniği biliniyor ama bağlı liste de int tutacaksanız belirli yerlerde 
+int türü kullanılıcak fakat bağlı listede double, long, sınıf türü tutabilirsiniz ona göre farklı farklı sınıflar gerekiyor. Yani genel yapısı aynı, özellikleri aynı fonksiyonların 
+implementasyonu aynı ama container'da tutulacak öğenin türüne bağlı olarak farklı farklı sınıflar oluşturmanız gerekiyor. İşte bunu ayrı ayrı sınıfları kendiniz yazmak yerine 
+bunu bir sınıf şablonu olarak implemente ederseniz derleyiciye compile time'da örneğin bağlı liste de Fighter tutmak istiyorsanız derleyici compile time'da içinde Fighter tutucak 
+bir bağlı liste sınıfının kodunu yazıyor. 
+3. ve 4. template kategorileri modern C++ ile dile eklendi. Hatta C++20 standart'ını da katarsak 3 template kategorisi daha dile eklendi:
+
+3) alias template: alias template öyle bir meta kod ki bu meta koddan faydalanarak derleyici  farklı farklı tür eş ismi bildirimi kodu üretebiliyor. Yani derleyicinin type alias 
+kodu üretmesini sağlayan template'lara alias template deniliyor. Bu C++11 ile dile eklenmiştir. 
+
+4) variable template(C++14): değişken tanımı kodu ürettiricek bir şablondan bahsediyoruz. 
+
+5) concepts(C++20)
