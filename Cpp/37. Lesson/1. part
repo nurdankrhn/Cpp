@@ -1,0 +1,232 @@
+12 Nisan 2023 - Çarşamba 
+
+generic programlaya bir diğer örnek ise Java, C# gibi dillerde bütün sınıflar object sınıfından kalıtım yoluyla elde edildiği için her şey bir object. Object interface'ini 
+kullanırsanız türü tamamen silmiş olursunuz. C++'ta öyle bütün sınıfların tek bir taban sınıfı yok ama yine kalıtımla da biz bir şekilde türemiş sınıfın ne olduğunu bilmeden 
+o sınıfın kodlarını kullanabiliyoruz. Ama bu 2 örnekte run time'a yönelik. C++'taki türden bağımsız programlama paradigması static bir mekanizma compile time'a yönelik bir 
+mekanizma. Buradaki araç derleyici bizim için kod yazıyor. Derleyiciye kodu çevirtmek amaçlı değil sadece derleyiciye bizim için kod yazması amaçlı da kullanıyoruz böylece. 
+İşte derleyicinin kod yazmasını sağlayan koda hocamız meta kod diyor; C++ dilindeki karşılığı ise template'lar. 
+
+Standart kütüphanenin tamamına yakını template kodlardan oluşuyor; yani örneğin ostream sınıfı, string sınıfı birer sınıf şablonudur, vector sınıfı bir sınıf şablonudur. 
+Standart kütüphanenin sunduğu fonksiyonların önemli bir kısmı fonksiyon şablonudur. Örneğin swap, sort, unique, gibi. Ve birçok yardımcı kütüphanede yine template bazlı. 
+Örneğin boost. Yine template sentaksının ne kadar önemli ve geniş olduğunu göstermek için bir örnek daha verelim: Modern C++ ile yeni baskısı yapılan ortalama bir programlama 
+dili kitabından kalın olan yazarlarının Nicolai M. Josuttis, David Vandevoorde olduğu: C++ Templates - The Complete Guide, 2nd Edition kitabı.
+
+C++ sentaksının en fazla kural barındırdığı en fazla araç barındırdığı alan burası olduğu gibi bir de her yeni C++ standart'ı ile bu konu ile ilgili yeni araçlar ekleniyor.
+Örneğin C++20 standart'ı ile dile eklenen concepts'ler aslında bakarsanız yeni bir template kategorisinden başka bir şey değil. 
+
+template'ın kategorileri vardı:
+function template
+class template
+alias template
+variable template
+concepts
+
+variadic template bir template kategorisi değildir; template sentaksının bir çeşitlemesidir. Yani yukarıdaki template kategorilerden bazıları variadic olabilir. 
+
+Örneğin fonksiyon şablonları; çoğunlukla fonksiyon şablonlarının algoritmaları implemente ettiğini biliyoruz fakat algoritmaların önemli bir kısmı türden bağımsız kod ise 
+türe bağlı, o zaman ben algoritmayı türden bağımsız bir sentaks ile ifade edersem derleyici benim bu şekilde oluşturduğum kodu derleme zamanında türe bağlı bir koda dönüştürebilir.
+Böylece ayrı ayrı fonksiyonlar yazmak yerine ben o fonksiyonu daha yüksek bir soyutlama ile türden bağımsız şekilde ifade edersem türe bağlı olduğu gerçek implementasyonda 
+derleyicinin kod yazmasını talep edebiliyorum ya da derleyiciye kod yazdırabiliyorum. 
+
+Sınıflarda çoğunlukla veri yapılarını ya da problem domainine ilişkin bazı soyutlamaları ifade ediyor. Örneğin 2 boyutlu matris sınıfını düşünün. Matriste tutulan tam sayılar 
+olabilir, gerçek sayılar olabilir. Hatta custom bir type öğelerde tutulabilir. Şimdi biz derleyiciye matriste int tutulacak şekilde bir sınıf kodu da double tutulacak bir sınıf 
+kodu da oluşturtatabiliriz. C++'ın standart kütüphanesinin birçok sınıfı zaten bu şekilde bir sınıf şablonu, derleyici compile time'da kodu yazıyor. 
+
+Şunu söylemek gerekiyor; hiçbir araç mutlak avantajdan oluşmuyor template'lerde böyle. İlerledikçe template'lerin yaptığımız işle ilgili bizi belki biraz rahatsız edicek 
+duruma göre dezavantajlarının olabiliceğini ama bize fayda sağlayacak belirli avantajlarınında olabiliceğini de göreceğiz. Dolayısıyla her zaman olduğu gibi template kullanmalımıyım
+ya da kullanmamalıyım sorularına trade off'lar olabilir. Derleyicinin kod yazması için meta kodu görmesi lazım dolayısıyla artık ben kodu başlık dosyasına koyayım kod dosyasını .cpp
+olarak düzenleyeyim böyle bir şey yok artık. Çünkü derleyici kod üretmek için meta kodu/kod formülünü/template'ı görmek zorunda. Yani template kodlar açık; örneğin vactor sınıfı 
+nasıl implemente edilmiş diye merak ederseniz vector başlık dosyasını açıp bakmamız yeterlidir implementasyon o sadece bir text dosyasından ibaret ona eşlik eden ayrı bir .cpp 
+dosyası yok. Bu hem güzel aslında başka bir bağımlılığı yok fakat diğer tarafta da eğer bir takım önlemler de alınmazsa her .cpp dosyasını derlerken derleyici bu template kodun
+tekrar tekrar üstünden geçicek tekrar aynı süreci yürütücek. Yani özetle template kullanmanın farklı avantajları ve dezavantajları olabilir. En önemli avantajlardan biri 
+çağırılmayan fonksiyonun kodunun yazılmamasıdır. Örneğin sadece string sınıfının bile sadece overlaod'ları ile beraber sayarsak 40 civarında arama fonksiyonu var. Eğer bu bir sınıf 
+şablonu olmasaydı bu kodlar derlenecekti ve derlenmiş kod bir yer kaplayacaktı ama çağırmadığım sürece template koddan kod oluşturulmuyor. Kod ekonomisi bir yerde söz konusu!!!!
+Bu yönden bir avantaj olduğu gerçek!!
+
+C++20 ile gelen bir eklemeyi saymazsak bir template koddan gelen sentaks her zaman template anahtar sözcüğünü içeriyor. Hangi template kategorisi olursa olsun template anahtar
+sözcüğü bir zorunluluk. template anahtar sözcüğünden sonra bir açısal parantez(angular bracket) yer alıyor. Bu angular bracket içinde bildirilen isimlere template parametreleri 
+deniliyor. Dikkat özellikle profesyonel bir çalışma için terminolojinin çok önemli olduğunu belirtmiştik; ortalama bir C++ programcısının terminolojiye uzak olduğu en tipik yerde 
+template'lar. Tüm terimleri birbiri ile karıştırıyorlar. Dolayısıyla doğru kelimeleri kullandığımıza emin olmalıyız! template parametreleri 3 ayrı kategoriye ilişkin olabilir. 
+Dikkat fonksiyon parametresi ile template parametresini birbiri ile karıştırmamalıyız!! Yani hangi şablon kategorisi olursa olsun bir template parametresi(leri) olmak zorunda!!
+template parametresi:
+a) type parameter ya da 
+b) non-type parameter olabiliyor. 
+c) template parameter (ileri C++ kursunun kapsamında )
+
+Biz template kod ile derleyiciye kod yazdırıyoruz yani kod yazdıran kod. Fakat derleyici bizim kod yazdıran kodumuzdan istifade ederek gerçek kodu yazacak. İşte type parameter şu 
+demek: ben öyle bir isim kullanıyorum ki bu isim karşılığı derleyicinin yazdığı kodda bir tür kullanılıcak, bu isim bir türü temsil ediyor. Benim bu ismi kullandığım yerde
+derleyici o isme karşılık bir türü kullanıcak. Burada template type parametreleri için  kullanılabilicek 2 tane anahtar sözcük var: class ve typename 
+
+template <class T> burada yazdığım T bir type parameter. T bir tür olmak üzere özellikle şuna dikkat! class anahtar sözcüğü ile bildirildiği için bir class type olmak 
+zorunda değil. Bu sadece T'nin bir tür olarak kullanıldığı T yerine derleyicinin yazdığı kodda bir türün kullanılıcağı anlamına geliyor. Örneğin derleyici compile time'da bu 
+template'dan faydalanırken bir kod yazarken T'nin yerine int, double kullanabilir, bir class olması gerekmez!! Zaten buradaki class anahtar sözcüğü de bildiğimiz anlamda kullanılan 
+class anahtar sözcüğü değil. C++'ın yine geçmiş sentaksından kaynaklanan bazı yerlerde class birincil class anlamında değil type anlamında kullanılıyor. İşte bu biraz rahatsız edici 
+bulunmuş olmalı ki ilerleyen dönemlerde modern C++ öncesi yine alternatif bir anahtar sözcük daha eklendi: typename 
+
+template <typename T> yani bu context'te class anahatar sözcüğünü kullanmak ile typename anahtar sözcüğünü kullanmak arasında anlamsal açıdan bir fark yok; her ikisinde de T bir tür 
+olmak üzere demek. Hocamız kişisel olarak typename anahtar sözcüğünü kullanıyor ama hala class anahatar sözcüğünü kullanan birçok programcı da var. 
+
+Birden fazla template parametresi olabilir; ama farklı isimler vermeniz gerekir çünkü bu da bir scope'dur. 
+template <typename T, typename U> burada hem T'nin hem de U'nun yerine bir tür kullanılıcağını söylemiş oluyorum. 
+template<typename  T, class U>
+Hatta class ve typename anahtar sözcüklerini şu şekilde kullanmak açısından da sentaks olarak hata yok, fakat iyi bir fikir değil. T ve U türler olmak üzere demek. 
+
+NOT: typename anahtar sözcüğünün başka kullanım biçimleri de var, yani template kullanımında class ve typename arasında bir fark yok ama typename'in kullanıldığı başka bağlamlarda 
+olucak ancak o bağlamlarda class anahtar sözcüğünü kullanamıyorsunuz!!
+
+template parametresi template'teki isim yani açısal parantez içinde kullanılan isimler T, U gibi. Ama derleyici kod yazarken template type parametreleri yerine belirli türler 
+kullanıcak işte o belirlendiği zaman onlara template argümanları deniliyor. 
+template <typename T, typename U >
+class Myclass {
+
+};
+örneğin T'yi int olarak al, U'yu double olarak al bir sınıf kodu yaz anlamına gelen bir talimat söz konusu olsaydı C++'ın sentaksına uygun şekilde işte orada kullanıcağımız int ve 
+double'a bu template için kullanılan argümanlar diyoruz. 
+
+
+template <typename T, typename U > burada kullanılan isimler bildiğimiz identifier'lar. Yani isim, dolayısıyla hangi ismi kullanacağınız sizi ilgilendirir. Fakat isimler 
+çoğunlukla konvensiyonel olarak seçiliyor. Örneklerde T, U vb. isimler kullanmamız seçimimizden ziyade bunların genel kabul görmüş uzlaşımlar olmasıdır. 
+
+2. template parametre kategorisi: non-type parameter
+Hocamıza göre burada non-type terimi biraz uygun seçilmemiş olabilir. non-type parametre şu demek; bu öyle bir isim ki derleyici kodu yazarken bu isim karşılığı bir sabit 
+kullamıcak. Yani bu bu öyle isim ki bu isim bir sabiti temsil ediyor.
+template <int n>
+class Myclass {
+
+};
+buradaki n isminden bahsederken ona template non-type parameter diyeceğiz. Şu şekilde NTTP kısaltılıyor. Bu isim bir sabite karşılık geliyor. İşte int'de sabitin türü. 
+Yani örneğin derleyicinin bu sınıf şablonundan  bir sınıf kodu yazabilmesi için compile time'da bu sabitin ne olarak seçildiğini bilmesi gerekiyor. Örneğin ben derleyiciye 
+Myclass sınıf şablonundan bir sınıf kodu yazdırmak istediğimde n sabitinin 20 olarak alınmasını isteyebilirim. Ya da bir başka sınıf oluştururken n sabitinin 50 olarak seçilmesini 
+isteyebilirim. 
+
+!!!type parameter ile non-type parameter beraber de bulunabilir. Bu çokta sık karşımıza çıkıcak! 
+template <typename T, int n>
+class Myclass {
+
+};
+Örneğin sınıfın şöyle bir private veri elemanı olsaydı:
+template <typename T, int n>
+class Myclass {
+
+private:
+    T ar[n];
+};
+eğer derleyici compile time'da bu sınıf şablonundan bir sınıf kodu üretirken T'nin karşılığı olan tür argümanının ne olacağını bilmesi gerekiyor n karşılığı da kullanılıcak 
+sabitin ne olduğunu bilmesi gerekiyor. Örneğin derleyici T'nin double n'nin de 100 olduğunu anlarsa derleyici biizm için yazdığı sınıftan sınıfın private veri elemanı olan 
+ar'yi elemanları double türden olan 100 elemanlı bir dizi olarak tanımlar. non-type parameter yerine constant-parameter vb. denilseydi daha iyi olabilirdi, sonuçta bu bir sabit.
+
+3. kategori ise: template template parameter 
+her ne kadar bu dersimizin bir konusu olmasa da burada da yine bir isim kullanıyoruz sentaksı biraz farklı. Fakat bu ismin kendisi de bir template'a karşılık geliyor. 
+
+Buraya kadar anlattıklarımız template'ın ne olduğu ile ilgili değil; class template'da olabilir function template'da ya da diğerleri. 
+
+İster sınıf şablonu olsun,ister fonksiyon şablonu olsun; şablonun varlık nedeni derleyiciye kod yazdırmak. Derleyici sınıf şablonundan sınıf kodu yazıyor! Derleyicinin şablon 
+koddan gerçek sınıf kodunu yazmasına o template'ı instantiate etmesi deniliyor. Yani template instantiation öyle bir süreç ki derleyici bir template koddan bir ürün oluşturuyor. 
+İşte derleyicinin oluştruduğu ürün o template'ın instance denmesi çok doğru olurdu ama bu terim kullanılmıyor. Kullanılan resmi terim bu değil. 
+Kullanılan resmi terim: template specialization. Örneğin:
+template <typename T>
+void func(T x)
+{
+
+}
+Bu bir fonksiyon şablonu. Derleyici template type parametresi karşılığı int türünü kullanıp bir fonksiyon kodu yazarsa bu template'ı instantiate etmiş olucak; işte derleyicinin 
+oluşturduğu ürün bir fonksiyon. Artık derleyici o ürünü oluşturduktan sonra onu bizim yazdığımız herhangi bir fonksiyondan bir farkı kalmayacak. Yani fonksiyonu nihayetinde benim 
+yazmamla derleyiciye bir template'den yazdırmış olmamızın arasında oluşan ürünün bir fonksiyon olması açısından bir farklılık yok. Örneğin soruyu şöyle de sorabiliriz: C++'ta bir 
+fonksiyonu nasıl oluşturabilirim: a) o fonksiyonun kodunu kendim yazarım, b) fonksiyonu bir template olarak ifade ederim derleyici benim template'imden instantiation yapar
+ve bir fonksiyon kodu oluşturur. İşte derleyicinin oluşturduğu o kod/ gerçek kod olan ürüne bu template'ın isterseniz instance diyebilirsiniz ama kullanılan terim specialization. 
+Örneğin func fonksiyon şablonunun int specialization'ını. İlerleyen dakikalarda şöyle gösterildiğini göreceğiz: func<int>, bu bir fonksiyon ama bu fonksiyon bir sınıf şablonundan 
+template parametresi karşılığı int türünün kullanılmasıyla elde edilen bir fonksiyon ama, sonuç olarak şimdiye kadar yazdığımız fonksiyonlar nasıl bir fonksiyon ise bu da öyle bir 
+fonksiyon. O halde şöyle diyebiliriz; bir fonksiyon şablonundan derleyici sonsuz sayıda specialization oluşturabilir; çünkü template argümanı  user defined type'ları da alabilir, 
+user defined type'ler sonsuz olduğuna göre böyle bir template'ın sonsuz tane specialization'ını olabilir. 
+func<int>
+func<double>
+func<long>
+func<Date>
+
+Hocamız specialization terimi yerine açılımı terimini kullanıyor. specialization fonksiyon şablonu ile ilgili bir terim değil. Örneğin  vector bir sınıf şablonu, ama vector 
+sınıf şablonunda template parametresi olarak örneğin int'i tempalete argüman olarak kullanırsam derleyicinin yazdığı sınıf vector'ün int specialization'ını olucak. 
+vector'ün int specialization'ını ayrı bir sınıf vector'ın double specialization'ını ayrı bir sınıf:
+std::vector<int>
+std::vector<double>
+
+Dikkat: aynı sınıf şablonundan farklı template argümanlarıyla oluşturulmuş sınıflar ya da fonksiyon şablonu ise fonksiyon şablonları ayrı fonksiyonlardır. Sınıf olmaları 
+durumunda ise aralarında hiçbir ortak noktası yok gibi düşünebiliriz. Yani nasıl A sınıfı ve B sınıfı birbirinden nasıl farklı sınıflar ise vector'ün int açılımı ile 
+vector'ün int açılımı da ayrı sınıflar. Örneğin bir dönüştürme fonksiyonu yoksa bir kalıtım ilişkisi yoksa A ve B farklı sınıflar ise A sınıfı türünden bir nesne'ye B 
+sınıfı türünden bir nesneyi atayamam çünkü derleyici bu dönüşümü gerçekleştiricek bir fonksiyon olmadığından sentaks hatası olur. Benzer şekilde vector'ün double açılımı 
+sınıfı türünden bir nesneye örneğin vector'ün int açılımı sınıfı türünden bir nesne atarsam bunun alaksız 2 nesne türü olan A'ya B'yi atamaya çalışmaktan bir farkı yok!!!
+
+
+C++20 standartına kadar non-type parametreler hangi tür olabilir? o konuda kısıtlama fazlaydı; örneğin gerçek sayı türleri non-type parametre olarak seçilemiyordu. C++20'de
+artık gerçek sayı türlerini de hatta belirli özelliklere  sahip sınıf türlerini de kullanabiliyorsunuz, bu devrim niteliğinde bir eklemedir!! Fakat biz o kurallara gelmeden 
+sanki modern C++ öncesindeki araçlarla başlayacağız daha sonra modern C++ ile eklenen araçlarla anlatacağız. 
+
+non-type parametre pointer türü olabilir, function pointer türü olabilir veya referans türü olabilir:
+template <int *p>
+template <int (*p)(int)> bu durumda p öyle bir isim ki bu template'da p'yi kullandığım zaman aslında bir fonksiyonun adresi olan bir sabiti kullanmış olacağım. Bu halen bir non-type 
+parametre. 
+
+fonksiyon şablonları:
+
+template <typename T> 
+void func(T x)
+{
+
+}
+T ya da T'ye bağlı bir türü bu oluşturduğum meta kod içinde belirli kurallara uyarak istediğim biçimde kullanabilirim. Örneğin fonksiyon şablonunda template parametrenin 
+type parametre olması fonksiyonun parametre değişkenin de bu türden olması zorunluluğunu getirmiyor. Örneğin:
+template <typename T> 
+void func(T x, int y)
+{
+
+}
+şeklinde bir fonksiyon şablonu olabilir. Bu fonksiyonun 2 tane parametre değişkeni olucak derleyicinin yazacağı fonksiyonun ama 2. parametresi zaten int türden belli.
+Bunun compile time'da derleyiciye yaptırıcağımız bir seçimle ilgisi yok ama derleyicinin yazacağı 1. fonksiyonun parametresinin türünün ne olduğu compile time'da 
+belli olucak. Derleyici T türünün int olduğu bilgisini elde ederse derleyicinin yazdığı fonksiyonun 1. parametresi int türden olucak. Ama derleyici örneğin T türünün
+int değilde Fighter tütü olduğunu öğrenirse derleyiciye yazdırdığımız fonksiyonun 1. parametresi Fighter türünden olucak. Burada yine ilk kritik  yanlış anlamaya neden 
+olabilicek nokta şu: T'nin karşılığı hangi türün kullanılıcağı başka fonksiyonun parametre değişkeninin türü başka; yukarıdaki örnek için değil ama örneğin fonksiyonun 
+şu şekilde tanımlandığını düşünün:
+template <typename T> 
+void func(T *x)
+{
+
+}
+soru: derleyici compile time'da bu fonksiyon şablonundan fonksiyon kodu yazarken T'nin int olduğunu anlarsa fonksiyonun parametre değişkeninin türü ne olucak?
+int* olucak, ama derleyici T'nin int değilde double* türü olduğunu anlarsa bu durumda derleyicinin yazdığı fonksiyonun parametresi double** olucak. Örneğin 
+derleyici T türünün int& türü olduğunu anlarsa bu durumda derleyicinin yazacağı fonksiyonun parametre türü int&* olucak. Dolayısıyla derleyici template parametresinin 
+türünün ne olduğunu öğreniyor duruma göre çıkarımını yapıyor. Ona göre fonksiyonun parametre değişkeninin hangi türden olduğu ortaya çıkıyor. Burada özellikle şuna 
+dikkat: 2 yerde de parametre teriminin kullanılması bazı durumlarda özellikle doğru terimi seçmezseniz; niyetinizin doğru bir şekilde ifade edilmesini sağlamaz. x
+fonksiyonun parametre değişkeni, x'ten bahsederken function parameter terimini kullanıyoruz. Bazen call parameter terimini de kullanıyoruz. Fakat T template parametresi. 
+template <typename T> 
+void func(T x, T y)
+{
+
+}
+bu fonksiyonun 1 tane template parametresi, 2 tane fonksiyon parametresi var. 
+
+Derleyicinin gerçek kodu yazmak için template parametrelerine karşılık gelecek argümanların ne olduğunu bilmesi gerekiyor. Bunu bilmesinin duruma göre alternatif yöntemleri var:
+
+1. alternatif yöntem: bizim bunu açıkça söylememiz
+İşte derleyiciye diyeceğiz ki derleyici func template'ı varya oradaki template parametresine int argümanını kullanacaksın!
+Buna yönelik bir kod yazacaksıni eğer template parametresi karşılığı template argümanının ne olduğunu ben belirli bir sentaksla belirtiyoruz. template'ın isminin yanındaki 
+açısal parantesiz içine türü yazıyoruz:
+Myclass<int> örneğin Myclass bir sınıf şablonu ise Myclass<int> yazığımda aslında bu derleyiciye bir yerde derleyici template parametresi karşılığı int argümanını kullanacaksın  
+şeklinde bir talimat demek. template argümanını bu şekilde açıkca açısal parantezin içine yazarak derleyiciye bildirmemize "explicit template argument" deniiyor. Bu sınıf 
+şablonlarında da fonksiyon şablonlarında da böyle. Yani örneğin foo bir template ise foo<int>(12) şeklinde bir fonksiyon çağrısı yaparsam doğrudan foo'nun int specialization'ı 
+olan fonksiyonu çağrımam anlamına gelir. Dolayısıyla bu talimat derleyiciye aynı zamanda foo template'ınden template parametresi karşılığı int template argümanını kullanmasıyla 
+bir fonksiyon kodu yazmasınıda içeriyor. İşte o yazılan fonksiyonuda çağırıyorum ona 1 tane argüman gönderdiğime göre 1 tane parametre değişkeni olmalı; onun parametre değişkenine 
+bu argğmanı göndermiş oluyorum. Demek ki ne template'ı olursa olsun yollardan biri her zaman template argümanın açıkça derleyiciye uygun sentaksla ki o uygun sentaks açısal 
+parantez içine yazmak bildirilmesidir. 
+
+2. alternatif yöntem: deduction mekanizması
+deduction daha önce ele aldığımız bu bölümde de hatırlamamız gereken bir konu; burada da büyük ölçüde de kurallar aynı. auto keyword'ü ile yapılan bir çıkarım vardı, decltype
+keyword'ü ile yapılan çıkarım vardı fakat her ikiside eski C++'ta yoktu. Eski C++'ta tür çıkarımı sadece template'lerde vardı. Teknik açıdan bakarsak zaten template argümanları 
+için yapılan çıkarım Modern C++ öncesinde de vardı hatta zaten tür çıkarımının tek olduğu yer burasıydı. Başka bir tür çıkarımı mekanizması yoktu. O halde 2. tipik yol deduction
+mekanizmasıdır. Yani biz template argümanının ne olduğunu derleyiciye açısal parantez içinde explicit olarak yazmayacağız derleyici context'e bakarak belirli kurallar dahilinde
+durumdan vazife çıkartarak template parametresine karşılık gelen template argümanını (ya da çoğul da olabilir bir tane parametre olmak zorunda değil) çıkarımını yapacak; işte 
+bu sürece "template argument deduction" deniliyor. C++'ın kurallarının önemli bir kısmını bu süreç oluşturuyor yine. 
+
+template argument deduction: ortada bir template var; derleyici template koddan gerçek kodu yazıcak ama gerçek kodu yazması için template parametrelerine karşılık gelen template 
+argümanlarının ne olduğunu bilmesi gerekiyor. Ve bunu çıkarım yoluyla öğrenmeye çalışıyor. Bu sürece template argument deduction deniliyor. 
+Dikkat!!! C++17 standardına kadar template argument deduction yalnızca fonksiyon şablonları için geçerliydi! Ama C++17 standart'ı ile adeta bu konuda da bir devrim gerçekleşti,
+kısıtlıda olsa sınıf şablonları içinde template argümanının çıkarımı yapılabiliyor artık. Sınıf şablonlarında template argument deduction yapmaya yönelik eklenen sentaksa CTAD 
+deniliyor. CTAD(Class Template Argument Deduction) Birçok önemli araç C++17 ile dile eklendi!!
