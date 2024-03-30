@@ -1,0 +1,640 @@
+2. alternatif yöntem: deduction mekanizması C++17'ye kadar sadece fonksiyon şablonları için çıkarım mekanizması söz konusuydu fakat C++17 ile birlikte kısıtlı da olsa sınıf şablonları 
+içinde çıkarım mekanizması eklendi; meşhur CTAD. Ve çokta yoğun kullanılıyor.   
+
+
+3. alternatif yöntem: default template argument
+default argument konusunu fonksiyonların parametreleri için görmüştük o başka o bir fonksiyonun parametresi karşılığı argüman göndermezsek; fonksiyon bildiriminde belirtilen 
+argüman ya da argümanların kullanıdığını anlayacaktı derleyici; o argümanları  göndermiş kabul edecektik. Fakat bir de default template argument var; bu template argümanının 
+ne olduğu belirtilmezse template'in kendisinde belirtilen özel bir sentaksla varsayılan argümanlar kullanılsın demek. Çokta sık kullanılıyor. Örneğin vector sınıf template'ını 
+düşünün; std::vector<int> açılımı diyoruz ama aslında vector sınıf şablonu 1 değil 2 template parametreye sahip. Şimdiye kadarki örneklerde sadece 1 template parametre kullandık,
+ama aslında 2. template parametreside non-type parametre; bunun içinde normalde template argümanı belirtmemiz gerekiyor ama o template'in kendisinde default argument sentaksı ile 
+bildirildiği için 2. template parametresi karşılığı template argümanı yazmadığımızda default template argümanını kullanmış oluyoruz. Ya explicit olarak template argümanını 
+belirtiyoruz ya deduction mekanizmasından faydalanıyoruz ya da default template argument mekanizmasından faydalanıyoruz. 
+
+template kodlar hemen her zaman başlık dosyasında yer alıcak; eğer farklı farklı client dosyalarda kullanılıcaksa yani dışarıya hizmet vericekse template kodların başlık dosyasında 
+olması gerekiyor. Ve template kod başlık dosyasında olamsına rağmen bir istisna oluşturuyor ODR'ı ihlal etmiyor. 
+
+function template
+
+Öncelikle şunu anlamamız gerekiyor; derleyici bir template kodla karşılaştığı zaman örneğin bir fonksiyon şablonu kodu ile karşılaştığı zaman ilk etapta çok sınırlı bir sentaks 
+kontrolü uyguluyor. Örneğin:
+template <typename T>
+void func(T x)
+{
+    ++x;
+}
+gibi bir fonksiyon şablonu olsun. Bu fonksiyon şablonunda T'nin hangi tür olduğuna bağlı olarak yani T yerine hangi türün kullanılıcağına bağlı olarak sentaks hatası oluşabilir.
+Ama derleyici daha bu aşamada yani bu template'den bir instantiation yapmıyor ise bir sentaks kontrolü yapamaz!! Örneğin T'nin int olması durumunda ++ operator'ünün operandı olan 
+nesne int türden olucak. Ama T'nin Fighter türü olması durumunda Fighter nesnesinin ++ operator'ünün operandı olması söz konusu olucak Bu durumda süphesiz sınıfın ++ operator'ü 
+overload edilmemişse sentaks hatası oluşucak. Ama derleyici template kodun üstünden geçerken bu kontrolü yapma şansına sahip değil yapmayacakta. Yani burada bir sentaks hatası 
+almazsınız. Burada derleyici 2 tane sadece tipik kontrolü yapar: 1) template parametresinden bağımsız her zaman sentaks hatası oluşturucak durumlar örneğin func'dan sonra gelen 
+2. parametre'yi koymasak, statement'ın sonuna ; koymasam ya da blokların kapanmasında uyumsuzluk olsa vb. bunları derleyici sentaks hatası olarak değerlendirir. 2) herhangi 
+bir template parametresine bağlı olmayan isimler template parametresine karşılık gelen türün ne olduğundan  bağımsız aranıcak ve isim arama yapılır eğer bulunamazsa sentaks 
+hatası meydana gelir. Ancak tam aksine bir template parametresine bağlı olan isimlerde ise türün ne olduğuna bağlı olarak ADL ile isim aranıyor dolayısıyla sentaks hatası olmaz. 
+Örneğin T yani x bir namespace içindeki türden olabilir bu durumda foo o namespace içinde aranıcak, ADL devreye giricek:
+template <typename T>
+void func(T x)
+{
+    foo(x);
+    baz(); //syntax error
+    x.bar();
+}
+dolayısıyla derleyicinin burada foo ismini arayıp bulamamsı sentaks hatası vermesi gerektirseydi ADL kullanılamazdı!! Yine bar isminin nerede aranacağı T türünün ne olduğuna 
+bağlı. T türü örneğin Neco türü ise Neco türünün definition'ında aranacak. Ama T türünün ne olduğu bilinmiyor ki dolayısıyla isimlerin aranmasına ilişkin arama tamamen aranan 
+ismin template parametresine bağlı olup olmadığıyla ilgili. Öte yandan baz ismi herhangi bir şekilde template parametresine bağlı değil dolayısıyla şimdiden aranmasıyla T'nin 
+ne olduğunun anlaşılmasından sonra aranması arasında sonuç açısından bir fark olmayacak. Dolayısıyla baz çağrısı için sentaks hatası oluşur çünkü isim aranıp bulunamamıştır. 
+
+Bu yapılan ilk sentaks kontrolü fakat asıl sentaks kontrolü 2. ve 3. aşamada yapılacak. 2. ve 3. aşamaları ele almadan önce template argument deduction konusunu inceleyeceğiz.
+template <typename T>
+void func(T x)
+{
+    //
+}
+Aslında fonksiyon şablonları ile ilgili en önemli en kapsamlı bölüm bu ilk bölüm. Çünkü derleyicinin fonksiyon şablonundan bir kod oluşturabilmesi için  T türünün ne olduğunu 
+bilmesi gerekiyor. T türünün ne olduğunu bilmesinin yollarından biri çıkarım yapmak. O halde örneğin:
+template <typename T>
+void func(T x)
+{
+    //
+}
+
+int main()
+{
+    func(12);
+    func(1.2);
+    func(29L);
+}
+kodu derlediğimizde çağrıların hiçbirine sentaks hatası oluşturulmadığını görüyoruz çünkü birazdan göreceğimiz şekilde her fonksiyon çağrısı için derleyici template argument 
+deduction dediğimiz süreci çalıştırdı ve template parametresine karşılık gelmesi gereken template argümanının ne olduğunu anladı. Yani aslında biz çağrıyı func(12); şeklinde 
+yapmış olsakta derleyici açısından func<int>(12); olarak ele alındı. func(1.2); ise func<double>(1.2); func(29L); ise func<long>(29L); olarak ele alındı. Yani burada 
+template argument deduction başarılı oldu. 
+
+Peki template argument deduction nasıl gerçekleştiriliyor?
+Bu konuda şanslıyız çünkü template argument deduction ile auto deduction bir istisna haricinde tamamen aynı!!! Aşağıda verilen cümle yine programcıların anlaması gereken en önemli 
+cümlelerden biri:
+DİKKAT!!
+Bir istisna dışında auto type deduction ile template argument deduction tamamen aynıdır!!!!
+int main()
+{
+    auto b = 12;
+}
+dediğim zaman burada deduction auto için yapılıyor; çünkü burada başka deklaratörler olabilir:
+auto &b veya auto *b vb. diyebiliriz. Dolayısıyla burada çıkarım auto için yapılıyor. 
+template <typename T>
+void func(T x)
+{
+    //
+}
+
+int main()
+{
+    auto x = expr;
+    func(expr);
+}
+Fakat değişen hiçbir şey yok: auto x = expr; için nasıl derleyici dilin daha önce öğrendiğimiz  kurallarına dayanarak expr ifadesinden faydalanarak auto karşılığı gelen türü 
+tespit ediyorsa şimdi de expr'ını auto specifier'ı ile tanımlanan değişkene ilk değer veren ifade değilde fonksiyon şablonuna argüman olarak gönderilen ifade olduğunu düşünelim.
+auto x = expr; deyiminde auto için çıkarım hangi kurallara göre yapılıyorsa fonksiyon şablonundaki T için yapılan çıkarımda aynı kurallara göre yapılıyor!!!
+auto x =  expr; de nasıl ki çıkarım x için değil auto için yapılıyor fonksiyon şablonunda da x için değil T için yapılıyor!!!
+
+auto'taki kuralları 3'e ayırmıştık:
+1) herhangi bir deklarator yok:
+    auto x = expr;
+2) sol tarafı referansı deklaratörü var:
+    auto &y = expr;
+3) 2 tane & deklaratörü var:
+    auto &&z = expr;
+Her 3 kategorideki kurallar birbirinden farklıydı; aynı kural farklılığı  fonksiyon şablonunda da var:
+1)
+    template <typename T>
+    void func(T x)
+    {
+        //
+    }
+2)
+    template <typename T>
+    void func(T& x)
+    {
+        //
+    }
+3)
+    template <typename T>
+    void func(T&& x)
+    {
+        //
+    }
+yani derleyicinin T template parametresi karşılığı nasıl çıkarım yapacağı kuralları bu 3 kategoriden biri olmasına göre değişiyor. O halde örneğin:
+
+template <typename T>
+void func(T x)
+{
+    //
+}
+
+int main()
+{
+    func(12);
+}
+soru: derleyicinin yazacağı fonksiyon parametresinin türü ne? int T türü ne int
+
+örnek:
+template <typename T>
+void func(T x)
+{
+    //
+}
+
+int main()
+{
+    const int c = 24;
+    func(c);
+}
+derleyicinin yazdığı fonksiyonun parametre değişkeni cont int'mi int'mi? const'luk düşer int'tir. 
+
+örnek:
+template <typename T>
+void func(T x)
+{
+    //
+}
+
+int main()
+{
+    int a[10]{};
+    func(a);
+}
+derleyicinin yazdığı fonksiyonun parametre değişkeni int*'dır. 
+
+örnek:
+template <typename T>
+void func(T x)
+{
+    //
+}
+
+int main()
+{
+    const int a[10]{};
+    func(a);
+}
+derleyicinin yazdığı fonksiyonun parametre değişkeni const int*'dır. 
+
+Dikkat bu bilgiyi mülakatlarda da kullanmanız çok olumlu etki yapar:
+(Bu bilgi Scott Meyers'in Effective Modern C++ kitabından) Derleyicinin nasıl çıkarım yaptığını test etmenin compile time'da anlamanın bir yolu var; hemen hemen bütün derleyicilerde 
+tamamen çalışıyor. Bir sınıf şablonunun bildirimini yapıyorsunuz:
+template <typename>
+class TypeTeller; //bu bir sınıf şablonunun forward declaration'ı dolayısıyla bu sınıf şablonunun bir specialization'ını türünden nesne oluşturursanız sentaks hatası olur!
+
+template <typename T>
+void func(T)
+{
+   
+}
+int main()
+{
+    TypeTeller<int> x; //syntax error incomplete type türünden nesne tanımlanamaz
+}
+
+O halde ben func içinde  TypeTeller<T> türünden bir nesne oluşturursam; derleyicilerin hemen hepsi böyle davranıyor: bu durumda derleyici hata mesajı vericek ya derleyicinin 
+vereceği hata mesajında derleyici T'nin çıkarımını nasıl yaptığını söyleyecek:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T)
+{
+    TypeTeller<T> x;
+}
+int main()
+{
+    func(12);
+}
+derleyici T için int çıkarımı yapar. T = int olduğu için specialization'ının da int specialization olduğunu görüyoruz. 
+
+Örnek:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T)
+{
+    TypeTeller<T> x;
+}
+int main()
+{
+    int a[4]{};
+    func(a);
+}
+derleyici T için int* çıkarımı yapar. T = int* olduğu için specialization'ının da int* specialization olduğunu görüyoruz. 
+
+Örnek:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T)
+{
+    TypeTeller<T> x;
+}
+int main()
+{
+    const int a[4]{};
+    func(a);
+}
+derleyici T için const int* çıkarımı yapar. T = const int* olduğu için specialization'ının da const int* specialization olduğunu görüyoruz.
+
+Dolayısıyla derleyicinin verdiği sentaks hatası mesajında derleyici türün ne olduğunu söylüyor!! 
+
+Örnek:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T)
+{
+    TypeTeller<T> x;
+}
+int main()
+{
+    int x = 10;
+    int& r = x;
+
+    func(r);
+}
+r türü int çünkü referans değişkenin oluşturduğu ifade referans türünden değildir! Az önce söylediğimiz gibi derlediğimizde derleyicinin verdiği sentaks hatasında T = int olduğunu 
+görüyoruz. 
+
+Örnek:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T)
+{
+    TypeTeller<T> x;
+}
+int main()
+{
+    func("ali");
+}
+derleyicinin verdiği sentaks hatasında T = const char* olduğunu görürüz. 
+
+
+Örnek:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T)
+{
+    TypeTeller<T> x;
+}
+
+int foo(int);
+int main()
+{
+    func(foo);
+}
+derleyicinin verdiği sentaks hatasında T = int(*)(int) olduğunu görürüz. 
+
+Örnek:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T&)
+{
+    TypeTeller<T> x;
+}
+int main()
+{
+    int x = 10;
+    func(x);
+}
+derleyicinin verdiği sentaks hatasında T = int olduğunu görürüz. 
+
+Örnek: dikkat!!! karıştırılan bir soru
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T&)
+{
+    TypeTeller<T> x;
+}
+int main()
+{
+    int a[5]{};
+    func(a);
+}
+derleyicinin verdiği sentaks hatasında T = int[5] olduğunu görürüz.  En fazla öğrencilerin takıldığı yer burası. T'nin türünün ne olduğu başka fonksiyon parametre türünün ne 
+olduğu başka. T türü int[5] olur, array decay uygulanmaz!! Öte yandan fonksiyonun parametresi 5 elemanlı int diziye referans yani int (&r)[5] olur. 
+
+Örnek:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T&)
+{
+    TypeTeller<T> x;
+}
+
+int foo(int);
+
+int main()
+{
+    func(foo);
+}
+derleyici T türü için tür çıkarımını doğrudan fonksiyon türü olur yani T = int(int) bu bir function type'dır. decay uygulanmadı yine!! Öte yandan fonksiyonun parametresi 
+bu türden bir referans bu türden bir referans olduğu zaman function referans olur:int(&)(int)
+
+Örnek:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T&)
+{
+    TypeTeller<T> x;
+}
+
+int foo(int);
+
+int main()
+{
+    const int x = 4;
+    func(x);
+}
+bu durumda T = const int; burada referans semantiği kullanıldığında const'luk düşmüyor. T = const int olduğu için fonksiyonun parametresi const int& doğal olarak. Zaten aksi 
+saçma olurdu cont dönüşümü geçersiz olurdu; sentkas hatası meydana gelirdi.  
+
+Örnek:
+//forwarding reference ya da universal reference: tür çıkarımı ile beraber kullanıldığında &&'in oluşturduğu yapıya R val. ref denmiyor; standart'ların kullandığı terim 
+//forwarding reference  fakat C++ camiasının daha çok tercih ettiği terim ise universal reference(Scott Meyers'ın uydurduğu terim)
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T &&)
+{
+    TypeTeller<T> x;
+}
+
+int main()
+{
+
+}
+burada kural setinin tamamen farklı olduğunu hatırlayınız!! Örneğin auto &&x = 10; da uygulanan kural neyse func içinde bulunan T template parametresi için uygulanacak tür 
+çıkarımı kuralı aynıdır. O halde bu durumda T'nin hangi tür olduğunu belirleyen fonksiyona gönderilen argümanın value category'si. O halde 
+1) eğer fonksiyona gönderilen argüman'ın value kategorisi R value expr. ise yani X value ya da PR value ise bu durumda T türü int olur:
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T &&)
+{
+    TypeTeller<T> x;
+}
+
+int main()
+{
+    func(123);
+
+}
+kodu çalıştırdığımızda, derleyicinin verdiği hata mesajında T = int olduğunu görürüz. T int olduğuna göre fonnksiyon parametresi o halde T&& yani int&& olur. 
+
+2) karmaşık olan yer burasıydı; func'ı L value expr. ile çağırırsam bu örnekte olduğu gibi bu durumda T türü int& olucak T türü int& olunca sağ taraf referansına sol taraf referansı 
+oluşucak ve bu durumda da reference collapsing kuralları geçerli olucak; sağ taraf referansına sol taraf referansı, sol taraf referansına bağlanıcak! 
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T &&)
+{
+    TypeTeller<T> x;
+}
+
+int main()
+{
+    int y = 23;
+    func(y);
+
+}
+kodu çalıştırdığımızda, derleyicinin verdiği hata mesajında T = int& olduğunu görürüz. T int& olduğuna göre fonksiyon parametresi o halde T yani int& olur. 
+
+Dikkatt!!
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T &&)
+{
+    T x;
+}
+
+int main()
+{
+    int y = 23;
+    func(y);
+
+}
+bu fonksiyon çağrısı ile sentaks hatası olur mu olmaz mı?
+Tabii ki olur; T = int& olduğuna göre default initialize edilemez!! default initalize edilemediği için sentaks hatası olur.  
+
+
+Sonuç olarak:
+1) Eğer bir fonksiyonun yukarıdaki örnekte olduğu gibi template parametresine bağlı && şeklinde bildirilmişse buna sağ taraf referansı demiyeceksiniz!!! Tıpkı auto type deuction'da 
+olduğu gibi buna universal reference ya da forwarding reference diyeceğiz. Ki bu özel amaçlar ile kullanılıyor!
+
+2) Burada T için çıkarımın nasıl yapılacağı fonksiyona gönderilen argümanın value kategorisine bağlı; fonksiyona gelen argüman R valu expr. ise T referans türü olmayacak. Bu 
+durumda fonksiyonun parametre değişkeni sağ taraf referansı olucak. Fonksiyona gönderilen argüman L val. expr. ise T sol taraf referansı türü olucak bu durumda reference 
+collapsing ile fonksiyonun parametre değişkeni sol taraf referansı olucak. O halde biz şöyle de diyebiliriz:
+Dikkatt!!
+template <typename>
+class TypeTeller; 
+
+template <typename T>
+void func(T &&)
+{
+    
+}
+
+int main()
+{
+  
+}
+func fonksiyonun parametresi ya sol tarag referansı ya da sağ taraf referansı. Ve şuna da dikkat eğer gönderdiğim argüman kendisi const ise const'lukta korunucak. 
+Bu da pratikte şu demek: neden Scott Meyers buna universal reference demiş? Çünkü bu template diyor ki gel ne olursan ol gel; türün ne olursa olsun ben seni kabul ederim!
+Yani böyle bir şablona gönderdiğim argüman geçerli bir ifade olmak üzere çıkarımda bir sentaks hatası olma ihtimali yok; çünkü sağ taraf değerini de kabul ediyor
+sol taraf değerini de kabul ediyor. Fonksiyonun parametresi R value referans olsaydı sol taraf değerini kabul etmezdi. Şimdiden çok iyi bir fikir edinmiş oluyoruz: demek ki
+bu fonksiyon öyle bir fonksiyon ki ister sol taraf değeri ile sağ taraf değeri ile çağrı yapabiliyorsunuz; sol taraf değeri ile çağrı yaptığınızda derleyicinin yazdığı fonksiyonun 
+parametresi sol taraf referansı L val. reference; sağ taraf değeri ile çağrı yaptığınızda ise derleyicinin yazdığı fonksiyonun parametresi sağ taraf referansı oluyor.
+
+Buraya kadar inceledeğimiz örnekler auto type deduction'da da ele aldığımız örneklerdi. Konun başında bir istisna dışında auto type deduction ile tür çıkarımı ile birebir aynı 
+olduğunu söylemiştik template argument deduction'ının. 
+
+İstisna ise şu: initializer_list
+#include <initializer_list>
+
+int main()
+{
+    auto x = {1, 3, 5, 7};
+}
+x'in çıkarımına baktığımız zaman initializer_list<int> olduğunu görürüz. O zaman bütün kurallar aynı olsaydı Örneğin şu şekilde bir fonksiyon şablonu bildirilseydi:
+#include <initializer_list>
+
+template <typename T>
+void func(T);
+
+int main()
+{
+    func({1, 3, 5, 7}); //syntax error
+}
+ve ben bu fonksiyon şablonuna böyle bir agüman gönderseydim benzer şekilde bunun geçerli olması gerekirdi ve fonksiyonun T türünün çıkarımının initializer_list<int> açılımı
+olarak yapılması gerekirdi; fakat derleyici herhangi bir şekilde kabul etmedi çıkarım yapılamadı!! Yani küme parantezi içindeki liste ile çağrı yaptığımızda sentaks hatası 
+oluşuyor oysa auto olduğunda bir sentaks hatası oluşmuyor. 
+
+
+template argument deduction başarısız olabilir yani bu son derece doğal bir durum; başarısız olması durumunda sentaks hatası oluşucak ama başarısızlığın birden fazla nedeni 
+olabilir! template argument deduction'da en 2 nedenden dolayı başarısızlık olabilir: 
+1) argümanlardan haraketle zaten template parametresinin ne olduğunu anlama imkanın olmaması
+template <typename T>
+T foo();
+
+int main()
+{
+    foo(); //syntax error
+    //veya 
+    int x = foo(); //syntax error
+}
+T fonksiyonun geri dönüş değerinin türü; fonksiyon şablonunda hiçbir hata yok böyle bir fonksiyon şablonu olabilir. Derleyicinin yapılan çağrılar sonucu T türünün ne olduğunu 
+anlama şansı yok! Dolayısıyla eğer template parametresi fonksiyonun parametre değişkenlerinde yer almıyorsa derleyicinin bir çıkarım yapma imkanı yok!!
+derleyicinin verdiği sentaks hatası: could not deduce template argument for 'T' şeklindedir.
+
+Fakat programcıların biraz zorlandığı yer başka bir yer:
+template <typename T>
+void func(T, T);
+
+int main()
+{
+    func(1, 5u); //syntax error!!
+}
+bu durumda 1. argüman için 1. parametreye yönelik çıkarım yapıldığıda T'nin int olması gerekir; ama 2. argüman için çıkarım yapıldığında T'nin unsigned int olması gerekir. Buradaki 
+hata kategorisi ambiguity!! Derleyici konuşabilse diyecek ki 1. argümana bakıyorum T'nin int olması gerekiyor, diğer argümana bakıyorum T'nin unsigned int olmas gerektiğini anlıyorum 
+derdi. İkisi birden olamaz ki!!
+
+Örnek: 
+template <typename T>
+void func(T, T&&);
+
+int main()
+{
+    func(10, 20);
+}
+sentaks hatası yok çünkü her 2 parametre için yapılan çıkarım int'tir. ü
+
+Örnek:
+template <typename T>
+void func(T, T&&);
+
+int main()
+{
+    int x{ 1 };
+    func(x, x); //syntax error
+}
+senktaks hatası meydana gelir; çünkü 1. argümandan 1. parametreye çıkarım yapıldığında T türünün int olması gerekir ama 2. de forwarding reference parametrede value category'e 
+bakılıcak L val. expr. olduğundan T'nin int& olması gerekiyor. Yani 1. parametre için int 2. parametre için int& yine ambiguity oluştu!!
+
+Örnek:
+burada T için deduction && olamaz ama explicit olarak && olmasını sağlayabilirim:
+template <typename T>
+void func(T&&);
+
+int main()
+{
+    func<int&&>(19);
+}
+bu fonksiyonun parametre değişkeni int&& çünkü T yerine int&& olması gerektiğini ben söyledim ama burada da && var; reference collapsing kurallarına göre sadece burada 
+sağ taraf referansı türüne collapse oluyordu! Dolayısıyla sağ taraf referansı oldu. Zaten sol taraf referansına collapse olsaydı sentaks hatası olurdu çünkü o zaman 
+gönderdiğim argüman sağ taraf değeri olduğu için sağ taraf değerini sol taraf referansına bağlayamazdım!!
+
+Örnek:
+template <typename T>
+void func(T, T);
+
+template <typename T>
+void foo(T&, T&);
+
+int main()
+{
+    func("ali","ali"); // legal her 2 parametre için const char* olucak. 
+    func("ali", "veli"); //legal string literalindeki karakter sayıları farklı dolayısıyla türler farklı ama her ikisi için de decay olacağı için her ikisinde de parametre const char*
+    foo("ali", "ali");  //legal her ikisinde de T türünün çıkarımı const char[4] olarak yapılmasıdır
+    foo("ali", "veli"); //syntax error: 1. parametre için T = const char[4]; 2. parametre için T = const char[5] olucak, ambiguity!
+}
+
+Tür çıkarımı sadece bu tarz basit örneklerle değil çok daha karmaşık tür çıkarımları yapılabiliyor:
+örnek 1:
+template <typename T, int n>
+void func(T(&r)[n]);
+
+int main()
+{
+    int ar[5]{};
+    func(ar);
+}
+çok tipik bir durum; standart kütüphanede çok kullanılıyor, kendi yazdığımız kodlarda da kullanıyoruz. Burada func'ın parametresi bir diziye referans. Bu durumda ben fonksiyonu 
+5 elemanlı bir int dizi ile çağırdığım için fonksiyonun parametresinin 5 elemanlı int bir diziye referans olması gerekiyor. Ve buradan haraketle derleyici T'nin int n'nin de 
+5 olması çıkarımını yapıyor. Yani her 2 çıkarımı birden yaptı!
+
+örnek 2:
+template <typename T>
+void func(T *p);
+
+int main()
+{
+    int x{};
+    int *ptr = &x;
+    int** p = &ptr;
+
+    func(ptr);
+}
+T için yapılan tür çıkarımı int burayı anlamanız çok önemli fonksiyonun argüman değişkeni int* olduğuna göre o zaman ptr'ın int*  parametreye aktarılması gerekiyor;
+o zaman T int olur. Fakat şimdi:
+template <typename T>
+void func(T *p);
+
+int main()
+{
+    int x{};
+    int *ptr = &x;
+    int** p = &ptr;
+
+    func(p);
+}
+fonksiyonu p ile çağırırsam T = int* olur çünkü gönderilen argüman int** türünden olduğu için bu dönüşümün yapılabilmesi için T'nin int* olması gerekir!
+
+Eğer şu şekilde olsyadı:
+template <typename T>
+void func(T p);
+
+int main()
+{
+    int x{};
+    int *ptr = &x;
+    int** p = &ptr;
+
+    func(p);
+}
+o zaman T türü int** olucaktı. ptr ile çağrı yapsaydım o zaman da T = int* olurdu.
+
+örnek 3:
+template <typename T, typename U>
+void func(T(*)(U)); //function pointer sentaksı, dolayısıyla bu fonksiyona bir fonksiyon adresi göndermem gerekir!
+
+int main()
+{
+    func(bar);
+}
+derleyici bar ifadesine bakacak, fonksiyonun parametresinin bu durumda geri dönüş değeri int parametresi double olan bir fonksiyona pointer olması gerektiğini anlayacak dolayısıyla
+buradan T'nin çıkarımını int olarak U'nun çıkarımını double olarak yapıcak.     
