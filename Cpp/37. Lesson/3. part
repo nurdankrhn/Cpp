@@ -1,0 +1,447 @@
+C'de bir dizinin boyutunu bir sabit ifadesi olarak elde etmek için tipik olarak sizeof operator'ü ile oluşturulmuş bir ifade kullanıyoruz:
+tipik olarak da bu bir functional macro olarak tanımlanıyor; asize ismi de veriliyor konvensiyonel olarar; bu macroyu sizeof(a)/ sizeof((*a)) olarak biliyoruz:
+#define asize(array) (sizeof(array)/sizeof(*(array))) gibi.
+
+Fakat C++'ta bir dizinin boyutunu compile time'da elde etmenin ilginç güzel bir yolu daha var: 
+doğrusu bu modern C++ ile standart olarak eklendi; yani şimdi yazacağımız gibi bir fonksiyon şablonu yazmaya gerekmeyecek ama zaten standart kütüphanede böyle bir fonksiyon 
+şablonu kullanılıyor arka planda.
+Bu fonksiyon şablonu constexpr'de olabilir:
+fonksiyo şablonları implicitly inline ama implicitly constexpr değil. 
+template <typename T>
+int func(T);
+
+int main()
+{
+    constexpr auto val = func(12); //syntax error
+}
+sentaks hatası çünkü derleyicinin yazdığı fonksiyon consexpr function değil!!! Fakat eğer başında constexpr function olsaydı:
+template <typename T>
+constexpr int func(T x)
+{
+    return x + 5;
+}
+
+int main()
+{
+    constexpr auto val = func(12);
+}
+bu durumda derleyicinin yazdığı fonksiyon consexpr fonksiyon olucaktı
+
+O halde eğer ben şöyle bir fonksiyon şablonu yazarsam:
+template <typename T, std::size_t n>
+constexpr std::size_t(T(&)[n])
+{
+    return n;
+}
+
+int main()
+{
+    int a[] = {3, 5, 7, 9, 1, 3, 3, 4};
+    constexpr auto val = asize(a);
+}
+böylece derleme zamanında val'in türünün unsigned int olduğunu size_t olduğunu ve değerinin de 8 olduğunu görüyoruz. Böylece bir fonksiyonla compile time'da da bir dizinin boyutunu 
+elde edebilirim. Tabii böyle bir fonksiyon yazmamıza gerek yok ama mülakatlarda da çok sık sorulan bir soru!!
+
+
+Fonksiyon şablonları ile ilgili önemli bazı kuralları çok iyi anlamamız gerekiyor!!
+1) Gönderdiğim her farklı türden argüman için derleyici compile time'da ayrı bir fonksiyon yazıcak:
+template <typename T>
+void func(T)
+{
+    std::cout << typeid(T).name() << '\n';
+}
+
+int main()
+{
+    func(12);
+    func('A');
+    func(true);
+}
+her argüman için derleyici farklı bir fonksiyon yazıyor!! Eğer örneğin derleyicinin 'A' ve true argümanlı fonksiyon çağrıları için bir fonksiyon yazmasını istemiyor olsaydık bu 
+durumda doğrudan explicit template argümanı kullanarak int açılımını kullancağaımızı belirtmeniz gerekir yoksa derleyici ayrı ayrı fonksiyonlar yazar:
+template <typename T>
+void func(T)
+{
+    std::cout << typeid(T).name() << '\n';
+}
+
+int main()
+{
+    func(12);
+    func<int>('A');
+    func<int>(true);
+}
+
+2)fonksiyon parametresinin bir template parametresi türünden olduğunu düşünelim, özellikle bu yapı standart kütüphanemizde ve 3. parti kütüphanelerde çok sık karşımıza çıkıcak:
+template <typename F>
+void func(F f)
+{
+    f();
+}
+
+int main()
+{
+
+}
+derleyicinin yazdığı kodun geçerli olabilmesi için f(); fonksiyon çağrı ifadesinin geçerli olması gerekiyor! Bu fonksiyon çağrı ifadesinin geçerli olabilmesi için birden fazla 
+ihtimal var: 1. si F bir function pointer type olur ve f(); ile çağırılan fonksiyon fonksiyonun parametre değişkeni olan function pointer'ın gösterdiği fonksiyon olur:
+template <typename F>
+void func(F f)
+{
+    f();
+}
+void bar()
+{
+    std::cout << "bar cagirildi\n";
+}
+int main()
+{
+    func(bar);
+}
+derleyicinin yazdığı fonksiyon şu şekilde:
+void func(void (*f)())
+{
+    f();
+}
+2. si operator overloading konusunu anlatırken fonksiyon çağrı operator'ünün overload edilmesini ele almıştık fakat orada da söylediğimiz gibi fonksiyon çağrı operator'ünün 
+overload edilmesinin önemi generic programlama tarafında diye belirtmiştik:
+template <typename F>
+void func(F f)
+{
+    f();
+}
+
+class Myclass {
+public:
+    void operator()()const
+    {
+        std::cout << "Myclass::operator()()\n";
+    }
+};
+int main()
+{
+    func(Myclass{});
+}
+derleyici template'e bakarak yine tür çıkarımı yapacak bu kez F türünün çıkarımını doğal olarak template argument deduction kurallarına göre Myclass türü olarak yapacak; dolayısıyla 
+derleyicinin yazdığı fonksiyonun parametresi Myclass türünden olucak ve bu durumda Myclass türünden parametre fonksiyon çağrı operator'ünün operandı olduğunda dilin kuralları gereği
+operator overloading mekanizması devreye girecek. Yani böyle bir template söz konusu olduğunda aslında F hangi türden olabilir? sorusunun cevabı F öyle bir türden olmalı ki F türünden 
+nesne fonksiyon çağrı operator'ünün operandı olduğunda dilin kurallarına göre geçerli bir fonksiyon çağrısı yapılabilmeli. 
+
+İşte böyşe türleri generic programlama tarafında vurgulamak için callable terimi kullanılıyor. Burada mesala func'ın parametresi bir callable çünkü ne olduğu bu fonksiyona argüman 
+olarak ne gönderildiğine göre değişicek ama sonuç olarak geçerli bir kodun oluşması için fonksiyon çağrı operator'ünün burada geçerli bir yapı oluşturması gerekiyor.
+
+Tekrar sentaks kontrolüne gelirsek; şimdiye kadar aslında 2 tane sentaks kontrolü gördük:
+1) genel sadece template'ı gördüğü aşamada yapılan sentaks kontrolü; yani ortada bir çağrı yok. Burada sentaks kontrolünün nasıl yapıldığını gördük. 
+2) birden fazla fonksiyon parametresi varsa çıkarımın aynı şekilde yapıldığını sınıyor derleyici eğer farklı şekilde çıkarım yapılıyorsa bir ambiguity oluşuyor! Ama asıl sentaks 
+kontrolü derleyicinin specialization'ını yani o template'ı instantiate etmesi aşamasında oluyor. instantiate etmesi durumunda artık derleyicinin yazdığı fonksiyonla o fonksiyonu 
+benim yazmam arasında bir fark yok!
+template <typename T>
+void func()
+{
+    ++x;
+    x.foo();
+    x = 132;
+}
+şimdi bu kod legal bir kod olabilir, örneğin kodu legal hale getiricek bir sınıf yazarsak:
+template <typename T>
+void func()
+{
+    ++x;
+    x.foo();
+    x = 132;
+}
+
+class Myclass {
+public:
+    Myclass();
+    Myclass(int);
+    Myclass& operator++();
+    void foo();
+};
+
+int main()
+{
+    func(Myclass{});
+}
+Dolayısıyla derleyici kodu yazarken oradaki ifadelerin tamamen legal olması gerekiyor!! Yani nihai sentaks kontrolü derleyicinin bu fonksiyonun kodunu yazması aşamasında oluşuyor;
+çünkü artık parametrelerinin  ne olduğu belli. 
+
+
+typename anahatar sözcüğünün template parametresinin temsil edilmesi dışında bir kullanımmı daha var. Örneğin şöyle bir kod olsaydı:
+template <typename T>
+void func(T)
+{
+    T::value_type x;
+}
+Birçok durumda sınıf şablonları ya da fonksiyon şablonları söz konusu olduğunda biz template argümanı olan türe bağlı türleri kullanıyoruz. Böyle türlere dependent type deniliyor. 
+Yani T örneğin Myclass türü olursa buradaki value_type'ın Myclass'ın value_type'ı olmasını istiyoruz. Fakat dilin şöyle bir kuralı var; nested type'lardan bahsederken  eğer 
+bunun(T::value_type) nested type olduğu bilgisini özellikle vurgulamazsanız derleyici parsing aşamasında bunu sınıfın static veri elemanı olarak alıyor. Dolayısıyla eğer template
+kod içinde bu parametre değişkeninin türü olabilir, geri dönüş değeri türü olabilir, bu örnekte olduğu gibi yerel bir değişkenin türü olabilir bunun bir tür bilgisi olduğunu özellikle 
+belirtmek zorundasınız!!!
+template <typename T>
+void func(T)
+{
+    T::value_type x;
+}
+
+class Myclass {
+public:
+    class value_type {
+
+    };
+};
+
+int main()
+{
+    func(Myclass{}); //syntax error
+}
+ben burada func fonksiyonuna Myclass sınıfı türünden bir nesne ile çağrı yaptığımda aslında beklentiniz func'ın tanımı içinde x değişkeninin de bu sınıf türünden olması fakat dilin 
+kurallarına göre sentaks hatası oluştu!!(value_type use of dependent type name must be prefixed with 'typename') Şİmdi burada typename anahtar sözcüğünü kullanarak bunun bir tür 
+bilgisi olduğunu söylemem gerekiyor; söylemezsem sentaks hatası oluşuyor:
+template <typename T>
+void func(T)
+{
+    typename T::value_type x;
+}
+
+class Myclass {
+public:
+    class value_type {
+
+    };
+};
+
+int main()
+{
+    func(Myclass{});
+}
+Yalnız C++20 standartı ile typename anahtar sözcüğünün kullanılmasının zorunlu olduğu bazı senaryolar zorunlu olmaktan çıkartıldı fakat bu dersimizin konusu değil; örneğin yukarıdaki 
+örnek zorunlu olan durumlardan halen biri. Burada typename anahtar sözcüğü yerine class anahtar sözcüğünün kullanamıyorsunuz!!! Başta da söylemiştik typename'in kullanıldığı bir 
+context daha var; o context dışında class anahtar sözcüğünü kullanamıyoruz demiştik. Örneğin yukarıdaki örnekte class anahtar sözcüğünü kullansaydım sentaks hatası oluşucaktı:
+template <typename T>
+void func(T)
+{
+    class T::value_type x;
+}
+
+class Myclass {
+public:
+    class value_type {
+
+    };
+};
+
+int main()
+{
+    func(Myclass{}); //synatx error
+}
+
+Sonuç olarak; bir template kod içinde template parametresi ile ilişkilendirilmiş template parametresine bağlı yani hangi tür tür olduğu template parametresinin ne olduğuna bağlı 
+bir tür kullanıyorsak o zaman typename anahtar sözcüğünü bu türden önce kullanmak zorundayız!! İşte böyle türlere C++'ta dependent type deniliyor. dependent type'lar için typename
+anahtar sözcüğünün kullanılması bir mecburiyet!! Tür eşmi içinde değişen bir şey yok; önemli olan dependent type olması yani bu bir nested type olabilir, bir numaralandırma türü 
+olabilir bir tür eş ismi olabilir ya daha karmaşık bir dependent type olabilir önemli olan dependent type olması. 
+
+
+template'lerle ilgili 2 tane önemli sentaks var:
+explicit template argument
+bir fonksiyon ya da sınıf şablonu söz konusu olduğunda illa çıkarıma bırakmak zorunda değilim. Yani çıkarım olmazsa explicit argüman kullanmak zorundayız diye bir kural yok.
+Çıkarım olsa da olmasada explicit template argümanı kullanabilirsiniz. Örneğin:
+template <typename T>
+void func(T x);
+
+int main()
+{
+    func<double>(12);
+}
+int göndermeme rağmen int türünün halen double olmasını isteyebilirim; bu durumda artık derleyici T türü için bir çıkarım yapmayacak. Gördüğünüz gibi template parametresine karşılık
+gelen argümanı açısal parantez içine yazıyorsunuz; yalnız birden fazla template parametresi varsa örneğin:
+template <typename T, typename U>
+void func(T, U);
+
+int main()
+{
+    func(12, 45);
+}
+halen bütün template argümanları için explicit template argüman kullanmak zorunda değilsiniz! 2 tane farklı isim kullanmanız birden fazla type template parametre söz konusu 
+olduğu zaman type parametreler için farklı isimler kullanmanız bunların aynı tür karşılığı olamayacağı anlamına gelmiyor. Bazen programcılar burada da yanlış anlayabiliyor;
+böyle bir soruya bunlar aynı türden dolayısıyla sentaks hatası olur şeklinde yanlış yorumlama yapanlar da oluyor. T'de U'da bir type holder T için kullanılan tür argümanına 
+int U için kullanılan ür argümanına pekala int olabilir. Yani bunda herhangi bir sentaks hatası yok. Örneğin şöyle olsaydı:
+template <typename T, typename U>
+void func(T, U);
+
+int main()
+{
+    func(12, 4.5);
+}
+derleyici T türünün çıkarımını int olarak U türünün çıkarımını double olarak yapacaktı. Ama örneğin şu şekilde olsaydı:
+template <typename T, typename U>
+void func(T, U);
+
+int main()
+{
+    func<int>('A', 4.5);
+}
+bu durumda derleyici T türü için bir çıkarım yapmayacaktı ama U türü için yine fonksiyonun 2. parametresine gönderilen argüman double türden olduğundan U türünün çıkarımını double
+olarak gerçekleştiricekti. Yani bütün template parametreleri için argümanları yazmak zorunda değilsiniz!
+
+Neden explicit template argümanı kullanırız?
+1) öyle fonksiyon şablonları var ki zaten belirli template parametre ya da parametrelerinin çıkarımının yapılması imkanı yok! Örneğin make_unique isimli çok sık kullanıcağımız 
+fabrika fonksiyonu var; akıllı pointer'lar konusuna geldiğimizde bu fonksiyon şablonu memory başlık dosyasında:
+#include <iostream>
+#include <memory>
+#include <string>
+
+int main()
+{
+    using namespace std;
+    make_unique<string>(120, 'A');
+}
+neden kolay olan template argument deduction varken burada explicit template argumanı kullanılmış? Bu make_unique sınıf şablonuna baktığınız zaman şöyle olduğunu görürsünüz:
+template <typename T, typename ...Args>
+std::unique_ptr<T> MakeUnique(Args&& ...args);
+görüldüğü üzere fonksiyonun parametrik yapısında T geçmiyor; sadece geri dönüş değeri türünde geçiyor. O zaman fonkisyon şablonu bildirimindeki parametrik yapıya bakarak derleyicinin 
+gönderdiğim argümanlara bakarak T türü için yapılacak çıkarımı anlama imkanı yok! Ama bu bilerek isteyerek oluşturulmuş bir durum; o yüzden burada örneğin make_unique fonksiyonuna 
+çağrı yapıldığında 1. template parametresine karşılık gelen template argümanının explicit olarak belirtildiğini görecekseniz; temalardan biri bu. 
+
+Bazen de fonksiyonun geri dönüş değerinin ne olduğu programcının insiyatifine bırakılıyor; aslında make_unique'de de böyle. Temel varlık nedenlerinden biri bu ama bazen de fazla 
+derleyici ayrı ayrı fonksiyon yazmasın istiyoruz. Örneğin şöyle bir fonksiyon şablonu olsa:
+template <typename T>
+void func(T x);
+
+int main()
+{
+
+}
+burada her gönderdiğim farklı türden argüman için derleyici ayrı bir fonksiyon yazacak. Örneğin float için ayrı, double için ayrı, long double için ayrı bir fonksiyon yazacak. Fakat 
+eğer ben bu fonksiyonu şu şekilde çağırırsam:
+template <typename T>
+void func(T x);
+
+int main()
+{
+    func<long double>(?)
+}
+gönderdiğim argüman ne olursa olsun artık T için long double türü kullanılıcak. Yani oluşturulacak fonksiyon specialization sayısını kısıtlamak içinde kullanılıyor. Şimdi burada 
+modern C++'la gelen önemli bir aracın varlık nedenini de anlama şansınız olucak:
+auto main()->int
+{
+
+}
+bu sentaksa trailing return type deniliyor. Herhangi bir fonksiyonun bildirimini bu şekilde yapabiliyorsunuz. Şu iki terimi birbiri ile karıştırmamalısınız: trailing return type ve 
+auto return type. Bu ikisi aynı şey değildir!! İkisi birbirinden farklı sentakslar birbirine benzer yönleri var ama birbirinden farklı sentakslar. 
+
+trailing return type şu demek: bir fonksiyonun geri dönüş değeri türünü belirtirken fonksiyon tanımında tipik olarak; oraya auto yazıyorsunuz fakat fonksiyonun geri dönüş değerini
+parametre parantezinden sonra koyduğunuz -> atomundan sonra yazıyorsunuz. Örneğin:
+auto func(int x)->int
+{
+    ///
+    return 1;
+}
+böyle bir fonksiyon bildirmek ile şu şekilde yazmak arasında fark yok:
+int func(int x)
+{
+    ///
+    return 1;
+}
+generic programlama paradigması söz konusu olmadığı zaman trailing return type kullanmanın tek espirisi geri dönüş değeri function pointer olan fonksiyonların tanımlanması; çünkü 
+eğer bir türeş ismi bildirmezseniz bildiğiniz gibi bir fonksiyonun geri dönüş değerinin function pointer olması biraz karmaşık bir sentaksa sahip:
+int foo(int, int);
+using FPTR = int (*)(int, int);
+
+FPTR func()
+{   //return &foo;
+    return foo;
+}
+//tür eş ismi bildirimi kullanmadan fonksiyonu tanımlarsam:
+int foo(int, int);
+
+int(*func())(int, int)
+{   //return &foo;
+    return foo;
+}
+//burada belki trailing return type bir ihtimal işe yarayabilir:
+int foo(int, int);
+
+auto func()->int (*)(int, int);
+{   //return &foo;
+    return foo;
+}
+
+Fakat trailing return type'ın asıl varlık nedeni bu değil; burada kullanabiliriz fakat gerekmeyen bir yerde kodu daha karmaşık bir hale getirmenin bir faydası yok. 
+template <typename T>
+T sum(T x, T y)
+{
+    ///code
+    return x + y;
+}
+
+int main()
+{
+    auto val = sum(1, 4);
+}
+fonksiyon şablonunu bu şekilde çağırırsak bir sorun olmaz T = int çıkarımı yapılır; ama bu şekilde çağırırsak:
+template <typename T>
+T sum(T x, T y)
+{
+    ///code
+    return x + y;
+}
+
+int main()
+{
+    auto val = sum(1, 4.5); //syntax error
+}
+daha önce konuştuğumuz nedenlerden dolayı sentaks hatası olur! Peki böyle bir toplama işlemini yaptırıcak; gerçekten fonksiyon şablonu oluşturmak isteseydim derdiniz ki haklı olarak
+o zaman 2 ayrı template parametresi olsun:
+template <typename T, typename U>
+T sum(T x, U y)
+{
+    ///code
+    return x + y;
+}
+
+int main()
+{
+    auto val = sum(2.3, 6); 
+}
+burada bir problem var; bu durumda val'in türü double; ama ya ben fonksiyonu auto val = sum(6, 2.3); fonsiyonun geri dönüş değeri bu durumda int olucaktı. Çünkü fonksiyonun geri 
+dönüş değeri türü T. Geri dönüş değerini U yapsak; o da olmaz çünkü bu durumda da argümanlar ters sırada çağırılabilir!! Bunu yapmanın yollarından biri şu olabilirdi: 3. bir template
+parametresi koyabiliriz: 
+template <typename Result, typename T, typename U>
+Result sum(T x, U y)
+{
+    ///code
+    return x + y;
+}
+
+int main()
+{
+    auto val = sum<double>(2.3, 6); 
+}
+fonksiyon geri dönüş değeri türünün ne olması gerektiğini çağıran koda bırakıcam. Örnekte çağıran kod fonksiyonun geri dönüş değeri türünün double olmasını istiyor olacak. 
+Fakat bunu yapmanın trailing return type ile bir başka yolu daha var:
+template <typename T, typename U>
+decltype(x + y) sum(T x, U y) //syntax error; decltype içindeki x ve y orada bilinmiyor
+{
+    ///code
+    return x + y;
+}
+
+int main()
+{
+    auto val = sum(2.3, 6); 
+}
+artık aslında trailing return type sentaksının asıl varlık nedenine fonksiyon geri dönüş değeri türünü generic bir fonksiyon içinde fonksiyonun parametre değişkeni(leri) ile 
+ilgili bir tür haline getirmek istiyorum. Bunun içinde decltype specifier'ının oluşturduğu yapıda parametre değişkenlerinin isimlerini kullanmam gerekiyor ama o zamanda scope 
+kuralına takılıyorum işte bu nedenle trailing return type eklendi:
+auto sum(T x, U y)-> decltype(x + y)
+{
+    ///code
+    return x + y;
+}
+
+int main()
+{
+    auto val = sum(2.3, 6); 
+}
+asıl hikayesi bu!!
