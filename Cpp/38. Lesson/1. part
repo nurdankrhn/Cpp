@@ -1,1 +1,519 @@
 14 Nisan 2023 - Cuma
+
+trailing return type
+bu sadece generic programlama ile ilgili olmak zorunda değil; yani normal bir fonksiyonun geri dönüş değerinide trailing return type sentaksı ile edinebiliriz. Ama temel bu sentaksın 
+eklenme nedeni generic programlama. Çünkü söylediğimiz gibi öyle senaryolar var ki biz template'deki türün ne olduğunu fonksiyon şablonunun parametre değişkenlerinin isimlerini
+kullanarak elde etmek istiyoruz. Ya da parametreye verilen türlerin isimlerini kullanmak istiyoruz. 
+template <typename T, typename U>
+auto sum(const T& t, const U& u)-> decltype(t + u);
+artık fonksiyon bildiriminde derleyici için bir problem yok t + u ifadesinin türü ne ise bu fonksiyonun geri dönüş değeri türü o olucak. Çok sık kullanılan bir yapı. 
+
+Ama bir de auto return type var; auto return type C++14 ile dile eklendi! Burada önce tipik bir yanlış anlamadan bahsedelim; auto return type ile trailing return type 
+birbirine alternatif yapılar olabilir. Ama kesinlikle farklı şeyler!! Yani auto return type'ı dile ekledikten sonra trailing return type ihtiyacı tamamen ortadan kalkmadı!
+trailing return type'da deneyimli programcıların dahi gözden kaçırdığı birkaç nokta var: 
+template <typename T, typename U>
+auto sum(const T& t, const U& u)-> decltype(t + u);
+1) bu fonksiyonun sadece bildirimini görseniz halen trailing return type'ı kullanabilirsiniz. Yani derleyici sadece bildirime bakarak bu fonksiyonun tanımını görmesede ki görücek 
+fakat daha sonra görebilir; bu fonksiyonun bildirimini gördüğü noktada bu fonksiyona yapılan çağrıdan haraketle fonksiyonun geri dönüş değeri türünün ne olduğunu anlayacak. 
+
+2) fonksiyonun geri dönüş değeri türünün bu tür olması fonksiyonun return ifadesinin bu tür olması anlamına gelmiyor. Örneğin decltype(t + u); double olabilir ama fonksiyonun 
+return ifadesi derleyici bu fonksiyonun kodunu yazdığında int olabilir. Burada tipik olarak karıştırılan noktalardan biri de bu; yani fonksiyonun return ifadesini görmüyor
+derleyici ama görse de return ifadesinin türü bu tür olmak zorunda değil. Örneğin return ifadesinin türünün derleyici kodu yazdığında int olduğunu düşünün ama t + u türünün
+double olduğunu düşünün bu durumda fonksiyonun geri dönüş değeri double olucak ama int döndüğünüz için int'ten double'a örtülü tür dönüşümü olucak.
+
+auto return type ise farklı auto return type'da fonksiyonun geri dönüş değerinin türü yerine auto keyword'ünü yazıyorsunuz fakat -> yok. 
+template <typename T, typename U>
+auto sum(const T& t, const U& u)
+{
+    return t + u;
+}
+bu durumda derleyici return ifadesinin türüne bakarak geri dönüş değerinin türünün ne olduğunu anlıyor. Yani bunun söz konusu olabilmesi için derleyicinin fonksiyonun tanımını
+görmesi gerekiyor! Burada derleyici return ifadesinin türünden haraketle fonksiyonun geri dönüş değeri türünün ne olduğunu anlıyor buna "auto return type" deniliyor. 
+Özetle auto return type is not trailing return type; bunlar ayrı araçlar üstelik auto return type daha sonraki C++ standat'ı ile eklendi ama trailing return type doğrudan C++11.
+
+Fonksiyon şablonları ile ilgili birkaç tane yanlış anlamaya değineceğiz!
+Sınıfların fonksiyonları da fonksiyon şablonu olabilir; yani sınıfın kendisinin sınıf şablonu olması gerekmiyor. Sınıfın herhangi bir static ya da non-static üye fonksiyonu da
+bir template olabilir. Böyle template'lara member template deniliyor. Örneğin:
+#include <iostream>
+
+class Myclass {
+public:
+    template <typename T> //member function template
+    void func(T x)
+    {
+        std::cout << typeid(T).name() << '\n';
+    }
+};
+
+int main()
+{
+    Myclass m;
+    m.func(12);
+    m.func(1.2);
+    m.func("ali");
+    m.func('A');
+}
+şimdi derleyici yine template argument deduction ile eğer explicit template argüman kullanmazsam fonksiyona gönderilen argümanın ne olduğuna bağlı olarak farklı farklı üye 
+fonksiyonlar yazıcak. ctor bile bir fonksiyon şablonu olabilir:
+#include <iostream>
+
+class Myclass {
+public:
+    template <typename T> 
+    Myclass(T);
+
+};
+
+int main()
+{
+    Myclass m{ 35 };
+    Myclass m{ 3.5 };
+    Myclass m{ 3.5f };
+    Myclass m{ 35L };
+    Myclass m{ 35LL };
+}
+derleyici her bir nesne oluşumu için ctor'a gönderilen argümanlar farklı türden olduğundan farklı parametrik yapıda ctor'lar yazıcak. Veya örneğin atama operator fonksiyonu da bir 
+template olabilir:
+#include <iostream>
+
+class Myclass {
+public:
+    template <typename T> 
+    Myclass& operator=(const T&);
+
+};
+
+int main()
+{
+    Myclass mx;
+
+    mx = 5;
+    mx = 5.4;
+    mx = 5L;
+    mx = "cansel";
+}
+
+ya da öörneğin fonksiyon çağrı operator'ünü template fonksiyon şablonu olarak bildirebiliriz:
+template olabilir:
+#include <iostream>
+
+class Myclass {
+public:
+    template <typename T> 
+    T operator()(T)const;
+
+};
+
+int main()
+{
+    Myclass mx;
+
+    auto r1 = mx(12);
+    auto r2 = mx(1.2);
+    auto r3 = mx('A');
+}
+
+veya örneğin typecast operator function'ı fonksiyon şablonu olarak tanımlayabiliriz; fakat eğer template olmasaydı tek tek operator int(), operator double(), vb şeklinde yazmamız 
+gerekirdi:
+template olabilir:
+#include <iostream>
+
+class Myclass {
+public:
+    template <typename T> 
+    operator T()const
+    {
+        std::cout << typeid(T).name() << '\n';
+        return 0;
+    }
+
+};
+
+int main()
+{
+    Myclass mx;
+
+    int ival = mx;
+    double dval = mx;
+    long lval = mx;
+}
+
+Sonuç olarak kendisi template olmayan bir sınıfın üye fonksiyonunu da tıpkı namespace'teki bir fonksiyonu nasıl fonksiyon şablonu yapabiliyorsanız; sınıfın üye fonksiyonunu da 
+gördüğünüz gibi fonksiyon şablonu yapabiliyorsunuz ve çokta sık kullanılıyor!!!
+
+
+template <typename T>
+typename T::value_type foo(T x);
+
+template <typename T, int n>
+void foo(T(&)[n]);
+Birden fazla template'ın bir arada bulunması sentaks hatası değildir. Yani fonksiyon şablonları birbirini overload edebildiği gibi aynı isimli birden fazla fonksiyon şablonu bir arada 
+olabildiği gibi bir fonksiyon şablonuyla bir başka fonksiyonda bir arada olabilir:
+template <typename T>
+void foo(T);
+
+void foo(double);
+burada bize başta çok ilginç gelicek bir kuraldan bahsedelim:
+template <typename T>
+typename T::value_type foo(T);
+
+int main()
+{
+    foo(2); //syntax error
+}
+Normalde bir fonksiyon şablonu var dolayısıyla derleyicinin bu fonksiyon şablonu söz konusu olduğunda önce fonksiyon şablonundan bir fonksiyon belirlemesi/bir imza oluşturması 
+gerekiyor; o imzalı fonksiyon yani bu fonksiyon şablonunun bir specia'lization'ını çağırılmaya aday olucak. Bu durumda gönderdiğim argüman int olduğuna göre normalde T'nin int olması
+gerekir ama burada bir problem var; bu durumda T'nin value type'ı int'in nested type'ı olan value_type olucak. Fakat böyle bir şey olamaz ki bu sentaks hatası gerektiriyor çünkü 
+int'in value type'ı olmaz. Fakat eğer şu şekilde olsa:
+
+
+aslında foo'nun yukarısında verilen fonksiyon şablonunu hiç değiştirmedim yine int'in value_type'ı olmamasına rağmen bir sentaks hatası olmadı. İşte buradaki kurala ki çokta
+kullanılan bir tekniği belirliyecek bu kurala substitution failure is not an error(SFINAE) deniliyor!!!
+
+SFINAE (Substitution Failure Is Not An Error)
+Bu C++ templates kitabının yazarı David Vandevoorde'nin uydurduğu bir akronim. SFINAE'nin ne olduğunu anlayabilmeniz için önce Substitution'ının ne olduğunu anlamanız gerekiyor.
+template <typename T>
+T foo(T);
+Soru: fonksiyon şablonları ve gerçek fonksiyonlar yani şablon olmayan fonksiyonlar birbilerini overload edebilir değil mi? Kesinlikle, örneğin aynı isimli 2 tane fonksiyon 
+şablonu var, aynı isimli 3 tane fonksiyon şablonu var STL'de çok. Aynı isimli bir fonksiyon şablonu bir de gerçek fonksiyon olabilir mi? olabilir!
+
+Substitution'ının ne olduğunu anlamakla başlayalım!
+template <typename T>
+T foo(T);
+
+int main()
+{
+    foo(12);
+}
+bir fonksiyona çağrı yaptığımız zaman bu durumda derleyici bu function overload resulotion'da eğer 1 ya da birden fazla fonksiyon varsa çağırılmaya aday olan fonksiyonları belirlemesi 
+gerekiyor. Buradan da viable functions'a geçiyor. Bunun için fonksiyonun imzasını ve geri dönüş değeri türünü belirlemek zorunda; çoğunlukla programcıların anlamadığı yer şu: function 
+overload resulotion'a katılan template değil specialization'ını. Dolayısıyla burada function overload resulotion'a katılıcak aslında şu: int foo<int>(int); bildiriminde bir fonksiyon;
+ama bu fonksiyonu/bu specialization'ını derleyici yukarıdaki template'dan yazacak. Dolayısıyla o aşamaya gelmesi için önce int foo<int>(int);'ı elde etmesi gerekiyor. Bunu elde etmesi 
+içinde substitution yapması gerek. Substitution ise şu demek: template argümanının ne olduğunu anlayacak ve fonksiyonun parametrik yapısında template parametresi ya da parametreleri 
+karşılığı o template argümanlarını koyucak. Örneğin şimdi substitution yaparak int foo<int>(int); 'i elde etti. Örneğin şu şekilde olsaydı:
+template <typename T>
+T* foo(T*);
+
+int main()
+{
+    int x = 10;
+    int *p = &x;
+    int **ptr = &p;
+    foo(ptr);
+}
+derleyici T türünün çıkarımını int* olarak yapar; T = int* olunca int** foo<int*>(int**); şeklinde bir specialization/fonksiyon elde edilir. Şimdi işte örnekteki template'dan 
+int** foo<int*>(int**); specialization'ının elde edilmesi substitution'dır. 
+
+SFINAE kuralı ise şunu söyler: eğer diyor substitution aşamasında bir failure olursa (örneğn elde edilen template'de fonksiyonun parametrelerinin ya da geri dönüş değerinin türlerinde
+geçersiz bir tür oluşması gibi) bu durumda derleyici error vermez sadece o template'ı overload setten yani o template'ten oluşucak specialization'ını overload setten çıkartır. 
+Az önceki örneğimize geri dönersek:
+template <typename T>
+typename T::value_type foo(T);
+
+int main()
+{
+    foo(12);//syntax error
+}
+bu durumda T'nin int olduğu anlaşıldı; fonksiyonun geri dönüş değeri int'in value_type'ı oldu işte bu bir substitution failure. Derleyici bunu overload setten çıkardı error değil 
+yani bunun kendisi. error olmasının nedeni bu overload setten çıkınca başka foo kalmadığı için: no viable function. Fakat 1 tane viable function olsaydı; sentaks hatası olmazdı:
+template <typename T>
+typename T::value_type foo(T);
+
+void foo(double);
+
+int main()
+{
+    foo(12);
+}
+derleyici burada substitution ile failure olduğu için fonksiyon şablonunu devre dışı bırakıcak. Bu kuralın bir önemi var mı? Var; daha önce de bahsettiğimiz gibi C++'ın birçok 
+aracında  olduğu gibi aslında sonradan keşfedilen olanaklardan bir tanesi. Madem böyle bir kural var o zaman bu kuraldan şu şekillerde faydalanabiliyoruz:  
+örneğin öyle bir bildirim yaparım ki o bildirim sadece belirli niteliği sağlayan fonksiyonlar için substitution ile failure oluşturmaz ama onun dışında substitution ile failure 
+oluşturur böylece bunu template'ın bir restriction'ın bildirimi olarak kullanabilirim ki çok sık kullanılıyor!! Örneğin T türünün bir tam sayı türü olması zorunlu olsun yani T 
+türü yerine bir gerçek sayı türü olduğunda sentaks hatası olsun. Bunu yapmak için öyle bir bildirim yaparım ki o bildirimde T türü bir tam sayı türü ise substitution failure 
+olmaz ama T türü tam sayı türü değilse substitution failure olur o overload setten çıkartılır ve başka da bir viable function olmazsa o zaman sentaks hatası olur. Böylece o 
+fonksiyonun sadece tam sayı türünden argümanla çağırabilmesini sağlayabilirim. Yani sadece tam sayı türlerine hizmet veren örneğin böyle bir fonksiyon oluşturabilirim. 
+
+Fakat daha da kompleks olanı; istersem belirli türlerin belirli özelliklerine göre farklı niteliklteki türler için farklı kodların seçilmesini sağlayabilirim. Örneğin öyle bir 
+fonksiyon ki tam sayı türleri için ayrı bir kod gerçek sayı türleri için ayrı bir kod compile time'da seçilicek. Bunu  SFINAE tekniği ile yapabilirim. Örneğin sınıf öyle bir 
+kod ki sınıfın move ctor'ı noexcept ise başka bir kod çalışıcak ama değilse başka bir kod çalışıcak. Yani bu SFINAE kuralından faydalanılarak geliştirilen araçlar:
+a) bir template'ın belirli bir tür ya da tür kategorisi için sınırlandırılması ya da farklı tür kategorilerine yönelik farklı alternatif kodların derleme zamanında seçilebilmesi 
+imkanını veriyor. Modern C++ ile dile eklenen concepts denilen araç ve buna bağlı kütüphane SFINAE tekniği kullanıldığı bazı karmaşık senaryoları çok daha kolaylaştırıyor. 
+
+
+
+template'lerin overload edilmesi
+Burası biraz karmaşık; aslında C++'ın kurallarının en karmaşık olduğu yerlerden birine giriyoruz. Öncelikle anlmamız gereken şu: 
+1) aynı isimli birden fazla fonksiyon şablonu olabilir yani parametrik yapıları birbirinden farklı fonksiyon şablonları aynı ismi paylaşabilir. 
+Ve STL'de de zaten böyle birçok örnek var.  
+2) bir fonksiyon şablonu ile gerçek bir fonksiyon da bir arada olabilir. 
+
+a) bir fonksiyon şablonu ile gerçek bir fonksiyon'un bir arada bulunmasının incelenmesi
+#include <iostream>
+
+template <typename T>
+void foo(T)
+{
+    std::cout << "template type T is << typeid(T).name() << '\n';
+}
+
+void foo(int)
+{
+    std::cout << "foo(int)\n";
+}
+
+int main()
+{
+    foo(1.2);
+}
+buradaki kural son derece basit; siz bu fonksiyona bir çağrı yaptığınızda örneğin double türden bir argüman gönderdiğinizde derleyici template argument deduction yapacak; T yerine 
+double gelicek ve burada bir substitution yapılacak ve foo'nun double açılımı overload sete girecek. Şimdi derleyici için 2 tane overload var biri foo'nun double 
+açılımı: void foo<double>(double); diğeri ise: void foo(int); bu durumda da foo(2.3); çağrısı söz konusu olduğunda function overload resulotion'da double olan seçilir.  Dolayısıyla 
+derleyici burada fonksiyon şablonundan bir instanciate edicek! Yine benzer şekilde fonksiypn çağrısında float tür olsaydı bu seferde T için float çıkarım yapılmış fonksiyon instanciate
+edilicekti:
+#include <iostream>
+
+template <typename T>
+void foo(T)
+{
+    std::cout << "template type T is << typeid(T).name() << '\n';
+}
+
+void foo(int)
+{
+    std::cout << "foo(int)\n";
+}
+
+int main()
+{
+    foo(1.2f);
+}
+
+Burada özellikle şuna dikkat!! örneğin fonksiyon çağrısında char göndersem; aslında char'dan int'e integer promotion var ama yine template seçilir:
+#include <iostream>
+
+template <typename T>
+void foo(T)
+{
+    std::cout << "template type T is << typeid(T).name() << '\n';
+}
+
+void foo(int)
+{
+    std::cout << "foo(int)\n";
+}
+
+int main()
+{
+    foo('A');
+}
+
+Fakat eğer fonksiyon çağrısında int gönderirsem bu durumda ambiguity olmuyor!! Gerçek fonksiyon için exact match oluştuğunda gerçek fonksiyon çağırılıyor. Yani gerçek fonksiyonun 
+template'den oluşturulucak specialization'a overload resulotion'da üstünlüğü var, sentaks hatası değil kesinlikle!!!
+#include <iostream>
+
+template <typename T>
+void foo(T)
+{
+    std::cout << "template type T is << typeid(T).name() << '\n';
+}
+
+void foo(int)
+{
+    std::cout << "foo(int)\n";
+}
+
+int main()
+{
+    foo(98);
+}
+
+Moddern C++ ilk çıktığında en popüler C++ sorularından biri şuydu: Öyle bir fonksiyon olsun ki örneğin sadece double argümanla çağırılması legal olsun; double dışında hangi türden 
+argüman olursa olsun sentaks hatası olsun. Bunu yapmanın birden fazla yolu var; ama klasik cevap şu:
+template <typename T>
+void func(T) = delete;
+
+int main()
+{
+    func(123); //syntax error
+}
+Görülüdüğü üzere bildirilen fonksiyon şablonu delete olarak bildirilmiş; bu template tek başına olduğunda ben func fonksiyonun bir çağrı yaptığımda yine deduction yapılıcaktı yine 
+substitution yapılıcaktı ama fonksiyon sonuçta delete edilmiş olarak bildirilmiş olucaktı. Normal bir fonksiyonu nasıl delete bildirimi ile bildirdiğiniz zaman ve onu çağırdığınız 
+zaman sentaks hatası oluyorsa şimdi yine sentaks hatası olduğunu gördük. Fakat eğer ben buna bir de gerçek fonksiyon overload'u eklersem:
+template <typename T>
+void func(T) = delete;
+
+void func(double);
+
+int main()
+{
+   func(12.3);
+}
+az önceki kural gereği gerçek fonksiyon olan double parametreli fonksiyon çağırılıcak ama double türden başka argüman gönderirsem overload resulotion'ı kazanacak olan fonksiyon 
+şablonundan elde edilen specialization'ın olduğundan oda delete olarak bildirildiği için sentaks hatası olucak:
+template <typename T>
+void func(T) = delete;
+
+void func(double);
+
+int main()
+{
+   func(12.3);
+   func(1); //syntax error
+   func(1u); //syntax error
+   func(1.f); //syntax error
+}
+NOT: Bunu yapmanın tek yolu bu değil; bunu SFINAE ile yapabilirsiniz!
+
+SFINAE; substitution aşamasında örneğin bir türün olmaması gibi bir nedenle sentaks hatası oluşursa derleyici onu hard error sentaks hatası olarak vermek yerine onu overload setten 
+çıkartıyor buna deniliyordu. İşte o overload setten bu nedenle çıkarıldığını anlatan adete ingilizce bir fiil uydurdular: sfinae out yani örneğin this function is sfinae out yani 
+öyle bir şey oldu ki SFINAE geregi bu overload setten çıkartılı anlamında. 
+
+b) fonksiyon şablonlarının birbirini overload etmesi
+temaplate <typename T>
+void func(T x);
+
+template <typename T>
+void func(T, T);
+
+int main()
+{
+    func(12); //aşağıdaki template'ın bir hükmü kalmadı
+    func(1, 2); //yukarıdaki template'ın bir hükmü kalmadı
+}
+bu iki bildirimin bir arada olmasında herhangi bir şekilde bir sentaks hatası yok ama 1. şablondan sadece tek parametreli fonksiyon imzaları elde edilebilirken diğerinden 2 parametreli
+fonksiyon imzaları elde edilebilir.
+
+Bir diğer örnek:
+#include <iostream 
+
+template <typename T>
+void func(T)
+{
+    std::cout << "func(T)\n";
+}
+
+template <typename T>
+void func(T*)
+{
+    std::cout << "func(T*)\n";
+}
+
+int main()
+{
+    int x{};
+
+    //func(&x);
+}
+Soru 1: eğer 2. template olmasaydı bir sentaks hatası olur muydu?
+#include <iostream 
+
+template <typename T>
+void func(T)
+{
+    std::cout << "func(T)\n";
+}
+
+int main()
+{
+    int x{};
+
+    func(&x);
+}
+cevap: hayır T = int* çıkarımı yapılırdı, çünkü gönderilen argüman int*'dır. 
+
+Soru 2: eğer 1. template olmasa bir sentaks hatası oluşur mu?
+#include <iostream 
+
+template <typename T>
+void func(T*)
+{
+    std::cout << "func(T*)\n";
+}
+
+int main()
+{
+    int x{};
+
+    func(&x);
+}
+cevap: hayır, burada ki çıkarım T = int olarak yapıldı. Çünkü &x ifadesi int* olduğuna göre fonksiyonun parametre değişkeninin int* olması için T'nin int olması gerekir.
+
+Şimdi her 2 template'inde beraber bulunduğu duruma bakalım:
+#include <iostream 
+
+template <typename T>
+void func(T)
+{
+    std::cout << "func(T)\n";
+}
+
+template <typename T>
+void func(T*)
+{
+    std::cout << "func(T*)\n";
+}
+
+int main()
+{
+    int x{};
+
+    func(&x);
+}
+Beklenti olarak ambiguity olmasını beklemiş olabilirsiniz ama burada ambiguity olmaz; burada 2. template'tan yapılacak specialization sonucu fonksiyon çağırılır. 
+Burada uygulanan kurallara "partial ordering rules" deniliyor. Bununla ilgili detaylı bilgiyi edinmek isterseniz araştırma yapınız. Kısaca bu kural şudur; eğer birden 
+fazla template'den gerçekleştirilicek instanciate'lar yani o template'ın specialization'ları eğer ikiside çağırılabilir durumdaysa daha spesifik olan seçiliyor! 
+Daha spesifik olan derken kastedilen daha fazla niteleyiciye sahip olan demek. Örneğimiz de 1. template parametresi T 2.'nin ise T* o sebeple 2. seçilir. Fakat tabii ki 
+standartlar bunu be şekilde ifade etmiyor; işte onun tam olarak ne anlama geldiğini anlatan kural:partial ordering rules'dur. Ancak formal tanım biraz fazla karmaşık
+o sebeple şimdilik kuralın şöyle olduğunu düşünelim: daha spesifik olan seçilir işte o daha spesifik olanın ayrıştırması/seçilmesi için uygulanan kurallara partial ordering rules
+denilir. Ve burada şöyle bir ihtimalde var; o kurallara göre ya da daha fazla fonksiyon şablonun arasında o partial ordering rules kurallarına göre bir değerleme söz konusu değilse 
+o zaman yine ambiguity oluşur. Örneğin:
+#include <iostream 
+
+template <typename T>
+void func(T)
+{
+    std::cout << "func(T)\n";
+}
+
+template <typename T>
+void func(T*)
+{
+    std::cout << "func(T*)\n";
+}
+
+template <typename T>
+void func(T**)
+{
+    std::cout << "func(T**)\n";
+}
+
+int main()
+{
+    int* ptr{};
+
+    func(&ptr);
+}
+partial ordering rules'a göre 3. template seçilir. 
+
+Örnek:
+#include <iostream 
+
+template <typename T>
+void func(T)
+{
+    std::cout << "func(T)\n";
+}
+
+template <typename T, int n>
+void func(T(&)[n])
+{
+    std::cout << "func(T(&)[n])\n";
+}
+
+int main()
+{
+    int a[10]{};
+    func(a);
+}
+partial ordering rules'a göre 2. template seçilir. Fakat eğer ki 2. template olmasaydı sadece 1. template olsaydı bu durumda T türünün çıkarımı array decay ile int* olucaktı. Ama 
+2. template varlığında daha fazla niteleme var zaten sadece 2. template olsaydı da sentaks hatası olmazdı çünkü bu durumda da T'nin çıkarımı int n'nin de 10 olucaktı. 
