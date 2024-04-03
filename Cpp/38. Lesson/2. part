@@ -1,0 +1,469 @@
+Bir fonksiyon şablonundan derleyici bir fonksiyonu instanciate etme sürecinde o fonksiyonun kodu içinde  başka isimlerde olabilir; o isimlerde bir şablona ilişkin olabilir. O zaman
+o şablonlarıda instanciate edicek. Başlangıçta programcı fonksiyon ya da sınıf şablonunu sadece instanciation'ın basit bir süreci olarak görüyor. Ama çoğunlukla şöyle derleyici
+bir instanciation yaparken zincirleme başka template'lerle karşılaştığı için onları da instanciate ediyor:
+#include <iostream>
+
+template <typename T>
+void foo(T);
+template <typename T>
+void baz(T&)
+{
+
+}
+
+template <typename T>
+void bar(T* p)
+{
+    baz(*p);
+}
+
+
+template <typename T>
+void foo(T x)
+{
+    bar(&x);
+}
+
+int main()
+{
+    int x{2};
+
+    foo(2);
+}'
+biz sadece foo'yu çağırdık ama foo bar'ı, bar'da baz'ı çağırdığı için o fonksiyon şablonlarından da instanciation yapıldı; onlarında specialization'ı oluşturuldu. Bu çok tipik 
+bir durum; bu STL'de biz fark etmesekte örneğin bir fonksiyon çağırısı yaptığımızda o fonksiyon tipik olarak başak fonksiyon şablonlarından da fonksiyonların yazılması sonucunu
+doğuruyor. 
+
+En tipik fonksiyon şablonu swap fonksiyon şablonu ve gerçekten utility başlık dosyasında algorithm başlık dosyasında da bu fonksiyon şablonu var. Aslında son derece basit bir şablon:
+exception handling konusundan hatırlayınız swap fonksiyonlarının tipik olarak noexcept olmasını bekliyoruz! Yani exceptiion throw etmeme garantisi veriyor:
+daha önce bir derste de açıklamıştık; kodun şu şekilde olduğunu düşünebilirsiniz:
+template <typename T>
+void swap(T& r1, T& r2)noexcept
+{
+    T temp{r1};
+    r1 = r2;
+    r2 = temp;
+}
+kod böyle olsaydı birden fazla problem olurdu: 1) kopyalama semantiği kullanılmış olurdu ve move-only type'lar için zaten burada yazılan fonksiyon geçerli olmazdı. 2) copy ctor 
+exception throw edebilir, vb.
+swap için yazılan template'ın şu şekilde yazıldığını söylemiştik:
+template <typename T>
+void swap(T& r1, T& r2)noexcept
+{
+    T temp{std::move(r1)};
+    r1 = std::move(r2);
+    r2 = std::move(temp);
+}
+Hatırlayınız!! move doesn't move!!! move value category'i değiştirdiği için dolayısıyla R val. expr olduğu için şimdi T türünün move ctor'ı varsa move ctor çalışıcak. Burada çok 
+önemli bir yere gönderme yapıyoruz: moved-from state; burada ben temp'i oluştururken r1'i taşımı oldum çünkü r için move ctor çağırıldı. Örneğin T'nin string sınıfı türünden 
+olduğunu düşünün o zaman std::move(r1) ifadesi sağ taraf değeri yaparak bu string'i taşımış oldum çünkü move ctor. Şimdi eğer moved-from state'deki nesne kullanılamayan durumda 
+bir nesne olsaydı r1 = std::move(r2); atamasında tanımsız davranış olurdu. Çünkü taşımış olduğum nesneye(ingilizce de bu durumdaki nesneye moved-from state deniliyor)  atama
+yaptım. İşte moved-from state'in ne kadar önemli olduğunu gösteren örneklerden biri; moved-from state'deki nesne:
+a) kararlı/kullanılabilir bir durumda olucak, invariantları tutucak ama değerinin ne olduğu konusunda bir garanti yok ama invariantları bozulmamış, kullanılabilir ve destroyable 
+yani destruct edilebilir bir nesne olucak. Doğal olarak bütün bunların sonucunda kendisine yeni bir değer atanabilir durumda olucak. Aslında bu bir sınıfın move ctor'ının nasıl 
+yazılması gerektiği konusunda bir ipucu veriyor. Şimdi sizin sınıfınız olsaydı buradaki T yani bu fonksiyon şablonundan yazılıcak specialization'da T yerine gelen argüman Fighter 
+sınıfı olsaydı ve siz Fighter sınıfının move ctor'ını öyle bir şekilde implemente etmiş olsaydınız ki moved-from state'deki Fighter'ın kendisine artık atama yapılamayacak bir state'de
+olsaydı o zaman bu kod çökerdi. O sebeple standart kütüphanenin bütün türleri için container türler dahil moved-from state kullanılabilir fakat asgari olarak değerinin ne olduğunu 
+bilmediğimiz bir durumda. Ama kendisine atama yapılabilir, invariant'ları tutan ve destroy edilebilir yani sağlıklı bir şekilde dtor'ı çağırılabilir demek. Dolayısıyla moved-from 
+state'deki bir nesnenin dtor'ının da çağırılacağını unutmayın. Eğer moved-from state'deki nesnenin dtor'ı çağırıldığında ub oluşuyorsa ya da problematik bir durum oluşuyorsa bu 
+durumdan biz sorumluyuz. O yüzden move ctor'ı programcılar tipik olarak şu şekilde implemente etmeye çalışıyor: en problemsiz implementasyon biçimi çoğu zamanda en kolay 
+implementasyon biçimi moved-from state'deki nesneyi default construct edilmiş state çekmek. Böyle bir mecburiyet yok ama bunu yaparsanız aslında bütün şartları da sağlamış olursunuz.
+Çok sık yapılan hatalardan biri şu:
+Bir fonksiyonun geri dönüş değerini pekala bir sınıf türünden yapabilirsiniz zaten bu taşıma semantiğinin en tipk adayı ya da mandatory return value optimization'da olabilir:
+#include <iostream>
+#include <vector>
+
+std::vector<int> foo();
+
+Bir fonksiyonun geri dönüş değerini bazı durumlarda const referansta yapabilirsiz. Bu da bazı durumlarda bir tercih nedeni olabiliyor maliyeti düşürmek açısından:
+#include <iostream>
+#include <vector>
+
+const std::vector<int>& foo();
+
+Fakat bir fonksiyonun geri dönüş değerini const sınıf türünden yapmayın! Bu kırmızı bir hata çünkü bir fonksiyonun geri dönüş değerini referans olmayan const yaparsanız taşıma 
+semantiğini bloke etmiş olursunuz:
+#include <iostream>
+#include <vector>
+
+const std::vector<int> foo();
+
+bunu daha iyi anlamak için aşağıdaki örneği inceleyelim:
+#include <iostream>
+#include <vector>
+
+class Myclass {
+
+};
+
+void func(Myclass&&) { std::cout << "Myclass &&" << '\n'; }
+void func(const Myclass&) { std::cout << "const Myclass &" << '\n'; }
+
+int  main()
+{
+    const Myclass m;
+    func(std::move(m));
+
+}
+func'a yapılan çağrı sonucu ne olur? İlk olarak söylememiz gerekn şey; böyle bir şey yapmayın yani const bir nesneyi hiçbir zaman bilerek isteyerek bunu doğrudan yapmanızı 
+gerektiricek bir senaryo özel birkaç durumun dışında yok! Fakat eğer bunu yaparsanız const Myclass& parametreli fonksiyon çağırılır çünkü nasıl const bir nesne const olmayan 
+L value referansa bağlanmıyorsa; const olan bir R value expression durumundaki nesne de const olmayan R value referansa bağlanmıyor!!
+Birçok programcının burada tahmin etmediği bir durum daha var aslında pekala sağ taraf referansı da const olabilir:
+#include <iostream>
+#include <vector>
+
+class Myclass {
+
+};
+
+void func(Myclass&&) { std::cout << "Myclass &&" << '\n'; }
+void func(const Myclass&) { std::cout << "const Myclass &" << '\n'; }
+
+int  main()
+{
+    const Myclass m;
+    func(std::move(m)); //const Myclass& parametreli fonksiyon çağırılır
+
+}
+teknik olarak const R value referans olsada pratikte nerdeyse hiç kullanılmıyor. Çünkü eğer siz bir fonksiyonun parametresini const R value referans yaparsanız bu durumda o fonksiyon 
+parametresi olan değişkeni değiştiremez. Yani nasıl const L value referans parametreli bir fonksiyon olabiliyorsa const R value referans'ta olabilir. Yani dilin sentaksı açısından 
+const R value referans  var ama semnatik olarak bir karşılığı yok. Çünkü R value referans taşıma semantiği amaçlı kullanılıyor ve çoğu durumda fonksiyonun zaten R value referans 
+parametreye sahip olması aynı zamanda parametrenin bağlandığı nesneyi değiştirmemiz gerekiyor. Örneğin move ctor'ın parametresi de Myclass&& şeklinde ya da move assigment'ın da 
+aynı şekilde. Fakat dikkat ederseniz bu const olmayan R value refarans dolayısıyla biz  atama operator'ünün sağındaki nesneyi ya da taşıma da kaynak olarak kullandığımız kaynağını
+çalıcağımız nesneyi değiştiriyoruz örneğin onun pointer'ını null pointer yapıyoruz ya da size veri elemanını 0 yapıyoruz. Yukarıdaki örnekte anlatıla nedenlerden dolayı 
+const Myclass& parametreli fonksiyon çağırılır. Fakat eğer ki const Myclass&& yani const R value referans parametreli fonksiyon overload'a eklenirse yapılan çağrı sonucu exact match 
+olur ve o çağırılır:
+#include <iostream>
+#include <vector>
+
+class Myclass {
+
+};
+
+void func(Myclass&&) { std::cout << "Myclass &&" << '\n'; }
+void func(const Myclass&&) { std::cout << "const Myclass &&" << '\n'; } //function with const R value reference parameter
+void func(const Myclass&) { std::cout << "const Myclass &" << '\n'; }
+
+int  main()
+{
+    const Myclass m;
+    func(std::move(m)); //const Myclass&& parametreli fonksiyon çağırılır
+
+}
+Çok nadir senaryolar dışında(o senaryo da std::optional'da) const R value referans parametre olmadığı için teknik olarak mümkün olsada semantik olarak mümkün değil!
+class Myclass {
+public:
+    Myclass() = default;
+    Myclass(const Myclass&) = default;
+    Myclass& operator=(const Myclass&)
+    {
+        std::cout << "copy assigment\n";
+        return *this;
+    }
+    Myclass& operator=(const Myclass&&)
+    {
+        std::cout << "move assigment\n";
+        return *this;
+    }
+
+};
+
+Myclass foo()
+{
+    Myclass x;
+
+    return x;
+}
+
+int main()
+{
+    Myclass x;
+
+    x = foo();
+}
+derleme sonucu move assigment'ın çağırıldığını gördük; fakat eğer ki foo'nun geri dönüş değerini const yaparsak:
+class Myclass {
+public:
+    Myclass() = default;
+    Myclass(const Myclass&) = default;
+    Myclass& operator=(const Myclass&)
+    {
+        std::cout << "copy assigment\n";
+        return *this;
+    }
+    Myclass& operator=(const Myclass&&)
+    {
+        std::cout << "move assigment\n";
+        return *this;
+    }
+
+};
+
+const Myclass foo()
+{
+    Myclass x;
+
+    return x;
+}
+
+int main()
+{
+    Myclass x;
+
+    x = foo();
+}
+derleme sonucu copy assigment'ın çağırıldığını görürüz. Bu sebepten fonksiyonların geri dönüş değerini const sınıf türü yapmayın bu hemen her zaman yanlış bir şey! Eğer bunu 
+yaparsanız en büyük sakıncası artık taşıma semantiğini bloke etmiş oluyorsunuz çünkü bu durumda taşıma semantiği devreye girmek yerine kopyalam semantiği devreye giriyor. Çünkü 
+function overload resolution ile ilgili; en çok yapılan hatalardan biri bu!!!
+
+2. en sık yapılan hata ise şu: mülakatlarda da o yüzden en çok bunu soruyorlar; sağ taraf referansı bir value category ama sağ taraf referansı bir değişkenin oluşturduğu ifade 
+sol taraf değeri!! Burası en basit konulardan biri olmasına rağmen bunu yanlış anlamış çok sayıda programcı oluyor:
+#include <iostream>
+
+class Myclass {
+
+};
+
+void foo(const Myclass&)
+{
+    std::cout << "1";
+}
+
+void foo(Myclass &&)
+{
+    std::cout << "2";
+}
+
+int main()
+{
+    Myclass m;
+    Myclass&& r = std::move(m);
+    
+    foo(r);
+}
+işte çok tipik ve genelde programcıların çok basic bir konuyu anlayıp anlamadıklarını sorgulayan bir soru. Burada cevap: 1 çünkü r'nin data type'ının R value referans olması başka 
+r ifadesinin value category'sinin L value olması başka şeyler. Eğer siz foo(r); çağrısını taşıma amaçlı yapmışsanız yani taşıma overlaod'unu seçecekseniz foo'yu r ile çağırmanız 
+yeterli değil:
+burada tekrar isim olan r'yi L value expr. olmaktan çıkartıp bu ifadeyi R value expr. haline getirmeniz gerekiyor. Bunu std::move ila yapacağız: 
+#include <iostream>
+
+class Myclass {
+
+};
+
+void foo(const Myclass&)
+{
+    std::cout << "1";
+}
+
+void foo(Myclass &&)
+{
+    std::cout << "2";
+}
+
+int main()
+{
+    Myclass m;
+    Myclass&& r = std::move(m);
+    
+    foo(std::move(r));
+}
+
+3. yapılan tipik hata ise şudur: buna pesimisitc move deniliyor, bir derste anlatmıştık. Programcı taşıma semantiğini sözde tetiklemek için otomatik ömürlü nesneyi sağ taraf değeri
+haline getiriyor:
+class Myclass {
+
+};
+
+Myclass foo()
+{
+    Mycass x;
+
+    return std::move(x);
+}
+asla bunu yapmayınız!! Bunu yapmanın başka sakıncaları olur çünkü bu durumda böyle yaparsanız bu seferde derleyicinin yaptığı named return value optimization'ını bloke edersiniz.
+Dolayısıyla böyle bir move işlemi yapmıyoruz!! Zaten otomatik ömürlü nesne kendisi zaten geri döndürdüğü zaman named return value optimization olmasa bile zaten X value'ya 
+dönüştürülücek bunu da konuşmuştuk. 
+
+
+template'ları incelemeye devam edelim. fonksiyon şablonları ile ilgili konuşacağımız bu son konu ilerde ele alacağımız bazı konulara gönderme niteliğinde olucak. C++'taki en önemli 
+kavramlardan biri range kavramı:
+
+fonksiyon şablonları ve range kavramı
+range aslında 2 konumdan oluşan iki konumla tanımlanan bir birim. Dikkat konum diyoruz pointer değil. Bu 2 tane konum bilgisi gerçek anlamda pointerlar olabiliceği gibi 
+yani ingilizcesi ile naked pointer olabiliceği gibi pointer gibi vazife yapan fakat aslında gerçekte pointer olmayan pointer interface'ini belirli ölüçüde sunan pointer like 
+sınıflar da olabilir. Bir range aslında şöyle gösteriliyor:
+[konum1 konum2) bu popüler gösterim aslında şuna işaret ediyor konum1'deki öğe dahil ama konum2'deki öğe hariç. Yani ben bir range belirleyerek 2 konumla bir aralık belirleyerek 
+aslında bir nesneler topluluğuna tipik olarak bir fonksiyonun ya da kodun erişme imkanını vermiş oluyorum. Bu iki konumı elde eden kod örneğin bir fonksiyon 1. konum değerine 
+sahip değişkeni sürekli arttırırsa  belirli bir noktada değişkeni 2. konuma eşit olcağına güvenerek kod yazabilir. Ve dolayısıyla bu da şu demek örneğin konum1 değişkeni beg 
+isminde olsa konum2 değişkeninin ismi end olsa [beg end) ya da [first last) şeklinde. Örneğin bir while döngüsü ile:
+while(beg != end) {
+    *beg
+    ++beg;
+}
+döngünün her turunda buradaki nesneyi dereference edersem o konumdaki nesneye erişiceğim; daha sonrada ++ operator'ünün operandı yaparak konumu 1 arttıdığını düşünelim.
+İşte böyle bir döngü ile bu aralıktaki bütün nesnelere erişme imkanım olucak. Bu da şu demek; o zaman ben bu konum tutan nesneler ister pointer olsun ister pointer like sınıf
+türünden nesneler olsun bunları minimal olarak:
+a) dereferencable türler olduğuna güvenerek
+b) incrementable türler olduğuna güvenerek
+c) eşitsizlik kontrolü yapılabilicek türler olduğuna dayanarak şu şekilde fonksiyon şablonları yazabilirim:
+#include <iostream>
+
+template <typename Pos>
+void print(Pos beg, Pos end)
+{
+    while (beg != end)
+    {
+        std::cout << *beg << ' ';
+        ++beg;
+    }
+    std::cout << '\n';
+
+}
+Öncelikle şunu anlamalıyız; derleyicinin buradan yazdığı kodun geçerli olabilmesi için Pos'un hangi tür özelliklere sahip olması gerekiyor?
+1) Pos türünden 2 tane nesnenin eşitsizlik karşılaştırmasına sokulabilmesi gerekiyor. 
+2) Bu Pos öyle bir tür olmalı ki içerik operator'ünün operandı olabilmeli
+3) ++ operator'ünün operandı olabilmeli 
+4) bu kodun geçerli olabilmesi için *beg ifadesinin standart output'a insertable olması gerekiyor! Örneğin  *beg ifadesi Myclass sınıfı türünden ise ama Myclass sınıfının stanadart
+output'a ya da bir ostream akımına insert edecek bir fonksiyon yoksa yine sentaks hatası olur!
+Örneğin yukarıdaki print fonksiyon şablonundan elde edilecek fonksiyonu print(a, a+6); şeklinde bir çağrı ile cağırırsam:
+ #include <iostream>
+
+template <typename Pos>
+void print(Pos beg, Pos end)
+{
+    while (beg != end)
+    {
+        std::cout << *beg << ' ';
+        ++beg;
+    }
+    std::cout << '\n';
+
+}
+
+int main()
+{
+    int a[] = {1, 5, 7, 9, 2, 6};
+    print(a, a+6);
+}
+Burada fonksiyonun parametresi referans deklaratörünü içermediği için template argument deduction'da array decay olucak Pos türü int* olarak çıkarımı yapılıcak. Bu durumda derleyicinin 
+yazdığı fonksiyonda aslında while döngü ifadesine 2 tane pointer eşitsizlik karşılaştırmasına sokulucak ki; row pointer'lar zaten C'den de bildiğimiz üzere eşitsizlik karşılaştırmasına
+sokulabiliyor. while döngüsü içinde *beg ifadesi ile pointer to int'i dereference ettiğim için ifadenin türü int olucak  aslında ben ostream sınıfının int parametreli member function'ını
+olan inserter'ı çağırmış olacağım. while dönügü içinde ++beg ifadesi ile de bildiğimiz pointer'ın arttırılması olucak bir dizinin elemanını gösteren bir pointer'ı 1 arttırdığımda 
+dizinin 1 sonraki elemanını gösterir hale gelir. Dolayısıyla bu fonksiyon çağrısı ile aslında herhangi bir dizinin herhangi bir sub-array'ini ben standart çıkış akımına verebilirim;
+tamamı olması da gerekmez. Örneğin ben print fonksiyonunu a, a+3 argümanları ile çağırsaydım dizinin ilk 3 elemanını standart output'a yazdırmış olucaktım. 
+
+Peki bu örneği vector sınıfının int açılımı ile yaparsak sonuç ne olur:
+ #include <iostream>
+ #include <vector>
+ 
+template <typename Pos>
+void print(Pos beg, Pos end)
+{
+    while (beg != end)
+    {
+        std::cout << *beg << ' ';
+        ++beg;
+    }
+    std::cout << '\n';
+
+}
+
+int main()
+{   
+    using namespace std;
+    vector<int> ivec{4, 7, 8, 1, 5, 9, 5, 1};
+    print(ivec.begin(), ivec.end());
+}
+derleyip çalıştırdığımızda bir hata olmadığı gibi aslında buradaki ivec bir sınıf türünden işte bu sınıfın ismi vector(sınıf şablonu); dinamik dizi veri yapısını implemente ediyor.
+Fakat nasıl oldu da benim yazdığım fonksiyon çağrısı bu kez bambaşka bir veri yapısı olan dinamik dizi veri yapısı ve user defined type'ta tutulan öğeleri yazdırdı!
+Örneği daha da kamaşık hale getirelim:
+bu kez vector yerine çifte bağlı liste yapısı için fonksiyon çağırsı yapalım:
+ #include <iostream>
+ #include <vector>
+ #include <list>
+ 
+template <typename Pos>
+void print(Pos beg, Pos end)
+{
+    while (beg != end)
+    {
+        std::cout << *beg << ' ';
+        ++beg;
+    }
+    std::cout << '\n';
+
+}
+
+int main()
+{   
+    using namespace std;
+    list<int> ilist{4, 7, 8, 1, 5, 9, 5, 1};
+    print(ilist.begin(), ilist.end());
+}
+kodu derleyip çalıştırdığımızda bu seferde bağlı listeyi dolaşıp bağlı listedeki öğeleri standart output'a yazıran bir fonksiyon haline geldiğini; derleyicinin bu fonksiyon şablonundan
+oluşturduğu specialization'ının bu işi yapan 1.'de diziyi 2.'de dinamik diziyi 3.'de bağlı liste container'ındaki öğeleri standart output'a yazdıran bir fonksiyon haline geldiğini
+görüyorsunuz. Bunu gerçekleştiren arka plandaki operator overloading mucizesi; çok basit olarak böyle söylenebilir. Aslında olan şu:
+container sınıflar dediğimiz sınıfların aslında nested type'ları var; bu nested type'lar o container'da tutulan öğelerin konum bilgilerini tutmak için oluşturabiliceğimiz nesnelerin
+ilişkin olduğu sınıflar. Bunlara iterator sınıfları deniliyor. Yani örneğin vector sınıfını kafanızda canlandırın:
+(şimdilik onun template olduğu gerçeğini de göz önüne almayın)
+class Vector {
+public:
+    class iterator {
+        public:
+            friend bool(iterator, iterator);
+            int& operator*();
+            iterator& operator++();
+            iterator& operator++(int);
+
+    };
+    iterator begin();
+    iterator end();
+
+};
+vector'ün iterator isimli b,r nested type'ı var, vector'ün iterator nested type'ı vector'de tutulan öğelerin konumunu tutan nesnelerin türü. iterator sınıfı da içerik operator'ünü, 
+++ operator'ünü, != operator'ünü, vb. Şimidilik örneğimizde bunların global ya da member function olması önemli olmasın. Böylece vector'ün iterator nested type'ı bizim yazdığımız 
+template'de eğer oradaki Pos türü buradaki vector'ün nested type'ı olan iterator türü ise while içinde bulunan beg != end ifadesindeki != operator'ü sınıfın != operator overloading'i
+ile oluşturulan fonksiyonu, döngü içindeki *beg ifadesinde * operator'ü sınıfın içerik operator fonksiyonu ve ++beg ifadesindeki ++ operator'ü ise sınıfın ++operator fonksiyonunun
+overloading'idir. Yani template'daki kodların uygun bir şekilde implemente edildiğini düşünürsek o zaman templa'te içindeki çağırılan fonksiyonlar işlemleri yapabilir ve özelliklede
+içerik operator fonksiyonu o konumdaki nesneye eriştirirse bizi referans semantiği ile tabii ki dinamik dizideki öğeleri yazdıran bir fonksiyon haline gelicek. İşte nasıl vector böyle
+bir sınıf ise list'te benzer şekilde bir sınıf:
+class List {
+public:
+    class iterator {
+        public:
+            friend bool(iterator, iterator);
+            int& operator*();
+            iterator& operator++();
+            iterator& operator++(int);
+
+    };
+    iterator begin();
+    iterator end();
+
+};
+onunda iterator bir nested type'ı var, onun iterator nested type'ıda bu operasyonları desteklediğini düşünün ama bunların kodununda ona uygun şekilde yazılduğını düşünün. Örneğin 
+vector'deki ++ operator'ü pointer semantiğini kullanabilir çünkü dinamik dizide öğeler ardışık ama liste böyle değil ki. ++ operator'ünün kodunun öyle bir şekilde yazılması gerekiyor
+ki ++ operator'ü bir sonraki düğümün adresini tutucak hale getiricek o iterator türden nesnesini. işte arka planda böyle bir mimari var yani bu STL'deki fonksiyonlar bunlara algoritma
+deniliyor aslında bizim konumuza geri dönücek olursak; 
+ #include <iostream>
+ #include <vector>
+ #include <list>
+ 
+template <typename Pos>
+void print(Pos beg, Pos end)
+{
+    while (beg != end)
+    {
+        std::cout << *beg << ' ';
+        ++beg;
+    }
+    std::cout << '\n';
+
+}
+STL algoritmaları tipik olarak aslında parametresi iterator olucak şekilde yazılmış fonksiyon şablonlarından başka bir şey değil!!
+Bu fonksiyon şablonları normal diziler üstünde de işlem görüyor ama normal diziler üstünde işlem yapacak fonksiyonlar yazıldığında template parametresi normal pointer oluyor.
+Ama vector gibi, list gibi, map gibi, vb. container dediğimiz sınıflar söz konusu olduğunda orada da aslında buradaki template parametresi bu sefer çıkarım yoluyla derleyicinin 
+specialization'ında iterator dediğimiz nested type oluyor. Böylece ben bu range semantiğini kullarak genelleştirilmiş türden bağımsız hale getirilmiş
+a) bir dizi üstünde o algoritmayı implemente eden
+b) bşr veri yapısı üstünde o algoritmayı implemente eden türden bağımsız algoritma dediğimiz bu fonksiyonları(print gibi) yazabiliyorum. 
