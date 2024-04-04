@@ -1,0 +1,500 @@
+Sınıf Şablonları
+Bir sınıf şablonu/class template derleyicinin bir sınıf kodu yazmasını sağlayan bir meta koddur. Yani nasıl fonksiyon şablonunun specialization'ını bir fonksiyon ise bir 
+sınıf şablonunun specialization'ınıda bir sınıftır. Derleyici bir sınıf şablonundan istifade ederek çok sayıda ayrı sınıf kodu yazabilir. Böylece genel olarak kodları aynı
+fakat türlere ya da sabitlere bağlı olarak farklılıklar taşıyan implementasyonları tek tek programcının kendisinin yazması yerine derleyiciye yazdırma şansına sahip oluyoruz. 
+Bunun için 1.'cil adaylar veri yapılarını implemente eden sınıflar işte STL'deki container dediğimiz sınıflar sınıf şablonlarıdır. Çünkü bir önceki derste ele aldığımız linked
+list veri yapısında nasıl implemente edildiği belli ama ne tuttuğuna bağlı olarak bağlı listenin sınıf kodlarında farklılık olucak. İşte o yüzden STL'de standart olarak 
+bağlı liste sınıf şablonu oluşturulmuş. Yine benzer şekilde vector, forward_list, map, set gibi container sınıflar herbiri farklı farklı veri yapılarını implemente eden sınıf
+şablonlarıdır. Fakat sadece bunlar değil; örneğin akıllı pointer sınıfları bunlarda sınıf şablonudur. Çünkü smart pointer bir genel kavram/bir soyutlama dinamik ömürlü bir nesnenin
+hayatını kontrol ediyor. İşte ben de öyle bir sınıf şablonu oluşturabilirim ki burada template parametresi hayatı kontrol edilecek sınıf türü olabilir. Yani burada amaç birbirine 
+benzer sınıfların kodunu ayrı ayrı implementasyonunu yapmak yerine derleyiciye sınıf kodu yazdıracak bir meta kod oluşturmak. Tabii ki bununda kendine yönelik bir sentaksı var:
+template <typename T>
+class Myclass {
+
+};
+Derleyici Myclass sınıf şablonundan instantiation yaparak Myclass sınıf şablonunun specialization'ını olan sınıfları oluşturucak. Örneğin template parametresi karşılığı int 
+argüman kullanırsam Myclass'ın int specialization'ınını oluşturmuş olacağım. Myclass'ın int specialization'ını bir sınıf ama Myclass'ın kendisi bir sınıf değil bir sınıf şablonudur.
+
+
+Programcıların başlangıçta sınıf şablonları ile tanıştıkları zaman yine her C++ aracında/konusunda olduğu gibi geliştirdikleri birkaç tane yanlış algı var; bir tanesi
+sınıf şablonu ile sınıfı karıştırmak:
+template <typename T>
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass m; //syntax error
+}
+Böyle bir tanımlama yaptığımda sentaks hatası olur çünkü biz bir sınıf türünden nesne oluşturabiliriz; Myclass bir sınıf şablonu bir sınıf değil. Dolayısıyla bizim bir nesne 
+oluşturabilmemiz için bir specialization olması gerekiyor. Geçen derste söylediğimiz gibi C++17 standart'larına kadar sınıf şablonlarında template parametrelerine karşılık 
+gelecek template argümanlarının çıkarımının yapılması deduction mekanizması söz konusu değildi. Ancak C++17 standart'ı ile dile eklenen kural seti ile kısıtlı ölçüde de olsa
+sınıf şablonlarında da template parametrelerine karşılık gelen template argümanlarının çıkarımı yapılabiliyor. Burada önemli olan her specialization'ının ayrı bir sınıf olduğunu
+anlamamızdır. 
+template <typename T>
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<int> m1;
+    Myclass<double> m2;
+}
+Yani nasıl A sınıfı ile B sınıfı birbirinden ayrı sınıflar ise m1 ve m2 sınıfı da birbirinden farklı. 
+
+En çok yapılan başlangıç seviyesindeki hatalardan biri aynı sınıf şablonunun farklı specialization'ları türünden nesneleri örneğin birbirine dönüşebilir sanmak!!
+template <typename T>
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<int> m1;
+    Myclass<double> m2;
+
+    m2 = m1; //syntax error
+}
+bunu gerçekleştiricek bir araç söz konusu olmadığı sürece bunun A sınıfı türünden bir nesneye B sınıfı türünden bir nesneyi atamaktan hiçbir farkı yoktur!
+bu template parametresinin sadece non-type parametre olması durumunda değil örneğin şöyle olsaydı:
+template <int n>
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<10> m1;
+    Myclass<9> m2;
+
+    m2 = m1; //syntax error
+}
+m1 ile m2 yine farklı sınıflar; her farklı template argümanı farklı bir sınıf oluşturuyor. 
+
+
+template <typename T>
+class Myclass {
+
+};
+Bu bir sınıf değil bir sınıf şablonu. T template parametresi yine fonksiyon şablonlarında olduğu gibi type parametre, non-type parametre ya da template template parametre olabilir. 
+Yine type parametre için typename anahtar sözcüğünü ya da class anahtar sözcüğünü kullanabilirsiniz. Bu sınıf şablonunun tanımında örneğin T ya da T'ye bağlı türleri sınıf şablonunun 
+tanımı içinde; fonksiyonların parametre türleri/geri dönüş değeri türleri ya da fonksiyonun inline olarak sınıf şablonunun içinde tanımını yapıyorsanız yerel değişkenlerin türler vb.
+olarak kullanabilirsiniz. 
+template <typename T>
+class Myclass {
+public:
+
+private:
+    T mx;
+};
+bu durumda Myclass'ın int açılımı söz konusu olduğunda o sınıfın mx elemanının türü int, Mclass'ın double açılımı söz konusu olduğunda o sınıfın veri elemanı double türden olucak.
+
+Örnek (önemli!!!):
+template <typename T>
+class Myclass {
+public:
+    T foo(T);
+private:
+    T mx;
+};
+
+int main()
+{
+    Myclass<int> m;
+    //m.foo(
+}
+burada m.foo( ifadesinde foo fonksiyonuna yapılan çağrıda type deduction olur mu? HAYIR olmaz, çünkü zaten T foo(T); yani foo fonksiyonun parametresinin ne olduğu belli; fonksiyonun 
+parametresi ( Myclass<int> m; ile int açılımı olduğu belli zaten) int türden yani burada bir type deduction yok! En çok karıştırılan noktalardan birisi bu!!
+
+Örnek (önemli!!!):
+template <typename T>
+class Myclass {
+public:
+    T foo(T&&);
+private:
+    T mx;
+};
+
+int main()
+{
+    Myclass<int> m;
+    //m.foo(
+Soru: Myclass'ın foo fonksiyonunun parametresi R value referans mı universal referans mı? Cevap R value referans çünkü burada type deduction yok Myclass'ın int açılımının parametresi
+int&&, Myclass'ın double açılımının foo fonksiyonunun parametresi double&&. Dolayısıyla 2 tane &'ın deklaratör olarak kullanılmasında ne zaman biz ona universal reference ya da 
+forwarding reference diyoruz? Tür çıkarımı olursa ama burada tür çıkarımı olmadığı için bu forwarding reference değil!! bu bildiğimiz R value referans!! 
+
+Örneğin sınıfın bir dizi elemanı olsaydı:
+template <typename T, std::size_t n>
+class Myclass {
+public:
+    T foo(T &&);
+
+private:
+    T mx;
+    T ma[n];
+};
+sınıfın ma veri elemanı Myclass'ın int, 10 açılımı için mx'in türü int ama ma'da 10 elemanlı int dizi olucaktı. Dikkat ediniz, tabii ki fonksiyonların parametrik yapısı sadece template 
+parametrelerine bağlı olan türlerden olmak zorunda değil:
+template <typename T, std::size_t n>
+class Myclass {
+public:
+    T foo(T &&);
+    std::size_T bar(T, int);
+private:
+    T mx;
+    T ma[n];
+};
+
+Fonksiyon şablonlarında olduğu gibi sınıf şablonlarında da dependent/nested type'lar için yine typename anahtar sözcüğünün kullanılması zorunludur! C++20 ile gelen kısıtlamaların
+gevşetilmesi senaryoları haricinde typename yine T'nin value type'ı türünden bir veri elemanı olsun ve başında typename anahtar sözcüğü olmasın diyemezsiniz!! Bunun bir nested type
+olduğu bilgisi için typename anahtar sözcüğünün kullanılması gerekiyor:
+template <typename T, std::size_t n>
+class Myclass {
+public:
+    T foo(T &&);
+    typename T::value_type x;
+    std::size_T bar(T, int);
+private:
+    T mx;
+    T ma[n];
+};
+
+Burada en çok sorulan sorulardan biri de şudur: template'lar derleyicinin görmesi gereken kodlardır. Çünkü derleyici template kodu görmezse o koddan kod yazma imkanı yok!
+Dolayısıyla atipik 1-2 senaryo dışında sadece implementasyonda kullanılan template'ler gibi sınıf şablonları da fonksiyon şablonları da başlık dosylarında olucak tipik olarak.
+İmplementasyonda interface'in ayrılması için birtakım yapılan hileler var onları ilerde ele alacağız. Sonuç olarak şablonları yeri başlık dosyası!
+
+Bir sınıf şablonu söz konusu olduğunda onun member function'ları yine normal sınıflarda olduğu gibi static member function olabilir, non-static member function olabilir.
+Tabii ki sınıf şablonu ile ilgili fonksiyonlar namespace içindeki fonksiyonlarda olabilir. Yani normal şimdiye kadar sınıflarla ilgili öğrendiğimiz her şey sınıf şablonlarında da
+uygulayabiliceğimiz kurallar/araçlar. Kalıtım kullanabiliriz, sanal fonksiyon kullanabiliriz, vb her şeyi kullanabiliriz. Sadece fonksiyon tanımlama sentaksında bir farklılık var:
+eğer fonsiyonu inline olarak class definiton içinde tanımlıyorsak bu durumda tanımı doğrudan sınıflarda olduğu gibi yapabilirsiniz. Fakat şuna dikkat etmeniz gerekir; class definition 
+içinde sınıf şablonunun ismini kullandığınızda aslında derleyici hangi specialization'ını oluşturucaksa o specialization'ını kullanmış oluyorsunuz! Yani şu demek:
+template <typename T>
+class Myclass {
+public:
+    T foo(T x)
+    {
+        Myclass<T> y;
+    }
+};
+Myclass'ın int açılımının foo fonksiyonu içindeki y değişkeninin türü de Myclass'ın int specialization'ıdır. Fakat eğer ki şu şekilde olursa:
+template <typename T>
+class Myclass {
+public:
+    T foo(T x)
+    {
+        Myclass<T> y;
+    }
+};
+Myclass'ın int açılımının foo fonksiyonu içindeki y değişkeninin türü de Myclass'ın int specialization'ıdır. Yani yukarıda ki ile aynıdır. Yani bu şu demek class template'ın 
+definition'ını içinde Myclass demekle Myclass<T> demek arasında hiçbir fark yok!! Sonuç olarak siz template argümanlarını belirtmeden sadece sınıf şablonunun ismini kullandığınız
+zaman aslında derleyici hangi specialization'ının kodunu yazıyorsa o specialization'ını kullanmış oluyorsunuz.
+
+
+Örnek:
+template <typename T>
+class Myclass {
+public:
+    T** foo(T** x)
+    {
+        Myclass y;
+    }
+};
+Myclass'ın int specialization'ını için fonksiyonun foo fonksiyonu hakkında sorulan sorulara cevap verin:
+Myclass'ın int specialization'ını için foo fonksiyonunun parametresinin türü-->int*'dır; geri dönüş değerinin türü int**'dır. İçindeki yerel değişkeni olan y'nin türü Myclass<int>'tir.
+Fakat fonksiyon içinde farklı açılımlarda kullanabilirim:
+template <typename T>
+class Myclass {
+public:
+    T** foo(T** x)
+    {
+        Myclass y;
+        Myclass<double> z;
+        Myclass<T*> k;
+    }
+};
+Myclass'ın int açılımı specialization'ının foo fonksiyonun içindeki yerel değişken olan y'nin türü Myclass'ın int specialization'ını yani Myclass<int> ama z'nin türü hangi specialization
+olursa olsun Myclass'ın double specialization'ını, k'nın türü ise Myclass'ın int specialization'ını için int* specialization'ınıdır fakat Myclass'ın double specialization'ını için 
+Myclass'ın double* specialization'ınıdır. 
+
+Burada anlaşılması biraz güç bir kural var; diyelim ki fonksiyon sınıf içinde şöyle bildirilmiş:
+template <typename T>
+class Myclass {
+public:
+    T foo(T);
+private:
+
+};
+Peki ben bu fonksiyonun tanımını class denition dışında namespace içinde yapabilir miyim? EVET, ve birçok durumda da bunu tercih edebilicez. Sentaks bu durumda değişiyor:
+kaç tane üye fonksiyon olursa olsun, bütün fonksiyonların bildiriminde eğer class definition içinde yazmıyorsanız o template başlık kısmını hepsinde tek tek yazacaksınız. 
+Bunun başka yolu yok!!
+template <typename T>
+class Myclass {
+public:
+    T foo(T);
+    T bar(T);
+    T baz(T);
+private:
+
+};
+
+template <typename T>
+T Myclass<T>::foo(T x)
+{
+    //..
+    return x;
+}
+
+template <typename T>
+T Myclass<T>::bar(T x)
+{
+    //..
+    return x;
+}
+
+template <typename T>
+T Myclass<T>::baz(T x)
+{
+    //..
+    return x;
+}
+şeklinde olmalıdır!!
+
+Soru: burada Myclass<T> açılımı yerine sadece Myclass deseydim olur muydu?
+Hayır!! Burada mutlaka ve mutlaka açılımı belirtmeniz gerekiyor:
+template <typename T>
+T Myclass::foo(T x) //syntax error
+{
+    //..
+    return x;
+}
+fonksiyonun parametre değişkeninin yazıldığı yerde belirtmeniz gerekmiyor fakat fonksiyonun tanımındaki sınıf isminde de geri dönüş değeri türünde de kullanmalıyız!
+
+Örnek:
+template <typename T, typename U>
+class Myclass {
+public:
+    Myclass foo(T, U, Myclass);
+};
+Soru 1: foo fonksiyonun class definition dışında tanımlama sentaksı nasıl?
+Cevap:
+template <typename T, typename U>
+Myclass<T, U> Myclass<T, U>::foo(T x, U y, Myclass<T, U> z)
+{
+    Myclass<T, U> a;
+
+    return z;
+} 
+şeklinde olur. Soru: burada parametre olan z için Myclass z deseydim sentaks hatası olur muydu?
+Cevap: hayır parametre değişkenlerinin yazıldığı yerde sınıf şablonunun ismini kullanırsanız yine ilgili specialization'ını kullanmış oluyorsunuz. Yani örneğin Myclass'ın int, double
+açılımı için 3. parametresi Myclass'ın int, double açılımı olur. 
+template <typename T, typename U>
+Myclass<T, U> Myclass<T, U>::foo(T x, U y, Myclass z)
+{
+    Myclass<T, U> a;
+
+    return z;
+} 
+
+Soru: yine aynı şekilde burada a değişkeni için Mclass ismini yalın olarak kullanabilir miyim?
+Cevap: evet
+template <typename T, typename U>
+Myclass<T, U> Myclass<T, U>::foo(T x, U y, Myclass z)
+{
+    Myclass a;
+
+    return z;
+} 
+
+Fakat fonksiyonun geri dönüş değeri'nde Myclass ismini yalın olarak kullanamam sentaks hatası!!!
+template <typename T, typename U>
+Myclass Myclass<T, U>::foo(T x, U y, Myclass z) //syntax error
+{
+    Myclass a;
+
+    return z;
+} 
+Dolayısıyla fonksiyonun geri dönüş değerinde Myclass<T, U> açılımını yazmak zorundayız. 
+
+
+Bir diğer kafa karıştırıcı örnek:
+Fonksiyonun tanımı söz konusu olduğunda tanımdaki template parametreleri ile class definition içindeki template parametreleri ile aynı isim vermek zorunda değilsiniz!!! Tipik olarak 
+aynı isimler veriliyor ama bu bir zorunluluk değildir:
+template <typename T, typename U>
+class Myclass {
+public:
+    T foo(U);
+};
+
+template <class Neco, class Uygar>
+Neco Myclass<Neco, Uygar>::foo(Uygar ux)
+{
+    return Neco{};
+}
+dikkat: sadece template perametrelerine farklı isimler verdik, onun dışında hiçbir farklılık yok, bu da gayet doğal bir durumdur. İsim değişikliğinin herangi bir etkisi olmadığını 
+göstermek için:
+#include <iostream>
+
+template <typename T, typename U>
+class Myclass {
+public:
+    T foo(U)
+    {
+        std::cout << typeid(T).name() << ' ' << typeid(U).name() << '\n';
+        return {};
+    }
+};
+
+int main()
+{
+    Myclass<int, double> mx;
+    mx.foo(1.2);
+}
+kod derlenip çalıştığında elde edilen çıktı ile aşağıda verilen kodun derlenip çalışması ile elde edilen kod çıktısı aynıdır:
+template <typename T, typename U>
+class Myclass {
+public:
+    T foo(U);
+};
+
+template <class Neco, class Uygar>
+Neco Myclass<Neco, Uygar>::foo(Uygar ux)
+{
+    std::cout << typeid(Neco).name() << ' ' << typeid(Uygar).name() << '\n';
+    return {};
+}
+Dolayısıyla fonksiyon parametre isimleri class definition'da belirtielen gibi olmak zorunda değildir!!!
+
+
+
+template'ın instantiation'ının kullanılması
+template <typename T>
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<int>
+}
+1)normalde class Nec {}; gibi bir sınıf olsaydı, bu sınıfı dilin kurallarına göre hangi biçimlerde kullanabiliyor isem Myclass'ın örneğin int açılımı da böyle bir sınıftır. 
+Myclass<int> ile yapamayacağım diğeri ile yapabiliceğim hiçbir şey yok. Yani bir class template'den oluşturulan bir specialization bir sınıfın ta kendisidir. 
+
+Soru: bu sınıf şablonu ile elde ettiğim sınıf türünden global bir değişken tanımlayabilir miyim?
+cevap: tabii ki
+template <typename T>
+class Myclass {
+
+};
+
+Myclass<int> g;
+
+int main()
+{
+
+}
+
+Soru: bir fonksiyonun geri dönüş değeri örneğin Myclass'ın int açılımı türünden olabilir mi?
+cevap: tabii ki, bu bir sınıf türü
+template <typename T>
+class Myclass {
+
+};
+
+Myclass<int> foo(Myclass<double>);
+
+int main()
+{
+
+}
+
+Soru: örneğin ben elemanları Myclass'ın int açılımı türünden olan 210 elemanlı bir dizi tanımlayanilir miyim?
+cevap: tabii ki, bu bir tür
+template <typename T>
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<int> a[210];
+    Myclass<int> *p = a;
+}
+
+Soru: örneğin normal sınıfın bir veri elamanı static ya da non-static veri elemanı örneğin Myclass'ın int açılımı türünden olabilir mi?
+cevap: tabii ki, bir sınıfın başka bir sınıf türünden elemanı olabilir
+template <typename T>
+class Myclass {
+
+};
+
+class Nec {
+    Myclass<int> x;
+    Myclass<double *> y; 
+};
+
+int main()
+{
+
+}
+Yani bir sınıf şablonundan oluşturulan specialization diğer sınıflar gibi bir sınıftır.     
+
+Soru: Myclass'ın int açılımı bir sınıf olduğuna göre ve bu da bir tür olduğuna göre herhnagi bir sınıf şablonunda template argümanı olarak kullanılabilir mi?
+cevap: tabii ki
+template <typename T>
+class Myclass {
+
+};
+
+template <typename T>
+class Neco {
+
+};
+int main()
+{
+    Neco<Myclass<int>>
+}
+Myclass'ın int açılımı bir specialization bu sefer bu specialization'ını kullanarak bir başka sınıf şablonunda bunu template argümanı olarak kullanabilirim.
+Hatta bunu yapmada herhangi bir sakınca var mı?
+template <typename T>
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<Myclass<int>> x;
+}
+Myclass'ın int açılımı bir specialization ama Myclass<Myclass<int>> ise başka bir specialization. 
+
+Örneğin:
+#include <iostream>
+
+template <typename T>
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<Myclass<Myclass<int>>> x;
+    std::cout << typeid(x).name() << '\n';
+}
+
+Örnek:
+vector sınıf şablonu dinamik dizi veri yapısını implemente ediyor, o zaman ben örneğin vector sınıf şablonunda vector<int> dediğimde aslında buradaki template argümanı olan 
+int dinamik dizide tutulan elemanın türüdür.  Fakat şöyle yazarsam: vector<vector<int>> bu öyle bir dinamik dizi ki dinamik dizi de tutulan elemanlar dinamik diziler!!
+Örneğin şöyle olsa:vector<vector<vector<int>>> myvec; myvec öyle bir sınıf nesnesi ki myvec içinde elemanları int vector olan vector nesneleri tutan  bir vector.   
+
+Farklı container'lerda olabilir, örneğin hash table implementasyonunda şöyle bir şey yapabilirim:
+#include <vector>
+#include <list>
+
+int main()
+{
+    unsing namespace std;
+
+    vector<list<int>>
+}
+yani öyle bir dizi ki dinamik dizide tutulan herbir eleman aslında bir elemanları int türden olan bağlı liste!
