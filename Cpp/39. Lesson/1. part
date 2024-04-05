@@ -1,0 +1,755 @@
+17 Nisan 2023 - Pazartesi
+
+Kritik bir noktaya özellikle dikkat ediniz: örneğin string sınıfının sadece 40 civarında arama fonksiyonu var; bütün üye fonksiyonları/overload'ları, global fonksiyonları, 
+karşılaştırma fonksiyonları örneğin ya da diğer operator fonksiyonları toplama operator fonksiyonu gibi düşünürseniz kesinlike 100'ün üstünde fonksiyondan bahsediyoruz. Ama 
+siz bir string nesnesi tanımladınız derleyici ctor ve dtor kodu yazdı, atama yaptınız derleyici atama operator fonk. kodunu yazdı, += operator fonk. kullandınız derleyici
+onun kodunu yazdı gibi; çağırılmayan fonksiyonların kodu yazılmıyor. Fakat bunun bir önemi daha var, geçen derste ele almıştık, örneğin:
+ #include <iostream>
+
+ class Nec {
+
+public:
+    //...
+};
+
+template <typename T>
+class Myclass {
+public:
+    void foo()
+    {
+        T tx;
+        ++tx;
+    }
+
+    void bar()
+    {
+        T tx;
+        tx.foo();
+    }
+
+};
+
+int  main()
+{
+    Myclass<Nec> m;
+
+}
+bu durumda template parametresine karşılık gelen template argümanı yani T için yapılan tür çıkarımı Nec. Bu durumda foo fonksiyonunun içindeki T Nec türünden bir nesne. 
+O halde bu fonksiyonun kodu derlenmiş olsaydı T'nin ++ operator'ünün operandı olması nedeniyle foo fonksiyonunun tanımı error oluşturucaktı. Yine aynı şekilde bar fonk.
+kodu derlenseydi yine sentaks hatası oluşacaktı. Bu şu demek template argümanı sınıf şablonunun her üye fonksiyonu için legal kod üretmek zorunda değil. Çağırmadığınız 
+sürece bir problem yok. Fakat örneğin bu örnekte foo'yu çağırdığım zaman fonksiyon kodu derlenecek ++ operator'ünün overload edilmemesi nedeni ile sentaks hatası olur,
+yine aynı şekilde bar fonksiyonunun çağırılması da  bar'ın da foo isimli fonksiyou olmadığı  için sentaks hatası olucak:
+ #include <iostream>
+
+ class Nec {
+
+public:
+    //...
+};
+
+template <typename T>
+class Myclass {
+public:
+    void foo()
+    {
+        T tx;
+        ++tx;
+    }
+
+    void bar()
+    {
+        T tx;
+        tx.foo();
+    }
+
+};
+
+int  main()
+{
+    Myclass<Nec> m;
+
+    m.foo(); //syntax error
+    m.bar(); //syntax error
+
+}
+eğer Nec sınıfına foo isimli bir fonksiyon koyarsak şimdi artık bar fonk. çağırılması sentaks hatasına neden olmayacak:
+ #include <iostream>
+
+ class Nec {
+
+public:
+    //...
+    void foo();
+};
+
+template <typename T>
+class Myclass {
+public:
+    void foo()
+    {
+        T tx;
+        ++tx;
+    }
+
+    void bar()
+    {
+        T tx;
+        tx.foo();
+    }
+
+};
+
+int  main()
+{
+    Myclass<Nec> m;
+
+    m.foo(); //syntax error
+    m.bar(); //legal
+
+}
+Sonuç olarak çağırılmayan fonksiyon(lar) için derleyici bir kod üretmiyor bu da 100 % 100 template argümanının bütün kodlar için uyumlu olması zorunluluğunu ortadan kaldırıyor. 
+Hem kod ekonomisi sağlanıyor hem de bütün türler için uygun olmak zorunda değil, ben uygun olan türler için fonksiyonu çağırsam bir problem olmaz.
+
+
+Geçen dersin önemli kritik noktalarından biri şuydu; ister type parameter olsun ister non-type parameter olsun her template argümanı farklı bir sınıf oluşturuyor demiştik! 
+template <int n> //non-type parameter
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<10> x;
+    Myclass<20> y;
+}
+Myclass'ın 10 açılımı ayrı bir sınıf Myclass'ın 20 açılımı ayrı bir sınıf. Bunların yani x ile y arasında siz bir fonksiyon tanımlamadığınız sürece bir dönüşüm ilişkisi yok!
+Bunlar ayrı sınıflar yani örneğin y = x; ataması geçerli değil! Çünkü y türünden x türüne örtülü bir dönüşüm yok.  
+
+non-type parameter üzerinde biraz daha inceleme yapalım çünkü buarad çok önemli eklemeler ve değişiklikler yapıldı:
+template <int n>
+class Myclass {
+
+};
+
+template <unsigned n>
+class Myclass {
+
+};
+kodu derlediğimizde sentaks hatası olduğunu görürüz. C++17 standartları ile burada gelen çok önemli bir ekleme var. Bu çok problemli durumlardan biriydi yani aynı sınıf şablonu için 
+farklı template argümanları/farklı türden sabitleri kullanmaya yönelik farklı non-type parametre kullanamıyorduk. Faka sonrasında dile çok güzel bir ekleme yapıldı:
+template <auto n>
+class Myclass {
+public:
+    Myclass()
+    {
+        std::cout << typeid(n).name() << '\n';  
+    }
+
+};
+bu auto keyword'ünün yepyeni bir kullanımı auto template parametresi yerine kullanılıyor! 
+
+int main()
+{
+    Myclass<10> x;
+    Myclass<20u> y;
+}
+Şimdi burada daha önceki kurallardan farklı olarak auto'yu kulllandığımız zaman bir tür çıkarımı oluyor. Ve artık aynı template'ı kullanabiliyorum. Yani burada aslında 
+oluşturulan sınıf'da template argümanı türü 10 için int 20u ise unsigned int ama görüldüğü üzere sınıf isimleri aynı olucak. 
+
+En önemli farklılıklardan biri de C++20 öncesinde template non-type parametre gerçek sayı türünden olamıyordu; C++20 ile gelen değişiklikler çok ciddi farklılıklar
+yaratıyor. Yıllar yılı non-type parametrelerinin tam sayı türlerinden olması zorunluluğu vardı; yani örneğin:
+template <double n> //C++20 öncesinde sentaks hatası!!!
+class Myclass {
+public:
+    Myclass()
+    {
+        std::cout << typeid(n).name() << '\n';  
+    }
+
+};
+
+int main()
+{
+    Myclass<2.3> x;
+}
+
+Özetle C++ 20 standart'ları ile non-type parametrelerin gerçek sayı türlerinden olması olanağı getirildi ki bu çok büyük, radikal bir değişiklik! Üstelik sadece gerçek sayı 
+türü değil literal type dediğimiz yani belirli özellikleri sağlayan sınıf türleri de olabiliyor!! Resmen non-type parametre fakat non-type parametredeki template argümanı
+literal type denilen belirli özellikleri sağlayan sınıflar türünden de olabilir. 
+
+STL'in sınıf şablonlarından type parametre ve non-type parametre'yi daha iyi anlamak için örnek verelim:
+#include <iostream>
+#include <vector>
+#include <array> // en çok kullanılan sınıf şablonlarından biri özellikle gömülü tarafta, 1. template parametresi type parametre 2. template parametresi non-type parametre
+                 // çünkü bu C dizisini sarmalayan bir sınıf. Aslında her programcının iyi bilmesi gereken sınıf
+
+int main()
+{
+    using namespace std;
+
+    std::array<double, 20> ar;
+}
+standart kütüphane diyor ki double a[20]; gibi bir dizi tanımlayacağınıza std::array<double, 20> ar; şeklinde bir nesne tanımla diyor. Böylece birtakım avantajlar elde ediyoruz,
+tahmin ederseniz ki bu şöyle bir template:
+template <typename T, std::size_t n>
+struct  Array
+{
+    /* data */
+};
+
+non-type parametrenin en tipik örneklerinden biri de bitsel işlemleri kolaylaştırmak ve onlar için pratik bir arayüz sunmak amaçlı en çok kullanılan yine STL sınıflarından biri 
+bitset sınıfı:
+sadece bir tane non-type parametresi var:
+#include <bitset>
+
+int main()
+{
+    std::bitset<32> bs; //böylece 32 bitlik bir tam sayı gibi ya da 32 tane boolean'a sahip bit vector gibi kullanabiliyorum
+}
+
+template kodlaer diğer kodlar gibi değil yani  bildirimleri başlık dosyasında koy, tanımı .cpp dosyasına koy şeklinde değil. Çünkü derleyici o tanımı görücek ki oradan gerçek kodu 
+yazacak. Dolayısıyla template'ler diğer kodlar gibi değil:
+1) başlık dosyasında bulunuyorlar!
+2) implicitly inline fonksiyonlar yani global bir fonksiyon şablonu yazsanız dahi onun başlık dosyasında olması ODR'ı ihlal etmiyor. 
+Fakat şöyle bir hile yapılıyor çoğunlukla  ya da aslında 2 tipik hile var; implementasyon ile interface'i ayırmaya yönelik 2 tane pratik teknik var. Ancak bu ayrım fiziksel  
+bir ayrım sonuçta derleyici başlık dosyasını include ettiğinizde bütün kodları görmek zorunda. 
+Birinci tipik teknik şu:
+//nec.h
+template <typename T>
+void func(T x);
+
+template <typename T, template U>
+class Nec {
+public:
+    void foo(T);
+};
+
+#include "necimp.h"
+//necimp.h
+template <typename T>
+void func(T x)
+{
+    //...
+}
+
+//Nec sınıf şablonu iinde verilen foo'nun tanımı
+template <typename T, template U>
+void Nec<T, U>::foo(typename T)
+{
+    //...
+}
+böylece bildirim ve tanımların lokasyonlarını değiştirdik; onları birbirinden fiziksel olarak ayırdık. Yani .cpp dosyasında bunu yapma 
+şansımız yok o yüzden fonksiyon tanımlarını başka bir başlık dosyasına koyup implementasyonunu yapabiliyoruz Sonuç olarak derleyici 
+hepsini birden görüyor. 
+
+İkinci tipik teknik şu:
+özellikle boost kütüphanesinin kullandığı teknik bu; bunda da bir tane nested-namespace kullanılıyor:
+//nec.h
+namespace nec {
+    template <typename T>
+    void foo(T);
+
+    namespace details {
+        //implementations like definition of template functions etc.
+    }
+}
+
+Çoğunlukla yine yanlış anlaşılan noktalardan biri de şu: non-type parametre pointer/referans'da olabilir ve bunun modern C++ ile bir alakası yok!
+template <int *p>
+class Myclass {
+
+};
+
+int x = 10;
+int y = 20;
+
+int main()
+{
+    Myclass<&x> m1;
+    Myclass<&y> m2;
+}
+burada m1 ve m2 ayrı sınıflar yani ben Myclass sınıf şablonunda p'yi kullandığım zaman bir adres sabitini kullanmış olacağım. Aynı şekilde referans'da olabilir:
+template <int &p>
+class Myclass {
+
+};
+
+int x = 10;
+int y = 20;
+
+int main()
+{
+    Myclass<x> m1;
+    Myclass<y> m2;
+}
+
+Özellikle functon pointer açılımları bazı kütüphanelerde yoğun olarak kullanılıyor:
+template <int (*p)(int)>
+class Myclass {
+
+};
+
+int foo(int);
+int bar(int);
+int baz(int);
+
+int main()
+{
+    Myclass<foo> m1;
+    Myclass<baz> m2;
+    Myclass<bar> m3;
+}
+burada non-type parametrede template parametresine karşılık gelen sabit bir fonksiyon adresi. m1, m2, m3 birbirinden ayrı sınıflar. Burada bu fonksiyonların adresleri sınıf şablonunun 
+kodu içinde kullanılıyor olabilir. 
+
+Eğer ki non-type parametre pointer ise template argümanı olarak kullanılan adresin onun static ömürlü bir nesne adresi olması gerekiyor; aksi halde sentaks hatası meydana gelir. 
+template <int* p>
+class Myclass {
+
+};
+
+int main()
+{
+    int x = 10;
+    Myclass<&x> m1; //syntax error
+}
+
+veya:
+template <int* p>
+class Myclass {
+
+};
+
+int main()
+{
+    static int x = 10;
+    Myclass<&x> m1; //legal
+}
+
+veya:
+template <int* p>
+class Myclass {
+
+};
+
+int x = 10;
+
+int main()
+{
+   
+    Myclass<&x> m1; //legal
+}
+
+
+Dikkat: en çok yapılan hatalardan biri bu konuya ilişkin
+template <typename T>
+class Myclass {
+public:
+    void foo(Myclass);
+}; 
+Soru: Myclass'ın foo fonksiyonunun parametresi hangi türden? Cevap: aynı specialization türünden yani Myclass<T> türünden. Yani örneğin Myclass'ın int açılımının specialization'ınının 
+foo fonksiyonunun parametersi Myclass<int> türündendir. O halde:
+template <typename T>
+class Myclass {
+public:
+    void foo(Myclass);
+}; 
+
+int main()
+{
+    Myclass<int> m1;
+    Myclass<int> m2;
+
+    m1.foo(m2);
+}
+Soru: m1.foo(m2); çağrısında bir hata var mı? Cevap: Hayır yok, çünkü fonksiyonun parametresi ile fonksiyona gönderdiğim argüman aynı türden! Fakat eğer ki şöyle olsaydı:
+template <typename T>
+class Myclass {
+public:
+    void foo(Myclass);
+}; 
+
+int main()
+{
+    Myclass<double> m1;
+    Myclass<int> m2;
+
+    m1.foo(m2); //syntax error
+}
+sentaks hatası olur çünkü türler farklı! 
+
+Örneğin A ve B 2 farklı sınıf olmak üzere:
+class B {
+
+};
+
+class A {
+public:
+    void foo(B);
+};
+bu durumda A'nın foo fonksiyonuna B türünden argüman gönderebilirsiniz, peki bu fonksiyon bir template olsaysı:
+class B {
+
+};
+
+class A {
+public:
+    template <typename T>
+    void foo(T);
+};
+bu durumda A'nın foo fonksiyonuna herhangi türden bir argüman geçebiliriz. Peki B'de bir template olsaydı ve A'nın foo fonksiyonu için template parametresi olarak B'nin T açılımı 
+şeklinde bir bildirim yaparsak:
+template <typename T>
+class B {
+
+};
+
+class A {
+public:
+    template <typename T>
+    void foo(B<T>);
+};
+bu durumda A sınıfının foo fonksiyonuna B sınıf şablonundan elde edilicek herhangi bir specialization türünden argüman geçebilirim. Yani:
+template <typename T>
+class B {
+
+};
+
+class A {
+public:
+    template <typename T>
+    void foo(B<T>);
+};
+
+int main()
+{
+    A ax;
+
+    B<int> b1;
+    B<double> b2;
+
+    ax.foo(b1);
+    ax.foo(b2);
+}
+yani ben artık ax'in foo fonksiyonuna hem int türden bir argümanla hem de double türden bir argümanla çağro yapabilir hale geldim. Peki bunu sınıf şablonu içinde yapabilir miyim?
+Cevap: Evet, işte yine bir sınıf şablonunun üye fonksiyonu da bir member template olabilir!! En çok karıştırılan noktalardan biri bu. Yani örneğin:
+template <typename T>
+class Myclass {
+public:
+    template <typename U>
+    void foo(U);
+};
+bu şu anlama gelir: Myclass'ın herhangi bir specialization'ının/açılımının foo isimli fonksiyonu herhangi türden bir parametreye sahip şekilde derleyici tarafından yazılabilir:
+#include <iostream>
+template <typename T>
+class Myclass {
+public:
+    template <typename U>
+    void foo(U)
+    {
+        std::cout << typeid(*this).name() << '\n';
+        std::cout << typeid(U).name() << '\n';
+        std::cout << "\n\n";
+    }
+};
+
+int main()
+{
+    Myclass<int> x;
+
+    x.foo(13.4);
+    x.foo(13);
+    
+    Myclass<long> y;
+    y.foo(12L);
+}
+O halde şu şekilde de yazabilirim:
+#include <iostream>
+template <typename T>
+class Myclass {
+public:
+    template <typename U>
+    void foo(Myclass<U> x)
+    {
+        std::cout << typeid(*this).name() << '\n';
+        std::cout << typeid(x).name() << '\n';
+    }
+};
+
+int main()
+{
+    Myclass<double> x;
+    Myclass<int> y;
+
+    x.foo(y);
+}
+bu durumda Myclass'ın herhangi bir specialization'ını türünden bir nesnenin foo fonksiyonuna Myclass'ın herhangi bir başka specialization'ını türünden argüman gönderebilirim!!
+İşte programcıların en fazla karıştırdığı noktalardan biri bu member template konusudur. Şimdi artık aynı sınıf şablonunun farklı specialization'ları arasında böyle bir kod yazdırma
+ilişkisi kurmuş olduk. Ben x'in foo fonksiyonuna argüman olarak y'yi gönderdiğimde bu durumda *this'in türü Myclass'ın double açılımı (Myclass<double>) olucak ama parametre değişkeninin
+türü Myclass'ın int açılımı(Myclass<int>) olucak. Yani derleyici Myclass'ın double açılımı sınıfının üye fonksiyonlarından biri olarak parametresi yine aynı sınıf şablonunun başka bir
+specialization'ını olan Myclass'ın int açılımı türünden olan bir fonksiyon yazacak!! 
+
+Bu implementasyonun çok güzel bir örneğini inceleyelim:
+2 tane farklı türden de aynı türden de olabilicek değeri bir arada tutuyor. Bildiğiniz gibi python vb dillerde buradaki kavrama tuple deniliyor. C++'ta ise pair sınıfı ayrı bir de
+ayrı sınıf şablonu olarak tuple var. Tuple 2 ile sınırlı değil ama pair adı üstünde çift demek örneğin bir int'i bir double ile birlikte tutmak istiyorsanız bir string'i bir Fighter 
+ile birlikte tutmak istiyorsanız, bir long'u char ile birlikte tutmak istiyorsanız birazdan ele alacağımız sınıf şablonunu kullanabilirsiniz. Eğer şablon olmasaydı biz örneğin int 
+ile double'ı birlikte tutmak için:
+struct  Pair 
+{
+    int x;
+    double d;
+};
+şeklinde bir yapı oluşturucaktık. Bu çok sık duyulan bir ihtiyaç olduğuna göre o zaman böyle bir sınıfın kodunu derleyiciye yazdırsak ve çok işe yarayan ihtiyaç duyulan fonksiyonlarda 
+bu sınıf şablonunun fonksiyonları olsa hatta global fonksiyonlar ile de destek sağlayabiliriz. Gerçekten de STL'ine en çok kullanılan sınıf şablonu std::pair'dir. Bu sınıf şablonu çok
+çok önemli çünkü a) STL'de algoritma dediğimiz bazı fonksiyon şablonlarının geri dönüş değeri std::pair türünden, std::pair'i doğrudan fonksiyon parametresi yapabiliyoruz, daha çok 
+fonksiyonun geri dönüş değeri türü yaparak 2 tane değerin birden geri dönüş değeri mekanizması ile fonksiyondan çağıran koda iletilmesini sağlayabiliyoruz. b) sınıfların veri 
+elemanlarını pair türünden yapabiliyoruz, container'larda pair türünden nesneler tutabiliyoruz. Yani C'de de bunu yapabiliriz; bir fonksiyonun geri dönüş değeri 1 tane fakat C'de de 
+bazen yaptığımız gibi bazen bir fonksiyonun 2 tane birden değer iletmesi için o 2 değeri eleman olarak alan bir yapı oluşturup fonksiyonun geri dönüş değerini de o yapı türünden
+yapıyoruz. İşte buradaki mantıkta bunun gibi. std::pair şöyle bir sınıf şablonu:
+template <typename T, typename U>
+struct  Pair
+{
+    /* data */
+};
+
+initialization: bileşik türlere ilk değer verme sentaksı, örneğin C++'ta C tarzı yapılar(hatırlayınız bütün elemenları public'tir) aggregate'tır. aggregate olmasının bazı sonuçları 
+var sonuçlardan bir tanesi aggregate sınıflar türünden nesnelere bunlara C'deki yapılarda olduğu gibi ilk değer verebiliyorsunuz:
+struct Data {
+    int a, b, c;
+};
+
+int main()
+{
+    Data mydata = {1, 4, 6};
+}
+normalde C'deki gibi değer verdik bu normlade legal olmaması gereken bir şeydi ama işte bu şekilde ilk değer vermeye aggregate initialization. 
+Eğer class keyword'ü ile sınıfı oluşturursak:
+class Data {
+    int a, b, c;
+};
+
+int main()
+{
+    Data mydata = {1, 4, 6}; //syntax error
+}
+sentaks hatası çünkü aggregate'ların elemanları private olamıyor. Eğer elemanlar public olursa:
+class Data {
+public:
+    int a, b, c;
+};
+
+int main()
+{
+    Data mydata = {1, 4, 6}; //legal
+}
+sonuç olarak aggregate diye bir kavram var ve aggregate'lar bazı özelliklere sahipler o ayrıcalıklardan bir taneside aggregate initialization. 
+
+Örneğin:
+diziler zaten aggregate type, eğer bir sınıfın bütün elemanları aggregate type ise  ya da primitif türlerden ise belirli koşulları sağladığı zaman o sınıf türü de aggregate,
+o halde aşağıdaki Nec sınıfı da aggregate'tır.
+struct Nec {
+    int a[10];
+};
+
+int main()
+{
+    Nec mynec = {23, 4, 6, 7, 80};
+}
+Nec aggregate type olduğu için aggregate initialization yapabilirim, ben böylece Nec'in elemanı olan 10 elemanlı diziye ilk değer vermiş oluyorum.
+
+Örneğin karıştırılan noktalardan biri:
+#include <iostream>
+#include <array>
+
+int main()
+{
+    std::array<int, 5> x{1, 4, 7, 1, 6};
+}
+aslında bu halen bir aggregate type, yani std::array'in kendisi de bir aggregate type. Burada sadece değişen aggregate type bir template halinde, örneğin sözde array sınıf şablonu:
+template <typename T, std::size_t n>
+struct Array {
+    T a[n]; 
+};
+ve gerçekten de STL'deki std::array bu şekilde bir aggregate type!
+
+
+Pair ise şöyle bir sınıf şablonu:
+Pair'de bir aggregate type'tır!!
+template <typename T, typename U>
+struct Pair {
+    T first;
+    U second;
+};
+
+structure binging C++17 standart'ı ile dile eklenen en önemli araçlardan biri ve aggregate type'lar ile kullanılabildiği gibi belirli özelliklere sahip sınıflar içinde kullanılabilen 
+bir sentaks, diziler içinde kullanılabiliyorsunuz. 
+
+Pair sınıf şablonu utility başlık dosyasındadır, ve çok iyi öğrenmeniz gereken bir sınıftır!!!
+template <typename T, typename U>
+struct Pair {
+    T first;
+    U second;
+};
+
+#include <iostream>
+#include <utility>
+
+int main()
+{
+    std::pair<int, double> x;
+    // x.first //int türden
+    // x.second //double türden
+
+    std::cout << x.first << '\n'; //0
+    std::cout << x.second << '\n'; //0
+}
+kod derlenip çalıştığında gelen 0 değerleri; default ctor'ın elemanları value initialize etmesinden dolayıdır bu dilin garantisi altındadır. 
+Yani 2 tane farklı türden olan elemanı bir arada tutmak için pair şeklinde tutabiliyoruz, bu da şu anlama gelir örneğin bir fonksiyondan hem int hem de string döndüreceğiz:
+std::pair<int, std::string> foo(); en çok kullanılan yöntemlerden biridir. 
+
+Fonksiyonun parametresinide pair yapabilirsiniz, bir sınıfın veri elemanını pair yapabilirsiniz, vb.
+
+pair'in 2 tane ctor'ı var: biri default ctor; default ctor first'i ve second'ı yani sınıfın veri elemanlarını value initialize ediyor. Örneğin:
+#include <iostream>
+#include <utility>
+
+int main()
+{
+    using namespace std;
+
+    pair<int, string> p;
+
+    cout << p.first << '\n';
+    cout << p.second << '\n';
+}
+elemanlar default construct edildiğine göre string'in default ctor'ının çağırılması sonucu boş bir yazı tutuyor hale gelicek ama default ctor'ın çağırılmasını sağlayan 
+value initialization. value initialization olduğu için öğeler value initialize ediliyor. Hatırlaynız: primitive türden öğelerin value initialize edilmesi onların pointer ise null
+pointer, tam sayı gerçek sayı değişkenleri ise 0, boolean değişken ise false değer ile hayata başlaması demek.  
+
+ikinci ctor ise T ve U parametreli bir ctor'dır. Yani örneğin:
+#include <iostream>
+#include <utility>
+
+int main()
+{
+    using namespace std;
+
+    pair<int, double> p{12, 4.5};
+}
+burada çağırılan ctor 1. parametresi const int& ikinci parametresi const double& olan ctor, basitçe böyle söyleyebiliriz. Tabii ki ctor'a gönderilen 1. argüman first'i initialize
+ediyor 2. argüman ise second'ı initialize ediyor. Tabii bu parametreler birer sınıfta olabilir:
+#include <iostream>
+#include <utility>
+
+int main()
+{
+    using namespace std;
+
+    pair<string, double> p{"necati", 3.5};
+
+    cout << p.first << '\n';
+    cout << p.second << '\n';
+}
+
+Burada C++17 ile gelen class template argument deduction yoğun olarak kullanılıyor, yani şöyle yazabiliyorum:
+#include <iostream>
+#include <utility>
+
+int main()
+{
+    using namespace std;
+
+    pair p{4 , 3.5};
+
+}
+bu durumda derleyici ctor'a gönderilen 1. argümanın türünün int, 2. argümanın türünün ise double olduğuna bakarak bunun şu anlama geldiğini anlıyor:
+pair<int, double> px; 
+
+Örneğin benim kendim pair sınıfım olsa:
+template <typename T, typename U>
+struct Pair {
+    T first;
+    U second;
+};
+
+int main()
+{
+    Pair<int, long> x;
+
+    std::cout << "x.first = " << x.first << '\n'; //ub
+    std::cout << "x.second = " << x.second << '\n'; //ub
+}
+ub çünkü derleyicinin yazdığu default ctor elemanları default initialize eder; default initialize edilmesi primitive türler için undetermined value demek. Öte yandan eğer 
+x statik ömürlü bir değişken olsaydı durum değişirdi; çünkü statik ömürlü nesneler önce zero initialize ediliyorlar:
+template <typename T, typename U>
+struct Pair {
+    T first;
+    U second;
+};
+
+
+Pair<int, long> x;
+
+int main()
+{
+    std::cout << "x.first = " << x.first << '\n'; //0
+    std::cout << "x.second = " << x.second << '\n'; //0
+}
+
+Ben şimdi öyle bir default ctor yazayım ki, elemanlar sınıf türünden ise default ctor'ları çağırılsın elemanları sınıf türünden değilse primitive türden ise o zaman onlarda
+value initialize edilsin:
+bunu yapmanın modern C++ öncesinde farklı yolları vardı ama şimdi modern C++ ile şu şekilde yapabilirsiniz:
+template <typename T, typename U>
+struct Pair {
+    T first{}; //value initialize sentaksı, hatırlatma buna in-class inizializer ya da default member initialize sentaksı deniliyor
+    U second{}; //value initialize sentaksı, hatırlatma buna in-class inizializer ya da default member initialize sentaksı deniliyor
+};
+
+
+
+
+int main()
+{
+    Pair<int, long> x;
+    std::cout << "x.first = " << x.first << '\n'; //0
+    std::cout << "x.second = " << x.second << '\n'; //0
+}
+modern C++ öncesinde de şu şekilde yapabiliriz:
+template <typename T, typename U>
+struct Pair {
+    Pair() : first(T()), second(U()) {}
+    T first;
+    U second; 
+};
+
+int main()
+{
+    Pair<int, long> x;
+    std::cout << "x.first = " << x.first << '\n'; //0
+    std::cout << "x.second = " << x.second << '\n'; //0
+}
+bu durumda first'üde second'ıda value initialize etmiş oluyorum, işte bu sentaks eskiden de yine primitive türleri 0 değeri ile başlatıyordu!
+
+Eğer parametrelerden biri class olursa:
+#include <iostream>
+
+template <typename T, typename U>
+struct Pair {
+    Pair() : first(T()), second(U()) {}
+    T first;
+    U second; 
+};
+
+class A {
+public:
+    A()
+    {
+        std::cout << "A default ctor\n";
+    }
+};
+int main()
+{
+    Pair<int, A> x;
+    std::cout << "x.first = " << x.first << '\n'; //0
+}
+kod derlenip çalıştığında A'nın default ctor'ının çağırıldığını görürüz.
