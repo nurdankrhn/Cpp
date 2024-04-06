@@ -1,0 +1,278 @@
+pair sınıf şablonu member template'ı kullanmasaydı x = y gibi bir atamanın sentaks hatası olması gerekirdi:
+#include <utility>
+
+int main()
+{
+    using namespace std;
+
+    pair<double, double> x{2. , 5.6};
+    pair<int, int> y{18, 78};
+
+    x = y;
+}
+x = y'nin sentaks hatası olmamasının nedeni atama operator fonksiyonunun member template olması! Yani aslında atamayı legal kılan şöyle bir kod:
+template <typename T, typename U>
+struct Pair{
+public:
+    Pair() = default;
+    Pair(const T&t, const U& u) : first(t), second(u) {}
+
+    template <typename A, typename B>
+    Pair(const Pair<A, B> &other) : first(other.first), second(other.second) {}
+
+    T first{};
+    U second{};
+
+};
+
+işte yukarıda ki sınıf şablonunda A, B template parametreli gibi bir member template olmasından dolayı x = y ataması legal hale geldi! Yani farklı Pair'ler first'leri birbirine 
+assignable ise second'ları birbirine assignable ise böyle bir member template ctor olmasından dolayı farklı Pair'leri birbirine atayabiliyorum. Tabii bu atama'nın legal olması için
+first'lerinin birbirine assignable olması gerekiyor aynı şekilde second'larının da birbirine assignable olması gerekiyor. Örneğin şu şekilde olsaydı:
+#include <iostream>
+#include <utility>
+
+int main()
+{
+    using namespace std;
+
+    pair<string, double> x;
+    pair<const char*, int> y{"ayse", 45};
+
+    x = y;
+}
+x = y; ataması legal, herbiri farklı türler ama const char*'dan string'e dönüşüm var öte yandan int'den de double'a dönüşüm olduğu için herhangi bir sentaks hatası olmuyor. 
+
+
+
+template'lere ilişkin birçok özelliği pair sınıf şablonu üzerinden gösterebiliriz çünkü pair'in çok güzel başka özellikleri var:
+
+Normalde C++17 standart'ların kadar sınıf şablonlarında deduction yoktu, fakat modern C++ ile ctor yoluyla tür çıkarımı var, bir önceki derste örneğini vermiştik. Sınıf şablonlarında
+tür çıkarımı olmadığından şöyle bir hile yapılıyordu:
+diyelim ki pair oluşturucaz ama template argümanlarını/sentaksını kullanmak istemiyorum yani örneğin pair<int, double> açılımı demesem de derleyicinin pair'in int, double açılımı
+olduğunu anlamasını istiyorum. Aslında bunun çok kolay bir yolu var; çok genel bir teknik bir fabrika fonksiyonu yazmak. Fonksiyon şablonlarında tür çıkarımı var, o zaman öyle bir
+fonksiyon şablonu yazarım ki derleyici fonksiyon şablonuna gönderilen argümanları kullanarak tür çıkarımı yapar fakat fonksiyonun geri dönüş değeri de bir sınıf şablonunun 
+specialization'ını olur. O zaman tür çıkarımından sınıf şablonu da istifade etmiş olur:
+fonksiyon inline olarak açılacağı için hiçbir ekstra maliyet getirmeyecektir!
+#include <utility>
+
+template <typename T, typename U>
+std::pair<T, U> MakePair(const T& t, const U&  u)
+{
+    return std::pair<T, U>(t, u);
+}
+
+int main()
+{
+    auto p = MakePair(12, 4.5);
+}
+böylece derleyici template argument deduction ile T'nin çıkarımını int olarak U'nun çıkarımını double olarak yapıcak ayrıca böylece Return Value Optimization'dan 
+faydalanmış olurum üstelik bu C++17 itibarıyla "Mandatory Copy Elision" ve geri dönüş değerinde de auto type deduction kullanırsam böylece p kullanmak istediğim zaman
+kullanırım, bu örnekte p'nin türü pair<int, double> olduğunu görürüz. Fakat bu static olarak compile time'da bir fabrika fonksiyonu örneği aynı zamanda!! Çok güzel bir örnek
+Eskiden zaten template argümanların çıkarımı yapılamadığı için bir yerde template argümanlarını göstermemenin tek yoluydu. Ama sadece bu nedenle kullanılmak zorunda değil
+yani ben bir pair'i bir sağ taraf değeri olarak kullanmak istersem doğrudan örneğin MakePair(12, 4.5); gibi bir ifade bir PR val. expr. oluyor. Ben bu ifadeyi herhangi bir 
+fonksiyona geçebilirim, taşıma semantiğinden faydalanabilirim vb. 
+
+Sonuç olarak şimdiye kadar gördüklerimizden pair'in nesi var diye sorucak olursak:
+1) make_pair() fabrika fonksiyonu var
+2) bir tane default ctor'ı var
+3) bir tane parametreli ctor'ı var
+4) çok önemli bir özelliği daha var; bu özellik tuple sınıf şablonunda da geçerli: pair'lerin karşılaştırılması
+C++20 standart'ı ile dile eklenen3-way comparison operator (Space Ship Operator) var, fakat C++20 öncesinde pair sınıfının karşılaştırma operator fonksiyonları bunlar global 
+fonksiyonlar. Dikkat fonksiyon şablonu ile sınıf şablonu arasındaki çıkarımsal bağlantıyı çok iyi anlamalısınız!
+
+Soru:
+pair'in  standart bir inserter'ı yok yani pair sınıfının bir çıkış akımına bir pair nesnesi vermek için bir inserter yok fakat ben istersem bir inserter yazabilirim. Eğer 
+bunu belirli bir pair için yapmak isteseydim şu şekilde yapabilirdim:
+std::ostream& operator<<(std::ostream& os, const std::pair<int, double>& p); 
+böyle bir fonksiyon ile ben pair<int, double> türünden bir nesneyi stream'e verebilirim ama herhangi bir  pair'in stream'e verilmesini sağlamak için bu fonksiyonu da bir 
+şablon haline getirebilirim:
+template <typename T, typename U>
+std::ostream& operator<<(std::ostream& os, const std::pair<T, U>& p);
+böylece bu fonksiyonun 2. parametresine gönderdiğim pair yoluyla çıkarım yapılmış olucak:
+
+//hocamızın yazdığı nutility başlık dosyasında pair türünden herhangi bir nesneyi standart çıkış akımına yazdırabilmek için şöyle bir fonksiyon yazılmış:
+template <typename T, typename U>
+std::ostream& operator<<(std::ostream& os, const std::pair<T, U>& p)
+{
+    return os << '[' << p.first << ", " << p.second << ']';
+}
+dolayısıyla standart çıkış akımına pair türünden nesneler yazmak için, örneğin:
+#include "nutility.h"
+#include <iostream>
+#include <utility>
+
+int main()
+{
+    using namespace std;
+
+    pair<int, double> x{2, 5.6};
+
+    cout << x << '\n';
+}
+
+veya:
+#include "nutility.h"
+#include <iostream>
+#include <utility>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    string name{"necati"};
+    pair<int, string> x{2, name};
+
+    cout << x << '\n';
+}
+
+veya:
+#include "nutility.h"
+#include <iostream>
+#include <utility>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    cout << make_pair(12, 6.7) << '\n';
+
+}
+
+veya:
+#include "nutility.h"
+#include <iostream>
+#include <utility>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    cout << make_pair(make_pair(12, 6.7), make_pair('A', 34L) ) << '\n';
+
+}
+derleyici her make_pair çağrısı için ayrı bir fonksiyon yazıcak en dıştaki çağrı için: pair'in pair<int, double>, pair<char, long> türünden olan parametreye sahip fonksiyon yazılıcak.
+standart çıkış akımına yazılan ifade: [[12, 6.7], [A, 34]]
+
+veya:
+#include "nutility.h"
+#include <iostream>
+#include <utility>
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    cout << make_pair( make_pair(make_pair(12, 6.7), make_pair('A', 34L) ), make_pair(make_pair(12, 6.7), make_pair('A', 34L) ) ) << '\n';
+
+}
+standart çıkış akımına yazılan ifade: [[[12, 6.7], [A, 34]], [[12, 6.7], [A, 34]]]   
+
+pair'lerin karşılaştırması şöyle yapılıyor: eşitlik karşılaştırması first'leri de second'ları da birbirine eşit ise eşit. Ancak küçüklül karşılaştırması söz konusu olduğunda
+first'ü küçük olan küçüktür eğer ki first'leri eşit ise second'ı küçük olan küçüktür. spaceship operator'ü olmadan önce pair'lerin küçüktür karşılaştırması şu şekilde yazılıyordu:
+bu global operator fonksiyonu şablonudur
+template <typename T, typename U>
+bool operator<(const std::pair<T, U>& lhs, const std::pair<T, U>& rhs)
+{
+    return lhs.first < rhs.first || !(rhs.first < lhs.first) && lhs.second < rhs.second;
+}
+bu şekilde yazdık örneğin !(rhs.first < lhs.first) yerine eşiti kullanmadık çünkü T'nin ve U'nun ne olduğu belli değil ki bu kod sadece ve sadece T ve U'nun küçüktür karşılaştırmasına 
+sahipse güveni ile yazılmıştır!! Örneğin öyle sınıflar olabilir ki  < operator fonksiyonu var ama = operator fonksiyonu yok ve ben burada ='i kullansaydım sentaks hatası olurdu.
+Ama şu anda T ve U türlerinden varlıklar < karşılaştırması'na sokulabildiği sürece bu template'den kod üretilebilicek. Burada ! operator'ünün operandının T ve U olmadığına 
+dikkat ediniz; operandı boolean dikkat ediniz yani sorun teşkil etmez. Bunu bizim yazmamıza gerek yok bu zaten standart kütüphanede var. Bu çok önemli bir kural!!!! Bu tuple'da var!!!
+
+Bu önemli kuralı daha iyi pekiştirmek için; pair'leri bir kapta tutucağız sonra da o kabı küçükten büyüğe doğru sıralayacağız:
+#include <iostream>
+#include <string>
+#include <utility>
+#include "nutility"
+#include <algorithm>
+#include <fstream>
+
+int main()
+{
+    using namespace std;
+
+    vector<pair<int, string>> myvec;
+
+    for(int i = 0; i < 1000; ++i) {
+        myvec.emplace_back(rand % 40, rname());
+    }
+
+    sort(myvec.begin(), myvec.end());
+
+    std::ofstream ofs{ "out.txt" };
+    if(!ofs) {
+        std::cerr << "out.txt dosyasi olusturulamadi\n";
+        exit(EXIT_FAILURE);
+    }
+
+    for(const auto& p : myvec) {
+        ofs << p << '\n';
+    }
+}
+
+Özetle; pair STL'in en çok kullanılan sınıflarından biridir. Aslında bir C yapısı elemanları public first ve second isimli elemanları var.
+1) Yani first ve second doğrudan public veri elemanları. 
+2) Atama operator fonk. var bir pair'e başka bir pair atayabiliyorsunuz doğal olarak.
+3) Karşılaştırma operator'leri global, 2 pair'i global karşılaştırma operator'leri ile karşılaştırabiliyorsunuz
+4) swap fonksiyonu var yani 2 pair'in öğelerini takas etmek için sınıfın swap fonksiyonunu da kullanabilirsiniz ya da global swap algoritmasını kullanabilirsiniz. 
+Global fonksiyonlar ise şunlardır:
+1: make_pair(), 2 tane argüman alıyor o argümanları bir pair'e dönüştürüyor dolayısıyla template sentaksını kullanmadan bu şekilde kullanabiliyorsunuz:
+#include <iostream>
+#include <utility>
+
+int main()
+{
+    using namespace std;
+
+    auto p = make_pair("ali", 12); //dikkat ali için yapılan çıkarım string değil const char*!!
+}
+
+2: user defined literal operator fonksiyonları var, yukarıdaki gibi string literalinin yanına s koyarsanız aslında orada bir fonk. çağırılıyor ve o fonk. bir string döndürüyor. Bunun 
+pratik faydası şu: siz doğrudan bir string literali kullanırsanız "ahmet" gibi bu bildiğimiz string literali. Ama ben bunu string literali değil de bir string olarak kullanmak 
+isteseydim; normalde şunları yapabilirdim:
+std::string{"necati"}; 
+Eğer ben şöyle bir fonk. yazsaydım:
+#include <iostream>
+#include <string>
+
+std::string make_str(const char* p)
+{
+    return std::string{p}; 
+}
+int main()
+{
+    auto name = make_str("uygar");
+}
+name string türünden oldu. İşte öyle bir sentaks var ki bu da bir operator overloading mekanizması make_str gibi bir fonksiyonun çağırmanın yolu olarak literalin sonuna s yazıyorum:
+#include <iostream>
+#include <string>
+#include <utility>
+
+int main()
+{
+    auto name = "uygar"s;
+}
+aslında burada çağırılan global bir operator fonksiyonu, yine burada çağırılan fonksiyon std::string döndürüyor. Hatta ismi ile de çağırabiliriz:
+#include <iostream>
+#include <string>
+#include <utility>
+
+int main()
+{
+    auto name = operator""s("uygar", 5);
+}
+
+eğer sona eklenen s değilde sv olursa bu durumda burada çağırılan fonksiyon string_view  dediğimiz sınıf türünden değer döndürür:
+#include <iostream>
+#include <string>
+#include <utility>
+
+int main()
+{
+    auto name = "uygar"sv;
+}
