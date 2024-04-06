@@ -1,0 +1,433 @@
+tuple variadic template parametresine sahip sınıf şablonudur.  
+pair'in çoklusu tuple sınıf şanlonudur, pair nasıl 2 tane öğeyi bir arada tutuyor ise tuple 0, 1, 2, ...., n tane öğeyi bir arada tutan bir sınıf şablonudur:
+tuple için Türkçe'den önerilen terimlerden biri: demet'tir
+#include <tuple>
+
+int main()
+{
+    using namespace std;
+
+    tuple<int, string, long, char, double> x;
+}
+örneğin böyle türden bir nesne bir int'i/string'i/long'u/char'ı/double'ı bir arada tutuyor. pair olsaydı 2 ile sınırlı ancak tuple dilediğiniz kadar öğeyi bir arada tutan adeta bir
+bağ bir demet. 
+
+
+Fonksiyon şablonları yoluyla çıkarımda sınıf şablonu kullanılıyor olabilir:
+#include <iostream>
+#include <utility>
+
+template <typename T, typename U>
+void func(const std::pair<T, U>&);
+//ben bu fonk. şablonuna bir pair nesnesini argüman olarak geçtiğimde pair'in hangi specialization'ını türünden olduğuna bağlı olarak derleyici T ve U türlerinin çıkarımını yapacak.
+
+int main()
+{
+    using namespace std;
+
+    pair<int, double> x;
+
+    func(x);
+
+}
+fonksiyon parametresinin pair'in inr, double açılımı olması için T'nin int U'nun double türden olması gerekiyor. 
+
+Bu arada pair ile ilgili çok önemli bir özelliği de atlamayalım: pair'da da tuple'da da template argümanları referans türü olabilir. Aradaki farka bakalım:
+#include <utility>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    int a{ 45 };
+
+    string name{ "faruk" };
+
+    pair<int, string> x{a, name};
+
+    x.first *= 10;
+    x.second += "can";
+
+    std::cout << "a = " << a << '\n';
+    std::cout << "name = " << name << '\n';
+}
+buradaki ctor(const T&, const U& ) first'i ve second'ı a, name ile initialize ediyor. Şüphesiz ben fisrt ve second'ı kullanarak yaptığım değişiklikler sonucu a ve name değişkeni 
+değişmiş olmayacak! Fakat eğer açılım referans açılımı olursa:
+#include <utility>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    int a{ 45 };
+
+    string name{ "faruk" };
+
+    pair<int&, string&> x{a, name};
+
+    x.first *= 10;
+    x.second += "can";
+
+    std::cout << "a = " << a << '\n';
+    std::cout << "name = " << name << '\n';
+}
+bu durumda x'in first'üde referans x'in second'ıda referans. Dolayısıyla x'in first'ü a'ya referans x'in second'ıda name referans. Artık kodu derleyip çalıştığımızda a'nın 450 
+olduğunu name'inde farukcan olduğunu görürüz. 
+
+pair şu şekilde olabilir:
+yani bir referans olabilir:
+#include <utility>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    const pair<int, double>& r = make_pair(12, 4.5);
+}
+
+pair şu şekilde olabilir:
+yani pair açılımı referans olabilir
+#include <utility>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    const pair<int, double>& r = make_pair(12, 4.5);
+}
+
+pair şu şekilde olabilir:
+yani pair açılımı referans olabilir
+#include <utility>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    const pair<int&, double>& r = 
+}
+burada int& bir tür double tür r'de  const pair<int&, double> türden bir nesneye referans, uygun bir şekilde initialize edildikten sonra bir problem olmaz.
+
+örnek:
+#include <utility>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    pair<int, double> x = make_pair('A', 34);
+}
+make_pair'e gönderilen argümanlar 1. char, 2. int normalde make_pair'in döndürdüğü pair<char, int> şeklinde ama tabii char'dan int'e ve int'ten de double'a dönüşüm olduğu 
+için sentaks hatası yok. 
+
+Şimdiye kadar kullandığımız örneğin make_unique yine aynı şekilde variadic fonksiyon şablonudur. Modern C++ ile dile eklenen bir araçtır. 
+
+perfect forwarding(mükemmel gönderim)
+Mülakatlarda da sorulan çok klasik sorular bu perfect forwarding ile ilgili o yüzden burayı çok iyi anladığınızdan emin olmalıyız.
+Programlamada özellikle C++ gibi bir dilde çok sık karşılaştığımız bir problem var:
+class Myclass {};
+
+void func(Myclass);
+
+//void call_func(???)
+
+int main()
+{
+    call_func(Myclass{});
+}
+normalde ben bu fonksiyonu doğrudan çağırabilirim; doğrudan çağırsaydım argümanımı fonksiyona doğrudan göndericektim: func(Myclass{}); gibi. Fakat bazı avantajlar elde etmek için
+ya da bazen mecbur olduğum için bu fonksiyonu doğrudan çağrımak yerine ben argümanımı ya da argümanlarımı bu fonksiyona değil bu fonksiyonu benim için çağrıcak fonksiyona 
+gönderiyorum. Örneğimizde bu fonksiyon call_func'tır. Ben func'a argümanımı göndermek yerine call_func'a func'a göndericeğim argümanın aynısı ile çağrı yapıyorum ve adeta call_func'a
+diyorum ki call_func benden aldığın argümanı kullanarak func'ı çağırıcaksın ama bir şartım var ben func'ı doğrudan benim çağırmam ile argümanı sana gönderip senin benim gönderdiğim 
+argüman iel func'ı çağırman arasında hiçbir fark olmayacak. Eğer işte bunu başaran bir yapı olursa buna perfect forwarding deniliyor. 
+
+Bunun neden önemli olduğunu kafanızda canlandırmaya çalışın; örneğin container'ların bazı fonksiyonları var isminde emplace geçen fonksiyonları bunlar ctor'a çağrı yapıyor; ctor'ı ben
+çağıramıyorum çünkü bellek alanı bende değil; ben ctor'a göndermem gereken argümanları bu sınıfların içinde emplace sözcüğü geçen fonksiyonlarına gönderiyorum o fonksiyonlar aldığı 
+argüman(ları) kullanarak ctor'a çağrı yapıyorlar. Yani ben argümanlarla ctor'ı çağırdığımda ne olacaktı ise emplace fonksiyonunun benden aldığı argümanları ingilizcesi ile perfectly 
+forward ederek diğer fonksiyonu yani ctor'ı çağırıyor. Aslında şu şekilde:
+class Myclass {};
+
+void func(Myclass);
+
+void call_func(Myclass x)
+{
+    func(x);
+}
+
+int main()
+{
+    call_func(Myclass{});
+}
+gibi basit bir yapı değil anlatılanlar. Eğer bu kadar basit bir mekanizma olsaydı birtakım sorunlar olduru:
+1) ya func'ın parametresi referans olsaydı
+2) ya func overload edilmiş olsaydı
+örneğin ben şimdi func'a const bir nesne göndersem burada const'luk kalmayacak ki call_func içindeki func bunu const olmayan bir argüman olarak göndericek!
+Benim fonksiyonu doğrudan çağırmam ile argümanları gönderdiğim fonksiyona çağırtmam arasında fark olmaması demek şunlar da demek:
+const'luk korunucak yani cont argümanı const olarak göndericek, L value'ları L value olarak göndericek,  R value'ları R value olarak göndericek! Eğer örneğin ben R value değer 
+gönderirsem fakat call_func R value'yu L value olarak gönderilirse o zaman başka bir overload çağırılır:
+#include <iostream>
+
+class Myclass {};
+
+void foo(Myclass&)
+{
+    std::cout << "foo(Myclass&)\n";
+}
+
+void foo(const Myclass&)
+{
+    std::cout << "foo(const Myclass&)\n";
+}
+
+void foo(Myclass&&)
+{
+    std::cout << "foo(Myclass&&)\n";
+}
+
+int main()
+{
+    Myclass mx;
+    const Myclass cx;
+    
+    foo(mx);
+    foo(cx);
+    foo(Myclass{});
+}
+sırasıyla: Myclass& parametreli, const Myclass& param. ve Myclass&& param. fonksiyonlar çağırılır. Fakat foo yerine call_foo fonksiyonu ile çağrı yapılsa:
+#include <iostream>
+
+class Myclass {};
+
+void foo(Myclass&)
+{
+    std::cout << "foo(Myclass&)\n";
+}
+
+void foo(const Myclass&)
+{
+    std::cout << "foo(const Myclass&)\n";
+}
+
+void foo(Myclass&&)
+{
+    std::cout << "foo(Myclass&&)\n";
+}
+
+int main()
+{
+    Myclass mx;
+    const Myclass cx;
+    
+    foo(mx);
+    //call_foo(mx);
+    foo(cx);
+    //call_foo(cx);
+    foo(Myclass{});
+    //call_foo(Myclass{});
+}
+eğer biz perfect forward etmeyi başarırırsak bir öneceki çağrıdaki ekran çıktısı için her birinden 2 tane görmemiz gerekir. Yani benim foo'ya mx'i göndermem ile call_foo'ya mx'i
+gönderip call_foo'nun benden aldığı argüman ile foo'yu çağrımam arasında bir fark olmayacak. Bunu yapmanın yolu eğer modern C++ ile perfect forwarding doğrudan desteklenmeseydi
+bizimde call_foo için 3 tane overload yazmamız gerekirdi ve onu da çok düzgün yazmamız gerekirdi:
+#include <iostream>
+
+class Myclass {};
+
+void foo(Myclass&)
+{
+    std::cout << "foo(Myclass&)\n";
+}
+
+void foo(const Myclass&)
+{
+    std::cout << "foo(const Myclass&)\n";
+}
+
+void foo(Myclass&&)
+{
+    std::cout << "foo(Myclass&&)\n";
+}
+
+void call_foo(Myclass &r)
+{
+    foo(r);
+}
+//r ifadesi L value expr. non-const o zaman Myclass & param. fonk. çağırılıcak olması gerektiği gibi!
+
+void call_foo(const Myclass &r)
+{
+    foo(r);
+}
+//r ifadesi L value expr. const o zaman const L value olduğu için cont Myclass & param. fonk. çağırılıcak olması gerektiği gibi!
+
+void call_foo(Myclass &&r)
+{
+    foo(std::move(r));
+}
+//3.'de dikkatli olmalıyız r ifadesi L value expr. o sebeple foo'yu std::move(r) argümanı ile çağırmalıyız; çünkü r ile çağırırsa r valur reference data type ama r ismi
+//L value bunu defalarca konuştuk!! Artık  Myclass && param. fonk. çağırılıcak olması gerektiği gibi!
+
+int main()
+{
+    Myclass mx;
+    const Myclass cx;
+    
+    foo(mx);
+    call_foo(mx);
+    foo(cx);
+    call_foo(cx);
+    foo(Myclass{});
+    call_foo(Myclass{});
+}
+Bunu bu şekilde yapmak hem zahmetli hem de 3 tane ek fonksiyon yazmam gerekiyor burada problem zahmetli olması ve ayrıca eğer foo fonksiyonu 2 parametreli olsaydı o zaman 
+9 tane fonksiyon yazmam gerekirdi!!! 3 tane parametresi olsaydı 27 tane fonksiyon yazmam gerekirdi, vb. Öte yandan şöyle bir problem daha var bu fonksiyonları çağırmasam da 
+template olmadığı için bunların kodu yazılmış olucak, derlenecek! Ve ayrıca marjinal, semnatik olarak kullanılmayan yapıda eklenecekse :
+void foo(const Myclass&&)
+{
+    std::cout << "foo(const Myclass&&)\n";
+}
+o zaman 3, 9, 27 şeklinde değilde 4, 16, 64, 256 olarak gider:
+#include <iostream>
+
+class Myclass {};
+
+void foo(Myclass&)
+{
+    std::cout << "foo(Myclass&)\n";
+}
+
+void foo(const Myclass&)
+{
+    std::cout << "foo(const Myclass&)\n";
+}
+
+void foo(Myclass&&)
+{
+    std::cout << "foo(Myclass&&)\n";
+}
+
+void foo(const Myclass&&)
+{
+    std::cout << "foo(const Myclass&&)\n";
+}
+
+void call_foo(Myclass &r)
+{
+    foo(r);
+}
+//r ifadesi L value expr. non-const o zaman Myclass & param. fonk. çağırılıcak olması gerektiği gibi!
+
+void call_foo(const Myclass &r)
+{
+    foo(r);
+}
+//r ifadesi L value expr. const o zaman const L value olduğu için cont Myclass & param. fonk. çağırılıcak olması gerektiği gibi!
+
+void call_foo(Myclass &&r)
+{
+    foo(std::move(r));
+}
+//3.'de dikkatli olmalıyız r ifadesi L value expr. o sebeple foo'yu std::move(r) argümanı ile çağırmalıyız; çünkü r ile çağırırsa r valur reference data type ama r ismi
+//L value bunu defalarca konuştuk!! Artık  Myclass && param. fonk. çağırılıcak olması gerektiği gibi!
+
+void call_foo(const Myclass &&r)
+{
+    foo(std::move(r));
+}
+
+int main()
+{
+    Myclass mx;
+    const Myclass cx;
+    
+    foo(mx);
+    call_foo(mx);
+    foo(cx);
+    call_foo(cx);
+    foo(Myclass{});
+    call_foo(Myclass{});
+    const Myclass ccmx;
+
+    foo(std::move(cx));
+    call_foo(std::move(ccmx));
+}
+Sonuç olarak 1 tane parametre için 4 tane fonksiyon, 2 tane parametre için 16 tane fonksiyon, 3 tane parametre için 64 tane fonksiyon yazmam gerekir, ki bu çok mantıklı bir yöntem 
+değil! Ayrıca bu fonksiyon n parametreye kadar parametre alabilir ve genelde de variadic parametreye sahip olucağı için n tane parametre sahip olabilirdi!
+
+İşte bunu yapmak yerine şunu yapıyoruz:
+call_foo'nun parametresini universal reference ya da bir diğer adıyla forwarding reference yapıyorum!!
+#include <iostream>
+
+class Myclass {};
+
+void foo(Myclass&)
+{
+    std::cout << "foo(Myclass&)\n";
+}
+
+void foo(const Myclass&)
+{
+    std::cout << "foo(const Myclass&)\n";
+}
+
+void foo(Myclass&&)
+{
+    std::cout << "foo(Myclass&&)\n";
+}
+
+void foo(const Myclass&&)
+{
+    std::cout << "foo(const Myclass&&)\n";
+}
+
+template <typename T>
+void call_foo(T&& r)
+{
+    foo(std::forward<T>(r));
+}
+//buradaki && deklaratörü sağ taraf referansı değil, 
+//eğer buraya L val. expr ile çağrı yaparsanız T türü sol taraf referansı türü olur; reference collapsing ile fonksiyonun parametresi L value referans olur. 
+//buraya sağ taraf değeri ile çağrı yaparsanız T türü referans türü olmaz fonksiyonun parametresi sağ taraf referansı olur
+//const nesne gönderirseniz T const türden olur, T türü çıkarımı const olarak yapılır. Bu da pratikte şu demek universal referans parametreli fonksiyona her türden değer gönderebilirsiniz!! 
+//burada perfect forwarding'i uygulamak için std::move benzeri ama aynısı değil başka bir constexpr value catogory'i değiştiren fonksiyon çağırıyoruz: std::forward
+//std::forward nasıl move doesn't move ise yani move sadece kategoriyi değiştiriyor aslında move etmiyor, forward'da move gibi value category'i değiştiren bir fonksiyon!!
+//move yerine aslında sağ taraf referans türüne cast yapabilirsiniz fakat forward ise bir conditional cast, şimdi eğer template'a gönderilen L value ise std::forward<T>(r) ifadesi de 
+//L value olyor, gönderilen R value ise ifade R value oluyor ve const'lukta korunuyor!!
+int main()
+{
+    Myclass mx;
+    const Myclass cx;
+    
+    foo(mx);
+    call_foo(mx);
+    foo(cx);
+    call_foo(cx);
+    foo(Myclass{});
+    call_foo(Myclass{});
+    const Myclass ccmx;
+
+    foo(std::move(cx));
+    call_foo(std::move(ccmx));
+}
+foo fonksiyonunun birden fazla parametresi olsaydı da çok bir şey değişmeyecekti:
+template <typename T, typename U>
+void call_foo(T&& t, U&& u ) 
+{ 
+    foo(std::forward<T>(t), std::forward<U>(u));
+}
+birden fazla parametre olsa dahi biz her harikulade  biz bir tane fonksiyon şablonu ile halledecektik! std::forward'ın bir maliyeti yok çünkü std::forward constexpr compilte time'da
+çağırılan bir constexpr fonksiyon. Yani tamamen static, compile time ilişkin!
+
+Eğer siz ben n tane parametreyi forward edeyim derseniz aynı şeyi kullanıyorsunuz ama onu variadic template olarak yazıyorsunuz:
+template <typename ...Args>
+void call_func(Args && ...args)
+{
+    func(std::forward<Arg>(args)...);
+}
+artık bu fonksiyon func'ın kaç tane parametresi varsa aynı işi dilediğimiz kadar template parametresine sahip fonksiyon ile kullanabiliriz! Bunu yapabilmek için variadic template'ları
+öğrenmemiz gerekiyor bunu da ilerde ele alacağız!!
