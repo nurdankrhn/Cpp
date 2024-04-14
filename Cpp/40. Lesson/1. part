@@ -1,0 +1,459 @@
+19 Nisan - 2023 Çarşamba
+
+perfect forwarding ile önemli 2 tane uyarı:
+çok sık yapılan yanlış anlamalardan bahsedelim:
+
+forwarding parameter ya da universal parameter(Scott Meyers'in uydurduğu terim)
+burada programcıların karıştırdığı 1 2 tane nokta olduğunu söylemiştik. Bunlardan biri şu: sağ taraf referansı ile forwarding reference'nin birbiri ile karıştırılması. Özellikle R
+value reference olan forwarding reference olmayan senaryoları iyi anlamalısınız!!
+Soru: aşağıda verilen fonksiyon şablonundaki fonksiyonun parametresi forwarding reference mi?
+template <typename T>
+class Myclass {
+
+public:
+    void func(T&&);
+};
+cevap: hayır, forwarding reference olması için  bir çıkarım olması gerekiyor, burada type deduction yok!!!
+
+int main()
+{
+    Myclass<int> mx;
+
+    mx.func(12);
+}
+mx'in func'a çağrı yaptığım zaman çıkarım yok, zaten T int olduğuna göre buradaki fonksiyonun parametresi zaten int. Dolayısıyla kesinlikle bu forwarding reference/universal reference 
+değil!!!
+
+2 tane tipik örnek: 
+basitleştirilmiş vector sınıfı:
+template <typename T>
+class Vector {
+public:
+    void push_bask(const T&);
+    void push_bask(T &&);
+};
+mülakatların en tipik sorusu!!; push_back fonksiyonunun 2. overload'u forwarding reference parametreli mi? Hayır, R value reference parametreli. Fakat 1. overload'u const L value 
+reference parametreli. Hocamız böyle overload'a move overload yani move semantics overload diyor. Çünkü buradaki mantık şu: aslında bu sadece vector sınıfında değil birçok sınıfta 
+böyle, sizde böyle overloading yapacaksınız. Sol taraf değeri argüman gönderirseniz const T& parametreli fonksiyon alıcakken, sağ taraf değeri argüman gönderirseniz T&& parametreli 
+fonksiyon alıcak. const T& kopyalama yaparak vector'e ekliycek yani vector'e ekleyeceği nesneyi T sınıfının copy ctor'ına çağrı yaparak hayata getiricek, T&& ise vector'e ekleyeceği
+nesneyi T sınıfının move ctor'ı ile hayata getiricek ve tahmin ettiğiniz üzere o fonksiyon tanımı için de std::move çağrısı olucak. Çünkü fonksiyona argüman gelen değişken ismi L 
+value expr. Eğer soru şöyle sorulmuş olsaydı:
+template <typename T>
+class Myclass {
+public:
+    template <typename U>
+    void func(U&&);
+};
+soru: func'ın parametresi universal reference mi değil mi? Şimdi universal reference çünkü tür çıkarımı var!!! Bakınız universal reference olup olmadığını şöyle de test edebilirsiniz:
+her türlü argümanı kabül etmesi gerekiyor. Örneğin az önceki örnek universal reference değildi:
+template <typename T>
+class Myclass {
+public:
+    void func(T&&);
+};
+
+int main()
+{
+    Myclass<int> m;
+
+    int x{};
+
+    m.func(x); //syntax error
+}
+universal reference olmadığı şuradan da belli: universal reference olsaydı her value category'sinde const veya non-const tüm argümanları kabul ederdi fakat örnekte m'in func'ına x'i
+argüman olarak göndermemiz sentaks hatası çünkü func R value reference parametreli!!!
+
+
+vector sınıfının emplace_back fonksiyonu da universal reference!!
+template <typename T>
+class Vector{
+
+public:
+    template <typename ...Args>
+    void emplace_back(Args && ..args)
+    {
+
+    }
+};
+emplace_back aldığı argümanları vector'ün T açılımının ctor'ına perfect forward ediyor. Not: içinde emplace geçen bütün fonksiyonların parametrik yapısında perfect forwarding amaçlı 
+universal reference var.
+
+Soru: universal reference mı, değil mi?
+template <typename T>
+class Myclass {
+
+};
+
+template <typename T>
+void func(Myclass<T>&&);
+cevap: hayır!!! universal reference olması için T&& olması gerekiyor. 
+
+int main()
+{
+    Myclass<int> x;
+    func(x); //syntax error
+}
+func'a x'i gönderdiğimizde sentaks hatası meydana geliyor çünkü bu bildiğimiz R value reference. 
+
+Soru: universal reference mi?
+template <typename T>
+void func(const T&&);
+cevap: burada const anahtar sözcüğünü kullanırsam universal reference olmaz!!
+
+Soru: buradaki x universal reference mi?
+int main()
+{
+    auto&& x = 10;
+}
+cevap: kesinlikle evet! universal reference oluşturmanın bir başka yolu auto type deduction ki aslında biz onu daha önce görmüştük.
+
+Sonuç olarak template parametresi eğer template argümanı olarak kullanılıyorsa burada kesinlikle universal reference olma şansı yok:
+#include <vector>
+
+template <typename T>
+void func(std::vector<T>&&);
+
+=====================================================================================================================================================================
+
+template'lerin explicit specialization'ını
+Öncelikle sentakstan bağımsız explicit specialization'ının ne olduğunu anlamaya çalışalım:
+template <typename T>
+void func(T x)
+{
+
+}
+func'a dilin terminolojisinde template name dememiz gerekiyor. Fakat bir template'ten derleyicinin oluşturduğu gerçek sınıf/fonksiyon yani instantiate süreci ile derleyicinin 
+oluşturduğu koda ise o template'ın bir specialization'ını deniliyordu. func bir template bir fonksiyon değil, ama fonksiyon olan örneğin func<int> işte bundan bahsettiğimiz 
+zamanda kullanılan bir terim var buna template-id deniliyor. explicit specialization ise şu demek: normalde specialization'ını derleyici oluşturuyor yani örneğin ben func<int>(12);
+şeklinde bir çağrı yaparsam aslında burada explicit template arguman(int) kullanıldığı için zaten int specialization'ınını kendi oluşturuyor. Ama örneğin func(12); şeklinde bir 
+çağrı olsaydı bu durumda da template argümanının çıkaırmını yapacaktı (template argument deduction) ve yine int specialization'ınını oluşturucaktı. 
+
+Fakat explicit specialization şu demek adeta öyle bir sentaks ki derleyiciye şunu diyorsunuz bu template argümanı ya da argümanları için sen specialization'ını oluşturmayacaksın 
+senin oluşturucağın specialization'ını ben sana zaten veriyorum!!! Yani alternatif bir specialization veriyorsunuz belirli argüman(lar) için. explicit specialization ile 
+full specialization terimi birbiri ile tamamen aynı anlamda kullanılıyor.
+
+neden expilicit specialization var?
+Bunun birden fazla nedeni var, 2 tipik nedeni ise şu: öyle template'ler var ki aslında birçok tür için kod uygun fakat belirli bir tür(ler) için o kod uygun değil. Yani derleyici
+template'ten bir specialization'ını template koddan oluşturursa o benim işime gelmiyor; ben de derleyiciye diyorum ki bu tür(ler) argüman olarak kullanıldığında sen benim verdiğim
+specialization'ını kullanacaksın kendin bir specialization oluşturmayacaksın. Örneğin kitaplarda bunun için çok tipik verilen örnek şu:
+#include <iostream>
+#include <vector>
+#include <string>
+
+template <typename T>
+T Max(T x, T y)
+{
+    return x > y ? x : y;
+}
+
+using namespace std;
+
+int main()
+{
+    cout << Max(2, 3) << '\n';
+    string s1{ "adnan" }, s2{ "zeynep" };
+    const char* p1{ "yelda" }, *p2 = "deniz";
+    cout << Max(3, 2) << '\n';
+    cout << Max(s1, s2) << '\n';
+    cout << Max(s2, s1) << '\n';
+    cout << Max(p1, p2) << '\n';
+    cout << Max(p2, p1) << '\n';
+}
+kodu çalıştırğımızda p1 ve p2 karşılaştırması dışında karşılaştırmanın doğru yapıldığını görürüz. Peki neden yelda ve deniz karşılaştırmasında yanlış oldu? Çünkü derleyicinin yazdığı
+specialization'da T yerine yazdığı tür argümanı const char*'dır. O halde burada çağırılan Max şudur:
+const char* Max(const char* x, const char* y)
+{
+    return x > y ? x : y;
+}
+bu durumda ben yazıları değil adresleri karşılaştırıyorum!!! Önreğin C olsaydı  benim amacım o adresleri değilde o adresteki yazıları karşılaştırmak olsaydı C'nin standart 
+kütüphanesindeki strcmp fonksiyonunu çağırmam gerekirdi. O halde bu template aslında diğer türler için uygun fakat const char* türü için uygun değil. Şimdi ben öyle bir sentaks 
+kullanacağım ki derleyciye diyeceğim ki derleyici bak T'nin yerine gelen template argümanı yani onu oluşturacağın specialization Max'ın const char* açılımı ise o zaman 
+specialization'ını sen oluşturma ben sana bunu açık olarak veriyorum; o anlama gelen bir sentakstan bahsediyoruz. İşte buna explicit ya da full specialization deniliyor!
+Sentaks ise şu şekilde:
+not: açısal parantezin içini boş bırakarak < ve > karakterlerini <> şeklinde yazdığımız zaman buna popüler olarak diamond deniliyor.
+#include <iostream>
+
+template<typename T>
+void func(T)
+{
+    std::cout << "primary template for type" << typeid(T).name() << '\n';
+}
+
+//explicit/full specialization
+template <>
+void func(int) //burada açısal parantez içine int yazmanızla yazmamanız arasında bir fark yok, ikisi de legal. 
+{
+    std::cout << "explicit specialization for func<int>\n";
+}
+//demek ki explicit ya da diğer ismi ile full specialization'ının sentaksında ayırt edici özellik diamond'ın kullanılması
+
+int main()
+{
+    func(1.2);
+    func(1.2f);
+    func(1u);
+    func(1);
+}
+kodu derleyip çalıştırdığımızda ilk 3 specialization'ınının derleyicinin kendisinin oluşturduğunu sonuncu yani int argümanlı olanın ise benim yazdığım explicit specialization'ını 
+kullandığını görmüş oluyoruz. 
+
+explicit specialization yerine normal bir fonksiyon yazmak arasında önemli bir fark vardı!!! Aradaki fark şudur: eğer gerçek bir fonksiyon yazarsanız o function overload resolution'a
+girecekti fakat explicit specialization overload resolutoion'a girmiyor, overload resolution'a giren yukarıdaki örnekte primary template. Dikkat!! bu konu ile alaklı programcının
+bilgisini sınamak amacı ile mülakatlarda sorulan şöyle bir soru var:
+Soru: ekranda ne yazar?/ekran çıktısı ne olur?
+#include <iostream>
+
+template <typename T>
+void func(T)
+{
+    std::cout << "1";
+}
+
+template <>
+void func(int*)
+{
+    std::cout << "2";
+}
+
+template<typename T>
+void func(T*)
+{
+    std::cout << "3";
+}
+
+int main()
+{
+    int x{ 5 };
+    func(&x);
+}
+cevap: ekranda 3 yazar!
+explicit specialization'ının function overload resolution'a girmediğini özellikle belirttik!! explicit specialization şu demek: derleyici eğer bu şablondan kod yazman gerekirse 
+bu argüman için kod yazmayacaksın bu kodu kullanıcaksın. Eğer ki örnekte explicit specialization olmasaydı herkesin cevabı 3 olurdu; partial ordering rules yüzünden o çağırılacaktı.
+Yine böyle olucak; fakat eğer 1 seçilseydi argümanın int* olması durumunda explicit specialization kullanılıcaktı! Yani template argument deduction'a explicit specialization dahil
+değildir, ya da overload sete dahil değildir!!
+
+Eğer T* parametreli template olmasaydı:
+Soru: ekranda ne yazar?/ekran çıktısı ne olur?
+#include <iostream>
+
+template <typename T>
+void func(T)
+{
+    std::cout << "1";
+}
+
+template <>
+void func(int*)
+{
+    std::cout << "2";
+}
+
+int main()
+{
+    int x{ 5 };
+    func(&x);
+}
+cevap: ekranda 2 yazar
+Çünkü T parametreli template seçilir; bu template kazandığında ise int* parametreli olan explicit specialization ise onun specialization'ını.
+
+DİKKAT!!!!
+Sıralama çok önemli!!! Eğer sıralama şu şekilde olursa:
+Soru: ekranda ne yazar?/ekran çıktısı ne olur?
+#include <iostream>
+
+template <typename T>
+void func(T)
+{
+    std::cout << "1";
+}
+
+template<typename T>
+void func(T*)
+{
+    std::cout << "3";
+}
+
+template <>
+void func(int*)
+{
+    std::cout << "2";
+}
+
+
+
+int main()
+{
+    int x{ 5 };
+    func(&x);
+}
+cevap: 2
+Çünkü artık int* parametreli explicit specialization T* parametreli template'ın explicit specialization'ı!! Bir önceki örnekte tanımlandığı nokta itibari ile T parametreli 
+template'ın explicit specialization'ını oluyordu!! 
+
+O halde explicit specialization'ını en üste alırsak sentaks hatası olur çünkü bu noktada derleyici func ismini arar(aşağıya bakmaz) ve bulamadığı için sentaks hatası olur!
+#include <iostream>
+
+template <> 
+void func(int*) //syntax error
+{
+    std::cout << "2";
+}
+
+
+template <typename T>
+void func(T)
+{
+    std::cout << "1";
+}
+
+template<typename T>
+void func(T*)
+{
+    std::cout << "3";
+}
+
+int main()
+{
+    int x{ 5 };
+    func(&x);
+}
+
+Bir diğer önemli nokta explicit specialization'ının belirli bir specialization biçimi olduğunu unutmamaktır. Örneğin:
+burada explicit specialization söz konusu olduğunda; interface aynı olmak zorunda değildir!!! Bambaşka bir interface bile olabilir:
+#include <iostream>
+
+template <typename T>
+class Myclass {
+public:
+    Myclass()
+    {
+        std::cout << "primary template for type " << typeid(T).name() << '\n';
+    }
+    void foo();
+};
+
+template <>
+class Myclass<int> {
+public:
+    Myclass()
+    {
+        std::cout << "Myclass<int> explicit specialization\n";
+    }
+    void bar();
+};
+
+int main()
+{
+    Myclass<char> m1;
+    Myclass<int> m2;
+    Myclass<double> m3;
+}
+
+Bu non-type parametrede olabilir:
+öncelikle template type parametre ile konuyu ele alalım:
+#include <iostream>
+
+template <typename T, typename U>
+class Nec {
+public:
+    Nec()
+    {
+        std::cout << "primary template\n";
+    }
+};
+
+template <>
+class Nec<int, char> {
+public:
+    Nec()
+    {
+        std::cout << "Nec <int, char> explicit specialization\n";
+    }
+};
+
+int main()
+{
+    Nec<int, int> x1;
+    Nec<char, int> x2;
+    Nec<int, char> x3;
+}
+
+non-type parametre'de ise:
+#include <iostream>
+
+template <int n>
+class Nec {
+public:
+    Nec()
+    {
+        std::cout << "primary template for " << n << '\n';
+    }
+};
+
+template <>
+class Nec<5> {
+public:
+    Nec()
+    {
+        std::cout << "Nec <5> explicit specialization\n";
+    }
+};
+
+int main()
+{
+    Nec<1> x1;
+    Nec<2> x2;
+    Nec<5> x3;
+}
+
+Mülakatlarda sorulan popüler bir soru:
+Daha önceden de ele aldığımız 1'den 100'e kadar olan sayıları standart output'a yazdıran içinde bir döngü olmayan ve recursive fonksiyon çağrısı olmayan kod yazımı:
+1. cevap şuydu: 100 elemanlı bir sınıf oluşturup; sınıfın ctor'ı içinde bir tanen static yerel değişken koyup dolayısıyla 100 elemanlı bir dizi oluşturduğumda dizinin her bir
+elemanı için ctor çağırılır vb.
+
+2. çözüm ise şu:
+template <int n>
+struct Nec : Nec<n - 1> {
+
+};
+//bu bir kalıtım sentaksı, struct anahtar sözcüğü ile oluşturulduğu için public kalıtımıdır. 
+
+int main()
+{
+    Nec<100> x;
+}
+Derleyici Nec'in 100 açılımı için Nec'in 99 açılımı ile kalıtım yoluyla yukarıdaki template'dan kod üreticek, o halde Nec'in 99 açılımının specialization'ınını oluşturucak.
+Sonrasında 98'in, 97'nin böyle gidecek. Bu tür recursive yapılara hocamız compile time recursivitesi diyor hocamız. Yani run time'daki recursiviti ile karıştırmayınız!!
+Eğer bu bu kadar ile kalsaydı Nec'in 0 açılımını Nec'in -1 açılımından Nec'in -1 açılımını Nec'in -2 açılımından elde edecekti ve compile time'da belirli bir derinliğe 
+geldiğinde de derleyici muhtemelen sentaks hatası verecekti. Burada şu anda 100 tane ayrı class oluşmuyor durdurucak bir mekanizma yok. Durdurmak için 0 için bir 
+specialization yazsak:
+template <int n>
+struct Nec : Nec<n - 1>
+{
+    Nec()
+    {
+        std::cout << n << ' ';
+    }
+};
+
+template <>
+struct Nec<0> {
+
+};
+//Nec'in 0 açılımı için derleyici primary template'ı kullanmayacak, aşağısında verilen specialization'ını kullanacak dolayısıyla artık recursive yapı durucak. Recursive 
+//yapılarda recursiviteyi durduran böyle öğelere  "best case" deniliyor. Yani explicit specialization'ını bir best case olarak kullandım. 
+
+int main()
+{
+    Nec<100> x;
+}
+bu örnekte uygulanan şudur: Nec template'ı bir kalıtım aynı zamanda, o zaman ben Nec<100> açılımı Nec<99> açılımından kalıtım yoluyla elde edildiğine göre burada multi-level 
+inheritance var. Yani Nec'in 99 açılımı Nec'in 100 açılımını taban sınıfı öte yandan Nec'in 98 açılımı da Nec'in 99 açılımının taban sınıfı o zaman Nec'in 100 açılımının ctor'ı
+kendi taban sınıfının ctor'ını çağırıcak o da 99 o 98'o o da 97'yi öyle öyle en son 0 çağırılıcak. 0'ında yazılmasını isteseydim pekala specialization'ının içinde 0'ı yazdırıcak 
+bir kod koyabilirdim. Yani burada gerçekten 100 tane sınıf nesnesi var ama bu sınıf nesnelerinin Nec<100> haricindekiler hepsi Base class object. Yani Nec<100> türünden x'in 
+içinde Base class object Nec<99> var onun içinde de Base class object Nec<98> var. İşte bu da explicit specialization'ının kullanıldığı güzel bir senaryo!
+
+NOT: explicit specialization 2 farklı amaçla kullanılıyor. Birincisi görünür olan amaç yani belirli template argümanı(ları) için kod uygun düşmüyor, başka bir strateji kullanmak 
+istiyoruz. İlk örneklerimizden biri olan Max örneği buna örnektir. Bir diğer örnek vector'ün bool açılımı örneğin bir specialization yani ayrı bir interface'e sahip. İkinci olarak;
+template meta programming tarafında bazı compile time'da hesaplama yapmak amaçlı kullanılıyor daha sonra ele alacağız. Yani aslında explicit specialization'ının en çok kullanıldığı
+yerler meta fonksiyonlar.(meta fonksiyonunun ne olduğunu da ilerde ele alacağız)
