@@ -1,0 +1,419 @@
+
+meta fonksiyon: kendisi aslında bir sınıf  fakat sınıfın varlık nedeni compile time'da bir değer ya da bir tür hesaplamak!! böyle sınıflara meta function deniliyor!!
+
+Modern C++'tan önce constexpr fonksiyonlar yoktu. Yai günümüzde constexpr fonksiyonlar ile çok rahat yapabildiğimiz işlemler eskiden tmp(template meta programming) ile 
+yapılıyordu. Örneğin tipik bir örnek:
+//compile time'da factorial hesaplanması
+template <int n>
+struct Factorial {
+    static const int value = n* Factorial<n-1>::value;
+};
+
+template <>
+struct  Factorial<1> {
+   static const int value = 1;
+};
+
+template <>
+struct  Factorial<0> {
+   static const int value = 1;
+};
+
+int main()
+{
+    Factorial<5>::value //kursor'ü value'nün üzerine getirdiğimizde 120 olduğunu görürüz böylece compile time'da factorial hesaplamış olduk
+}
+hatrılayınız: sınıfların static veri elemanlarına eğer ki tam sayı türünden ise sınıf içinde ilk değer verilebiliyordu! Burada burada değişkene verilen isim olan value 
+konvensiyonel olarakta halen kullanılan bir isim.
+Günümüzde böyle bir kod yazma ihtiyacı yok çünkü constexpr fonk. çok daha basit çok daha pratik! Eskiden gerçekten yukarıdaki gibi hesaplanıyordu. 
+
+Bu fonksiyon şablonlarında explicit specialization ya da full specialization çok fazla tercih edilmiyor onun yerine overloading mekanizması daha iyi. Çünkü önceki derste 
+verdiğimiz örnekte de bunu açıklamıştık; explicit specialization function overload sete girmiyor. O sebeple beklentinin dışında durumlar olabiliyor. Tabii buradan explicit
+specialization hiç kullanılmıyor anlamı çıkarılmamalıdır!! Sadece genelde overloading daha iyi bir adaysa programcılar overloading'i tercih ediyorlar. Max template'ına geri
+dönelim:
+#include <iostream>
+#include <cstring>
+
+template <typename T>
+T Max(T x, T u)
+{
+    return x > y ? x : y;
+}
+
+template <>
+const char* Max(const char *p1, const char *p2)
+{
+    return std::strcmp(p1, p2) > 0 ? p1 : p2;
+}
+
+using namespace std;
+
+
+int main()
+{
+    cout << Max("deniz", "kerem");
+}
+
+====================================================================================================================================================================================
+
+partial specialization
+İlk olarak söylememiz gereken şu: fonksiyon şalonları için bu geçerli değil!!!! Yani partial specialization sınıf şablonları için geçerli!!! Diğerinde yani explicit specialization
+ya da full specialization'da belilri bir specialization'ının kodunu veriyorsunuz. Örneğin 3 tane template parameresi olsada sizin specialization'ınınız 
+şöyle bir şey: örneğin Myclass<int, double, char> gibi yani bütün template parametreleri için bir argüman veriyorsunuz. 
+
+Öte yandan partial specialization şu sınıf şablonlarında: toplam tür u'zayı içinde belirli niteliği sağlayan türlerden yani belirli bir tür kategorisi için. Yani sadece bir 
+specialization için değil örneğin tam sayı türleri olan specialization'lar ya da gerçek sayı türleri olan specialization'lar gibi. Ya da pointer/referans türleri için. Veya 
+2 tane template parametresi olan fakat iki template parametresine karşılık gelen template argümanları aynı olan specialization'lar için. Demek ki partial specialization ile 
+explicit specialization arasında sentaks zaten farklı; explicit specialization sadece 1 tane specialization yani o belirli bir template id'ye karşılık geliyorken; explicit
+specialization değilde partial specialization olursa belirli özelliğe sahip template argümanları için alternatif bir template kod vermiş oluyorsunuz. 
+
+not: ister explicit specialization olsun ister partial specialization olsun o ana template'e yani specialization olmayan gerçek template'e karşılık gelen 2 tane popüler terim var:
+primary templade ve master template (günümüzde daha çok primary terimi kullanılıyor)
+Sentaks ise şöyle:
+template <typename T>
+class Myclass {
+public:
+    Myclass()
+    {
+        std::cout << "Myclass primary template for type " << typeid(T).name() << '\n';
+    }
+};
+
+//pointer türleri için bir partial specialization yani pointer türü olsunda ne olursa olsun
+template <typename T>
+class Myclass<T*> {
+public:
+    Myclass()
+    {
+        std::cout << "Myclass partial spec. for <T*>\n";
+    }
+};
+
+int main()
+{
+    Myclass<int> m1;
+    Myclass<long> m2;
+    Myclass<char *> m3;
+    Myclass<int **> m4;
+}
+
+Burada çok sayıda olanak var; burada programcılar özellikle burada bazı noktaları yanlış anlama eğiliminde:
+örneğin partial specialization dizi türü de olabirdi:
+template <typename T>
+class Myclass {
+public:
+    Myclass()
+    {
+        std::cout << "Myclass primary template for type " << typeid(T).name() << '\n';
+    }
+};
+
+
+template <typename T>
+class Myclass<T[]> {
+public:
+    Myclass()
+    {
+        std::cout << "Myclass partial spec. for <T*>\n";
+    }
+};
+
+int main()
+{
+    Myclass<int> m1;
+    Myclass<long> m2;
+    Myclass<char *> m3;
+    Myclass<int []> m4;
+}
+
+veya partial specialization herhangi bir türden 5 elemanlı dizi de olabilir:
+template <typename T>
+class Myclass {
+public:
+    Myclass()
+    {
+        std::cout << "Myclass primary template for type " << typeid(T).name() << '\n';
+    }
+};
+
+
+template <typename T>
+class Myclass<T [5]> {
+public:
+    Myclass()
+    {
+        std::cout << "Myclass partial spec. for <T*>\n";
+    }
+};
+
+int main()
+{
+    Myclass<int> m1;
+    Myclass<long> m2;
+    Myclass<char *> m3;
+    Myclass<int [5]> m4;
+    Myclass<double [5]> m5;
+}
+
+partial specialization T& veya T&&'de olabilir. Hatta kursun başında compile time'da value category'i elde eden bir kod yazmıştık ve o zaman o anki bilgimizle bunun anlaşılmasının 
+zor olduğunu belirtmiştik. Fakat şimdi ki bilgimizle bunu rahatlıkla anlayabiliriz:
+#include <iostream>
+
+template <typename T>
+struct ValCat {
+    static constexpr const char* p = "PR value";
+};
+
+template <typename T>
+struct  ValCat<T&> {
+    static constexpr const char* p = "L value";
+};
+
+template <typename T>
+struct  ValCat<T&&> {
+    static constexpr const char* p = "X value";
+};
+
+int main()
+{
+    using namespace std;
+
+    cout << ValCat<decltype((12))>::p << '\n';
+}
+dikkat: bu örnekle birden fazla partial specialization olabildiğini de gördük!
+
+
+partial specialization ile ilgili birkaç tane yanış anlamayı düzeltelim:
+template <typename T, typename U>
+struct Nec {
+
+};
+
+template <typename T>
+struct Nec<T, T> {
+
+};
+bu partial specialization geçerlidir ve şu anlama gelir: her iki template argümanıda aynı türse yani örneğin Nec'in int, int açılımı için bu kullanılıcak ama örneğin Nec'in 
+int, double açılımı için primary template kullanılıcak.
+
+Örneğin:
+#include <iostream>
+
+template <typename T, typename U>
+struct Nec {
+    Nec()
+    {
+        std::cout << "primary\n";
+    }
+
+};
+
+template <typename T>
+struct Nec<T, T*> {
+    Nec()
+    {
+        std::cout << "partial\n";
+    }
+};
+
+int main()
+{
+    Nec<int, int*> x; //partial
+}
+partial çünkü o yapıya uyyun
+
+örneğin:
+#include <iostream>
+
+template <typename T, typename U>
+struct Nec {
+    Nec()
+    {
+        std::cout << "primary\n";
+    }
+
+};
+
+template <typename T>
+struct Nec<T*, T*> {
+    Nec()
+    {
+        std::cout << "partial\n";
+    }
+};
+
+int main()
+{
+    Nec<int, int*> x; //primary
+}
+primary çünkü o yapıya uyyun
+
+örneğin:
+#include <iostream>
+
+template <typename T, typename U>
+struct Nec {
+    Nec()
+    {
+        std::cout << "primary\n";
+    }
+
+};
+
+template <typename T>
+struct Nec<T*, T*> {
+    Nec()
+    {
+        std::cout << "partial\n";
+    }
+};
+
+int main()
+{
+    Nec<int*, int*> x; //partial
+}
+partial çünkü o yapıya uyyun
+
+Bir diğer önemli soru; mülakatlarda çoğu kişi buna yanlış cevap veriyor:
+#include <iostream>
+
+template <typename T>
+struct Nec
+{
+    Nec()
+    {
+        std::cout << "primary\n";
+    }
+};
+
+template <typename T, typename U>
+soru: bu satır değişmeyecek altına yazdığım şeylerin ne olduğuna bağlı olarak buradaki yapı yukardaki sınıf şablonuna bir partial specialization olma ihtimali var mı?
+cevap: var; önemli olan partial specialization'daki template parametre sayısı değil önemli olan şuradaki parametre sayısı:
+template <typename T, typename U>
+struct Nec<??> işte burada 1 tane template argümanı olması lazım çünkü primary template'ın 1 tane template parametresi var. Dolayısıyla örneğin:
+#include <iostream>
+
+template <typename T>
+struct Nec
+{
+    Nec()
+    {
+        std::cout << "primary\n";
+    }
+};
+
+template <typename T, typename U>
+struct Nec<std::pair<T, U>> {
+    Nec()
+    {
+        std::cout << "partial\n";
+    }
+};
+bu üstte verilen template'ın partial specialization'ınıdır!!! Zaten eğer partial specialization'ını olmasaydı derleyici sentaks hatası verirdi:
+#include <iostream>
+
+template <typename T>
+struct Nec
+{
+    Nec()
+    {
+        std::cout << "primary\n";
+    }
+};
+
+template <typename T, typename U>
+struct Nec<std::pair<T, U>> {
+    Nec()
+    {
+        std::cout << "partial\n";
+    }
+};
+
+int main()
+{
+    Nec<std::pair<int, long>> x; //partial specialization
+}
+
+Hatta şöyle bile olabilirdi:
+#include <iostream>
+
+template <typename T>
+struct Nec
+{
+    Nec()
+    {
+        std::cout << "primary\n";
+    }
+};
+
+template <typename T, typename U, typename K, typename M>
+struct Nec<std::pair<std::pair<T, U>, std::pair<K, M>> {
+    Nec()
+    {
+        std::cout << "partial\n";
+    }
+};
+
+int main()
+{
+    Nec<std::pair<int, long>> x; //partial specialization
+}
+halen partial specialization!!
+
+Bu örneği tuple ile de yapabiliriz:
+#include <iostream>
+#include <tuple>
+
+template <typename T>
+struct Nec
+{
+    Nec()
+    {
+        std::cout << "primary\n";
+    }
+};
+
+template <typename T, typename U, typename K, typename M>
+struct Nec<std::tuple<T, U, K, M>> {
+    Nec()
+    {
+        std::cout << "partial\n";
+    }
+};
+
+int main()
+{
+    Nec<std::tuple<int, long, char, int> x; //partial specialization
+}
+
+
+Yine güzel, önemli bir soru:
+(ödev sorularından biri de aynı zamanda)
+constexpr function kullanmadan(eski usul); compile time'da power hesaplayan meta fonksiyonu yazınız: örneğin power<2, 5>::value dediğim zaman 2'nin 5. kuvveti alınsın
+burada tahmin ettiğiniz gibi compile time'da değer hesaplayan template'lerde konvensiyon value idi. Yani sınıfın static const value elemanı oluyor. O halde bu şekilde olur:
+#include <iostream>
+
+template <int base, int exp>
+struct Power {
+    static const int value = base * Power<base, exp -1>::value;
+};
+
+template <int base, 0> {
+    static const int value = 1;
+};
+
+int main()
+{
+    Power<7, 3>::value //bunun bir constant expr. olduğunu görüyorsunuz, zaten constant expr. olmasa yardımcı araç run timw olmadan değerini hesaplamazdı!
+}
+
+
+
+template'ler ile ilgili en önemli konulardan bir tanesi template'lerin ingilizcesi ile constraint edilmesi. Yani örneğin öyle bir template oluşturucam ki sadece tam sayı 
+türleri argüman olarak kullanılabilsin, sadece gerçek sayı türleri argüman olarak kullanılabilsin. Öyle bir template kullanmak istiyorum ki o template öyle türler için kod
+üretilsin ki o türün func isimli bir üye fonksiyonu var ise aksi halde geçersiz olsun. Diğeri ise farklı özelliklere sahip türler için derleyiciye alternatif kod seçtirmek.
+Yani örneğin siz diyelim ki bir sınıf kullanıyorsunuz ya da bir fonksiyon çağırıcaksınız ama tam sayı argümanları için ayrı bir kod gerçek sayı argümanları için ayrı bir kod
+oluşturmak istiyorsunuz ama bu seçimi compile time'da derleyici yapacak. Daha önce buraya gönderme yapmıştık; sınıfın move ctor'ının noexcept olup olmamasına bağlı olarak
+derleyici compile time'da kod seçiyor. Tani tmp'nin bu temel kavramları öğrendikten sonra bir sonraki aşaması artık compile time'daki fonksiyonların kullanılma temaları,
+derleyiciye compile time'da tür seçtirmek ve compile time'da template'lere ilişkin constraint'ler oluşturmak. İşte C++ 2020 standartı ile dile eklenen concept(ileri C++ kursu)
+kütüphanesi, concept'lere yönelik sentaks tamamen bu konu ile ilgili. Yani aslında eskiden çok daha zor yapılan bazı işlemleri şimdi çok daha kolay bir şekilde yapabiliyoruz. 
