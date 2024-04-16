@@ -1,0 +1,347 @@
+partial specialization standart kütüphanede de kullanılıyor; en tipik örneği vector sınıf şablonunun bool specialization'ını bir partial specialization.(mülakatlarda soruluyor)
+#include <iostream>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+    vector<int> x;
+    vector<bool> y;
+}
+eğer bir specialization söz konusu olmasaydı x'inde flip fonksiyonu olması gerekirdi ama x'in flip fonksiyonu yok. Çünkü vector'ün bool açılımı bir partial specialization.
+
+================================================================================================================================================================================
+alias templates(tür eş isim şablonları)
+C'den gelen temel sentaksla yani C++'ın içinden gelen sentaks ile C++'ta da C'de olduğu gibi tamamen aynı şekilde typedef bildirimlerini kullanabiliyoruz. Yani bir türe bir tür
+eş ismi oluşturabiliyoruz. Tür eş isim bildirimlerinin C++'ta typedef anahtar söscüğünün dışında modern C++ ile eklenen using anahtar sözcüğü ile de yapılabilindiğini daha önce 
+anlatmıştık. using keyword'ünün dile eklenmesinin temel 2 ana nedeni vardı: using bildiriminin sentaksının daha kolay olması, örneğin:
+C'deki typedef bildirimini yapmanın partik ve doğru yöntemi:
+1) hangi türe eş isim verecekseniz o türden bir değişken tanımlayın
+2) tanımlamanın başına typedef anahtar sözcüğünü koyun
+3) değişken ismini değiştirip tür eş ismi yapın
+//10 elemanlı int dizi türüne arten ismini verin
+adım 1: int int a[10];
+adım 2: typedef a[10];
+adım 3: typedef int arten[10];
+
+int main()
+{
+    arten a, b, c;
+}
+a, b, c 10 elamanlı int diziler.
+
+soru: strcmp'nin adresi olan türe cmpfunc ismini verin:
+adım 1: int(*fp)(const char*, const char*);
+adım 2: typedef int(*fp)(const char*, const char*);
+adım 3: typedef int(*cmpfunc)(const char*, const char*);
+
+!!!typedef bildirimleri ile ilgili programcılara hem üretimde çok önemli olduğu için ve hem de tipik yanlış olarak algılandığı için çok sorulan bir soru var:
+typedef int* IPTR;
+
+int main()
+{
+    int x = 10;
+    const IPTR p = &x;
+
+    //int* const p = &x; // top-level const(const pointer to int) or right const
+    //const int *p = &x; //low-level const(pointer to const int) or left const
+}
+soru: p top-level const mu low-level const mu? Cevap: top-level const!! Zaten bunu da şöyle gösterebiliriz: eğer top-level const ise p'ye yapılan atamanın sentaks hatası olması
+gerekir:
+int main()
+{
+    int x = 10;
+    int y = 100;
+    const IPTR p = &x;
+
+    *p = 46;
+    p = & y; //syntax error
+}
+
+using bildiriminde ise bilindiği üzere durum çok daha pratik:
+using cmpfunc = int(*)(const char*, const char*); 
+
+veya:
+using ipair = std::pair<int, int>;
+
+aslında using bildiriminin modern C++ ile dile eklenmesinin nedeni template'ler. typedef bildirimleri C'den geldiği için template haline getirilemiyor. Fakat using anahtar 
+sözcüğünü kullanarak tür eş isim bildirimini bir template olarak gerçekleştirebiliyorsunuz ve özellikle standart kütüphane de çok sık kullanılıyor. İşte using anahtar sözcüğünün
+kullanıldığı böyle tür eş isim şablonlarına alias template deniliyor. Sınıf şablonu derleyiciye sınıf kodu yazdırıyor, fonksiyon şablonu derleyiciye fonksiyon kodu yazdırıyor.
+Sınıf şablonunun specialization'ını sınıf, fonksiyon şablonunun specialization'ını fonksiyon o halde tür eş isim şablonunun specialization'ını da alis olur. 
+
+Tür eş isim şablonları kullanılıyor çünkü örneğin siz std::pair sınıf şablonundan elde edilecek specialization'larda diyelim ki 1. ve 2. yani first'in ve second'ın türünün aynı
+olması durumunda using ipair = std::pair<int, int>; şeklinde yazmak yerine eqpair ismini kullanmak istiyorsunuz. Yani eqpair<int> demek pair<int, int> demek olsun. Şimdi burada
+artık bir tür grubu var. eqpair<int> bir specialization ama bu specialization bir type alias vazifesi görüyor. 
+
+Genel sentaks şu şekilde:
+//burada yine typename yerine class anahtar sözcüğünü kullanabiliriz!
+template <typename T>
+using Ptr = T*;
+!!Ptr'nin kendisi bir tür eş ismi değil, Ptr şablonun ismi tür eş ismi şu örneğin: Ptr<int> yani Ptr'nin int açılımı bir specialization Ptr'nin int açılımı int*'ın tür eş ismi
+olarak kullanılıcak. O halde aşağıda verilen atamalar yapılabilir:
+template <typename T>
+using Ptr = T*;
+
+int main()
+{
+    Ptr<int> p = nullptr; //p'nin türü int*
+    double dval{};
+    Ptr<double> dp = &dval; //dp'nin türü double*
+}
+
+Bir diğer örnek:
+template <typename T>
+using Arten = T[10];
+
+int main()
+{
+    Arten<int> x; //x 10 elemanlı bir int dizi
+    Arten<double> y; //y 10 elemanlı bir double dizi
+}
+
+Bir diğer örnek:
+template <typename T, int n>
+using Array = T[n];
+
+int main()
+{
+    Array<int, 20> x; //x 20 elemanlı bir int dizi
+    Array<char, 40> y; //y 40 elemanlı bir char dizi
+}
+
+Birkaç tane pair'e yönelik alias template oluşturalım:
+template <typename T>
+using ipair = std::pair<T, int>;
+
+int main()
+{
+    ipair<long> //aslında std::pair<long, int> açılımı
+}
+
+veya:
+template <typename T>
+using eq_pair = std::pair<T, T>;
+
+int main()
+{
+    eq_pair<long> //aslında std::pair<long, long> açılımı
+}
+
+özellikle STL container'larında çok sık kullanılıyor:
+set STL'in sınıf şablonlarından/container'larından biri. Normalde set sınıf şablonunun 3 tane template argümanı var: 1. template argümanı tutulan öğenin türü, 2. template argümanı
+karşılaştırma kriterinin türü, 3. template argümanı allocater türü. Yani normalde varsayılan argüman olmasaydı şu şekilde yazmamız gerekirdi:
+#include <set>
+
+int main()
+{
+    using namespace std;
+    
+    set<int, less<int>, allocator<int> > myset;
+}
+fakat biz bazı durumlarda set'in büyükten küçüğe sıralaması ile oluşturulmasını istiyoruz o zamanda less sınıf şablonu yerine greater sınıf şablonunun kullanıyoruz:
+#include <set>
+
+int main()
+{
+    using namespace std;
+    
+    set<int, gretaer<int> > myset;
+}
+tabii eğer set'te tutulacak örneğin int değilde double ise:
+#include <set>
+
+int main()
+{
+    using namespace std;
+    
+    set<double, gretaer<double> > myset;
+}
+
+Öte yandan using bildirimi ile buradaki verbosity'ide tamamen ortadan kaldırabilirim:
+template <typename K>
+using gset = std::set<K, std::greater<K>>;
+
+int main()
+{
+    gset<int>; //set<int, gretaer<int>>; anlamına gelir
+}
+
+Bunun çok sık kullanıldığı yerlerden biri de meta fonksiyonlar:
+(ilerleyen haftalarda ele alacağız)
+bazı meta fonksiyonların içinde bir tür eş isim bildirimi var bir nested type olarak:
+template <typename T>
+struct Nec {
+    using type = T*;
+};
+
+int main()
+{
+    Nec<int>::type
+}
+fakat hatırlarsanız bazı durumlarda bunun template kodlarda bir nested type olduğunu göstermek için bir de typename anahtar sözcüğünüde kullanıyorsunuz:
+T'nin bir nested type olmak üzere:
+nestet type adı value_type olsun:
+T::value_type diyemezsiniz!!
+template <typename T>
+void func(T)
+{
+    typename T::value_type //şeklinde olmalı
+}
+
+Fakat bunu bu şekilde yazmak yerine bunu yine bir alias template haline getiriyorsunuz, alias template haline getirdiğinizde tipik olarak şöyle oluyor:
+template <typename T>
+struct Nec {
+    using type = T*;
+};
+
+template <typename T>
+using Nec_t = typename Nec<T>::type; //Nec için Nec_t isimlendirmesi yaptık!
+
+int main()
+{
+    //Nec<int>::type
+    Nec_t<int>
+}
+
+bunun uygulandığı type_traits kütüphanesi var:
+türler hakkında bilgi veren type_traitler var; bir türün pointer türü olup olmadığını anlamak için orada variable template kullanıyoruz ama orada tür hesaplanıyor ise
+orada da alias template kullanıyoruz. add_pointer bir meta fonksiyon; add_pointer şunu yapıyor: aldığı argümanın türü ne ise onun type'ı pointer ilava edilmiş hali:
+#include <type_traits>
+
+using namespace std;
+
+int main()
+{
+    using namespace std;
+
+    add_pointer<int>::type //int*
+}
+bu şekilde yazmak bira zahöetli böyle yapmak yerine:
+#include <type_traits>
+
+using namespace std;
+
+template <typename T>
+using AddPointer_t = typename add_pointer<T>::type;
+
+int main()
+{
+    using namespace std;
+
+    AddPointer<int> //int*
+}
+
+type_traits'in genel mantığı:
+compile time'da türler hakkında bilgi edinmek istiyoruz:
+template <typename T, T n>
+struct IntegralConstant {
+    constexpr T static value = n;
+};
+
+using namespace std;
+
+int main()
+{
+    IntegralConstant<int, 5>::value //5 (compile time sabiti)
+    IntegralConstant<bool, true>::value //true sabiti
+}
+
+orjinali ise şu şekilde:
+#include <type_traits>
+
+int main()
+{
+    integral_constant<int, 5>::value //5 sabiti
+}
+
+integral_constant'ın type ise kendisi:
+#include <type_traits>
+
+int main()
+{
+    integral_constant<int, 5>::type //integral_constant<int, 5>
+}
+
+burada şöyle bir tür eş bildirimi yapsak:
+template <typename T, T n>
+struct IntegralConstant {
+    constexpr T static value = n;
+};
+
+using TrueType = IntegralConstant<bool, true>;
+//artık uzun uzun IntegralConstant'ın bool, true açılımı demek yerine doğrudan TrueType diyebilirim
+using TrueType = IntegralConstant<bool, true>;
+//artık uzun uzun IntegralConstant'ın bool, false açılımı demek yerine doğrudan FalseType diyebilirim
+
+Orjinali ise şöyledir:
+#include <iostream>
+#include <type_traits>
+
+using namespace std;
+
+int main()
+{
+    std::false_type x;
+
+    cout << typeid(x).name() << '\n';
+}
+
+Ben öyle bir meta fonksiyon yazmak istiyorum ki benim yazdığım meta fonksiyon compile time'da bir türün pointer türü olup olmadığını bana bildiricek:
+template <typename T>
+struct IsPointer : std::false_type {
+
+};
+IsPointer sınıf şablonu false_type'dan kalıtım yoluyla elde ettim. false_type ise integral_constant'ın bool, false açılımı. O halde bu public kalıtımı olduğuna göre
+taban sınıfın nested type'ları benimde nested type'larımdır. O halde:
+template <typename T>
+struct IsPointer : std::false_type {
+    
+};
+
+int main()
+{
+    Ispointer<int>::value
+}
+soru: Ispointer<int>::value ifadesinin türü ne? cevap: bool
+soru: Ispointer<int>::value ifadesi bir compile time sabiti mi? cevap: tabii ki, çünkü bu taban sınıfın constexpr static veri elemanı. 
+soru: bu sabit false mudur true mudur? cevap: false'dur çünkü false_type'dan kalıtım yoluyla elde ettim. Şimdi bu template bir partial specialization yazsak:
+template <typename T>
+struct IsPointer : std::false_type {
+    
+};
+
+template <typename T>
+struct Ispointer<T*> : std::true_type {
+
+};
+
+int main()
+{
+    Ispointer<int>::value //false
+    Ispointer<int*>::value //true
+}
+
+O halde:
+template <typename T>
+struct IsPointer : std::false_type {
+    
+};
+
+template <typename T>
+struct Ispointer<T*> : std::true_type {
+
+};
+
+template <typename T>
+void func(T )
+{
+    static_assert(IsPointer<T>::value);
+}
+//böylece compile time'da ifade false olursa derleyici sentaks hatası vericek!
+
+int main()
+{
+    func(12); //derleyici compile time'da T'nin yerine gelicek türünün type deduction yoluyla int olduğunu anlayacak ve func fonksiyonu içinde 
+              //IsPointer'ın value'su compile time'da false olucak, false olunca static_assert sentaks hatası oluşturucak! Böylece bu template
+              //pointer türü olmayan bir tür argüman olarak geldiğinde sentaks hatası oluşması sağlanacak.
+}
