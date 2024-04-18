@@ -1,0 +1,898 @@
+24 Nisan 2023 - Pazartesi
+
+template'lerin default argüman alması
+Fonksiyonlar nasıl default argüman alabiliyorsa template'lerde varsayılan argüman alabiliyor. Fakat burada varsayılan argümandan kastedilen; varsayılan template argümanı.
+Sentaksı incelemekle konuya başlayalım:
+normalde template'imizin ister sınıf şablonu olsun ister fonksiyon şablonu olsun template parametreleri var. Bu template parametreleri type parameter, non-type parameter ya da 
+template template parameter olabiliyordu. Bunların hepsi varsayılan template argümanı alabiliyor. 
+template <typename T = int> //bu template'de tepmlate argümanı belirtilmezse varsayılan argüman olarak int kullanılıcak
+class Myclass {
+
+}; 
+
+int main()
+{
+    Myclass<double> m1;
+    Myclass <> m2; //Myclass<int> m2;
+}
+
+Tıpkı fonksiyonların varsayılan argüman almasında olduğu gibi bir template parametresi varsayılan argüman alıyorsa onun sağındaki tüm template'lerininde varsayılan argüman 
+alması mecburidir. Örneğin:
+template <typename T = int, typename U> //syntax error
+class Myclass {
+
+};
+
+int main()
+{
+
+}
+
+yani varsayılan template argümanlarının hep sondaki template parametreleri için olması gerekiyor. Yukarıdaki örneğin geçerli olması için 2. template parametresininde varsayılan 
+argüman alması gerekiyor:
+template <typename T = int, typename U = double> 
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<char, char> m1; 
+    Myclass<char> m2; //Myclass<char, double>
+    Myclass<> m3; //Myclass<int, double>
+}
+
+Birkaç tane önemli kritik noktaya vurgu yapalım:
+1) Modern C++'a  kadar fonksiyon şablonları varsayılan argüman alamıyordu. Bu sadece sınıf şablonlarına tanınan bir haktı. Yani herhangi bir nedenden dolayı eski C++'ı kullanıyor 
+olsaydık o zaman fonksiyon şablonlarında ki varsayılan argümanları kullanamıyor olurduk.
+
+Standart kütüphanede varsayılan argüman alan birçok template var:
+#include <random>
+
+int main()
+{
+    std::uniform_int_distribution<> x; //varsayılan argüman olarak int alıyor
+    
+}
+
+veya:
+#include <random>
+
+int main()
+{
+    std::uniform_real_disribution<> x; //varsayılan argüman olarak double alıyor
+}
+
+
+
+non-type parametre de başta söylediğimiz gibi varsayılan argüman alabilir:
+template <int n = 5>
+class Myclass {};
+
+int main()
+{
+    Myclass<10> x;
+    Myclass<> y; //Myclass<5> x; 
+}
+
+Dikkat: açısal parantezi hiç yazmasam olur mu? sorusunun cevabı normalde hayır! Yani tüm template parametreleri varsayılan argüman alsa dahi normalde bu sentaks hatası!
+template <int n = 5>
+class Myclass {};
+
+int main()
+{
+    Myclass<> x;
+}
+bunun şu an legal olmasının nedeni C++17 standartı ile dile eklenen Class template argument deduction (CTAD)'nın devreye girmesi.
+
+
+Birçok örnekte varsayılan template argümanı daha önceki parametrelere ilişkin standart kütüphanede örneğin:
+örneğin vector sınıfı, sözde vector sınıfı:
+#include <random>
+#include <vector>
+
+template <typename T, typename A = std::allocator<T>>
+class Vector {
+
+};
+
+int main()
+{
+    Vector<int, std::allocator<int>> x;
+}
+yani vector<int> x; gibi bir nesne oluşturmam demek aslında Vector<int, std::allocator<int>> x; gibi bir nesne oluşturmam demek.
+
+Bazı container sınıflarımızda birden fazla varsayılan template argüman kullanılıyor. Örneğin:
+set'i düşünelim:
+#include <iostream>
+#include <set>
+
+int main()
+{
+    std::set<int> x; //std::set<int, std::less<int>, std::allocaot<int>> x; demek
+}
+yani biz çoğunlukla template'in 2. ve 3. template parametreleri için varsayılan tür argümanlarını kullanarız.   
+
+sözde set sınıf şablonu:
+template <typename Key, typename Comp = std::less<Key>, typename A = std::allocator<Key>>
+class Set {
+
+};
+
+Bir diğer örnek:
+#include <unordered_set>
+
+using namespace std;
+
+int main()
+{
+    unordered_set<int>; //unordered_set<int, hash<int>, allocator<int>> x;
+}
+
+string sınıfının da default template argümanı alıyor:
+string sınıfı aslında sınıfın kendisi değil bir tür eş ismi. basic_string sınıf şablonunun bir specialization'ının eş ismi:
+#include <string>
+
+int main()
+{
+    string name {"atakan aygun" }; //aşağıdaki ile aynı anlamda
+    basic_string<char, char_traits<char>, allocator<char>> //yani yukarıdaki yazımda 2. ve 3. template argümanları default argüman alıyor. 
+}
+özellikle 2. template parametresi bazı tmp(template meta programming) tekniklerinde çok sık kullanılıyor.
+
+not: eğer template parametresini kullanamayacaksanız isim vermekte zorunda değilsiniz. Yani örneğin:
+template <typename T, typename U = void >
+class Myclass {
+
+};
+yazmak ile şu şekilde yazmak arasında bir fark yok:
+template <typename T, typename  = void >
+class Myclass {
+
+};
+
+bir diğer örnek:
+default template argüman alımı bütün template parametreleri için geçerlidir:
+
+template <int x = 10, int y = 20 >
+class Myclass {
+
+};
+tabii haliyle non-type parametre pointer ise ona da default parametre verebiliriz:
+template <int* p = nullptr >
+class Myclass {
+
+};
+
+specialization'larda primary template'ın tanımlanma mecburiyeti yok!!! Bu da önemli bir özelliktir!!
+bildirimde template parametrelerine isim vermek zorunda değilsiniz:
+template <typename >
+class Myclass;
+bunun için bir partial specialization ya da explicit/full specialization oluşturabiliriz:
+template <typename >
+class Myclass;
+
+template <typename T>
+class Myclass<T*> {
+
+};
+
+bu da kullanılan bir teknik, standart kütüphane de bazı yerlerde bu tekniği kullanıyor. Örneğin şu şekilde bir kod yazarsam:
+template <typename >
+class Myclass;
+
+template <typename T>
+class Myclass<T*> {
+
+};
+
+int main()
+{
+    Myclass<int> x; //syntax error
+}
+sentaks hatası çünkü bu tanımlanmadı ama Myclass'ın int* açılımı desem:
+template <typename >
+class Myclass;
+
+template <typename T>
+class Myclass<T*> {
+
+};
+
+int main()
+{
+    Myclass<int*> x; 
+}
+kod legal hale geldi çünkü tanımlı. 
+
+
+Daha önce de ele almıştık 2 sınıf şablonunun ismi template parametrelerinden bağımsız aynı olamaz!!!
+template <int n>
+class Myclass {
+
+};
+
+//syntax error
+template <long> 
+class Myclass {
+
+};
+bu daha önce ciddi bir problemdi bunu şu şekilde aştılar:
+template <auto n>
+class Myclass {
+
+};
+//şimdi artık çıkarım mekanizması devreye giriyor. Çıkarım mekanizması devreye girdiği için artık az önce yapamadığımızı yapabiliyoruz: 
+
+int main()
+{
+    Myclass<int> x; 
+    Myclass<12L> y; 
+    Myclass<3.4> z;
+}
+x, y, z ayrı sınıflardır. C++20 standartı ile run time parametreye karşılık gelen argüman gerçek sayı türlerinden de olabiliyordu.
+
+Bunu C++20 standartı ile dile eklenen "abbreviated template syntax" ile karıştırmayınız!!!
+
+abbreviated template syntax C++20 ile dile eklenen fakat yavaş yavaş ağırlığını koyan yeni bir sentaks; burada yine auto anahtar sözcüğü overload edilmiştir. Şu şekildedir:
+void func(auto x)
+{
+
+}
+bunu bir önceki auto ile karıştırmamalıyız!!! Bunun auto return type ile de trailing return type ile de bir alakası yok. Çünkü görüldüğü gibi parametre değişkeninin türünde 
+kullanılmış. Bu şu demek: diyor ki C++20 standartı en çok yazılan template'ler şöyle:
+template <typename T>
+void func(T x)
+{
+
+}
+o zaman madem burada çıkarım yapılıyor biz yukarıdaki gibi uzun uzun templa sentaksı ile bunu yapmak yerine:
+void func(auto x)
+{
+
+}
+şeklinde yapalım derleyici yine bunu öyle bir fonksiyon şablonu olarak ele alsın. Yani az öncekinden en azından kullanıcı açısından bir farkı yok. O halde farklı türler ile bu 
+fonksiyona çağrı yapalım:
+#include <iostream>
+
+//abbreviated template syntax
+//C++20
+void func(auto x)
+{
+    std::cout << typeid(x).name() << '\n';
+}
+
+int main()
+{
+    func(12);
+    func(1.2);
+    func('A');
+}
+kod derlenip çalıştığında 3 farklı specialization'ının söz konusu olduğunu görürüz. Her ne kadar sonuç açısından normal kısaltılmamış template sentaksına eş değer olsada burada 
+şöyle bir yazım farklılığı var:
+ben normal template kullansaydım:
+T'yi kullandığımda template parametresini kullanıyor olacaktım. 
+template <typename T>
+void func(T x)
+{
+    T y;
+}
+bu durumda ben fonksiyona int gönderirsem T int türü olur ya da şöyle de olabilir:
+template <typename T>
+void func(T &x)
+{
+    T y;
+}
+burada fonksiyona int türden bir nesne gönderirsem T &x = int &x olurken y ise int türden olur. 
+
+Öte yandan abbreviated template sentaksında decltype'ı kullanabilirsiniz:
+void func(auto x)
+{
+    decltype(x) //yine x'in türünü elde etmiş oluyoruz
+}
+perfect forwaring konusuna geri döndüğümüzde orada bazı farklılıklar olabildiğini göreceğiz.
+
+Sonuç olarak auto anahtar sözcüğünün kullanıldığı yere bağlı olarak farklı anlamlara geldiğini anlamamız çok önemli. Örneğin yine C++20 standartı ile dile eklenen concepts'ler söz 
+konusu olduğunda burada daha da güzel yapılar var. Örneğin:
+#include <iostream>
+#include <concepts>
+
+void func(std::integral auto x) //buradaki std::integral bir concept; template'lerin kısıtlanması amaçlı kullanılıyor
+{
+
+}
+
+Soru: aşağıda verilen function template'da y'nin türü nedir?
+template <typename T>
+void func(T&& x)
+{
+    T&& y = x;
+
+}
+
+int main()
+{
+    int ival{};
+    func(ival);
+}
+bu durumda T türü karşılığı gelen türün ne olduğu konusundaki kuralları öğrenmiştik. Fonksiyona gönderilen argümanın value kategorisi bunu belirliyordu. Argüman olan ifadenin
+value kategorisi L value bu durumda T türünün çıkarımı int& olarak yapılacak. Öte yandan T&& y ifadesinde de reference collapsing gerçekleşicek. Burada reference collapsing'in 
+gerçekleşmesi T yerine int& koyarsarsanız sağ taraf referansına sol taraf referansı olucak dolayısıyla buradaki T türüne karşılık gelen tür int& olduğu için y değişkeninin 
+türü de int& olucak. Yani reference collapsing fonksiyon şablonunun içinde de olabilir.
+
+====================================================================================================================================================================================
+
+variable templates
+fonksiyon şablonu derleyiciye fonksiyon kodu yazdıran template; sınıf şablonu derleyiciye sınıf kodu yazdıran template, alias template derleyiciye tür eş ismi oluşturan template,
+variable template ise derleyiciye değişken tanımı oluşturtan template. Sentaks birbirine çok benziyor aslında; örneğin:
+template <typename T>
+constexpr auto pi = (T)3.1415626586;
+buradaki template'ın ismi pi, dolayısıyla bir tane template parametresi olduğuna göre ben template'ı değil template'ın specialization'ınını kullanacağıma göre; bu şu demek  örneğin:
+pi<double> açılımını kullanmam demek, bunun türü ise double. Çünkü derleyici pi'in double açılımını bir constexpr değişken olarak tanımlıyor auto'yu kullandım ama ona ilk değer 
+veren ifade'nin türü double olacak. Çünkü (T)3.1415626586 ifadesinin türü double olduğu için pi'in double açılımı double türden.
+Dikkatle bakılırsa pi<double> açılımının constant expression olduğu görülür. Çünkü constexpr bir değişken! Özetleyecek olursak:
+template <typename T>
+constexpr auto pi = (T)3.1415626586;
+
+int main()
+{
+    constexpr double dval = pi<double>; //pi'in double açılımı yerine float açılımı dersek
+    pi<float> y; //bu da ayrı bir sabit olur, float türden bir sabit olur
+    pi<int> z; //int türden bir sabit olur
+}
+
+dizi boyutunun 3 olduğu bir dizi tanımını pi template'ı ile yapalım:
+template <typename T>
+constexpr auto pi = (T)3.1415626586;
+
+int main()
+{
+    int a[pi<int>] {};
+}
+Her ne kadar variable template ile ilgili bu araç dile eklendiğinden beri verilen klasik örnek bu olsada hocamıza göre variable template'ı çok iyi gösteren bir örnek değil;
+çünkü variable template'ın aslında kullanıldığı yer çoğunlukla burası değil; şurası:
+özellikle type_traits kütüphanesindeki meta fonksiyonlarımız var:
+type_traits kütüphanesinde 2 farklı tarzda ağırlıklı meta fonksiyonlar var; bu meta fonksiyonlardan bir kısmı ingilizcesi ile value hesaplıyor yani örneğin bool türden 
+true ya da false değerinin hesaplanması gibi. Bazı meta fonksiyonlarda tür hesaplaıyor örneğin int gibi, int& gibi, double& gibi. O tür hesaplayan meta fonksiyonlar ile
+değer hesaplayan meta fonksiyonları birbiri ile karıştırmamamız gerekiyor. Örneğin değer hesaplayan meta fonksiyonlardan birine bakalım:
+#include <iostream>
+#include <type_traits>
+
+//is_lvalue_reference meta fonksiyonu; argüman olarak bir türü alıyor ve bu oluşturulan sınıfın value isimli elemanı boolean türden bir sabit; o da geçen derste de söylediğimiz
+//gibi kalıtımın yapıldığı true_type ya da false_type'dan geliyor. 
+
+int main()
+{
+    using namespace std;
+
+    is_lvalue_reference<int&>::value 
+}
+is_lvalue_reference<int&>::value bir compile time sabiti. int& türü bir L value reference türü olduğu için o yüzden value'su true. Fakat örneğin is_lvalue_reference<int>::value
+olsaydı false olurdu. Veya is_lvalue_reference<int&&>::value yine false olurdu. O halde is_lvalue_reference meta fonksiyonu'nu kendimiz yazarsak:
+template <typename T>
+struct IsValueReference : std::false_type {
+
+};
+IsValueReference'yi standart kütüphanenin false_type'ından kalıtım yoluyla türetiyorum. Bu durumda IsValueReference'ın herhangi bir specializaiton'ını taban sınıfı olan 
+false_type'ın value'su o da false sabiti:
+template <typename T>
+struct IsValueReference : std::false_type {
+    
+};
+
+int main()
+{
+    IsValueReference<int>::value //false
+}
+false sabiti çünkü false_type'dan kalıtım yoluyla elde edildi; false_type'ın kendisi de bir tür onun value'su da false, boolean türden constexpr static veri elemanı. 
+Ben IsValueReference'ın int& açılımınıda alsam onun value'su da false olur. Şimdi bunun için bir partial specialization oluşturursak:
+template <typename T>
+struct IsValueReference : std::false_type {
+    
+};
+
+ template <typename T>
+struct IsValueReference<T&> : std::true_type {
+    
+};
+int main()
+{
+    IsValueReference<int>::value //false
+    IsValueReference<int&>::value //true
+
+}
+
+Bunlar çok önemli araçlar çünkü örneğin:
+template <typename T>
+struct IsValueReference : std::false_type {
+    
+};
+
+ template <typename T>
+struct IsValueReference<T&> : std::true_type {
+    
+};
+
+template <typename T>
+class Refclass {
+    static_assert(IsValueReference<T>::value, "only for Lval& types");
+};
+bu sınıf şablonunun öyle bir sınıf şablonu olmasını isityorum ki Refclass'ın sadece L value reference açılımları geçerli olsun ama sol taraf referansı olmayan specialization'lar
+compile time'da sentaks hatası oluştursun.işte template meta programming'in en önemli araçlarından biri buradaki constraintler. Fakat şimdilik burada static_assert'i 
+kullanayım(buna ingilizce de static_assert declaration deniliyor). static_assert'ün parantezi içindeki ifade compile time'da evaluate ediliyor. Eğer compile time'da 
+false olarak evaluate edilirse  yani static_assert'e argüman olarak verdiğim ifade derleme zamanında false değerindeki bir sabit ifadesi ise sentaks hatası oluşturuyor. 
+IsValueReference<T>::value ifadesi compile time'da belli olucak. Yani örneğin Refclass'ın int açılımı söz konusu olduğunda IsValueReference<T>::value false sabiti olucak,
+sentaks hatası meydana gelicek. Öte yandan örneğin Refclass'ın int& açılımı söz konusu olduğunda IsValueReference<T>::value true sabiti olur. static_assert'in 2. parametresine
+bir string literali verebiliyorum, onu da sentaks hatası olduğunda sentaks hatası mesajında yazar:
+template <typename T>
+struct IsValueReference : std::false_type {
+    
+};
+
+ template <typename T>
+struct IsValueReference<T&> : std::true_type {
+    
+};
+
+template <typename T>
+class Refclass {
+    static_assert(IsValueReference<T>::value, "only for Lval& types");
+};
+
+int main()
+{
+    Refclass<int> x; //syntax error
+}
+
+int& deseydim sentaks hatası olmazdı:
+template <typename T>
+struct IsValueReference : std::false_type {
+    
+};
+
+ template <typename T>
+struct IsValueReference<T&> : std::true_type {
+    
+};
+
+template <typename T>
+class Refclass {
+    static_assert(IsValueReference<T>::value, "only for Lval& types");
+};
+
+int main()
+{
+    Refclass<int&> x; 
+}
+
+
+Bu örneklerde olduğu gibi birçok durumda değer hesaplayan meta fonksiyonların konvensiyonel value constexpr static elemanlarını kullanıyorum. Böyle onlarca meta fonksiyon 
+var standart kütüphanede; yüzlercesinide biz oluşturabiliriz. O halde yukarıda yazdığımız IsValueReference meta fonksiyonum yerine aynı işi yapan standart kütüphane de 
+yer alan orjinalini kullanalım:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+class Refclass {
+    static_assert(std::is_lvalue_reference<T>::value, "only for LVal & types");
+};
+
+int main()
+{
+    Refclass<int&> x;
+}
+örneğin int&& açılımı olsaydı template argümanı sağ taraf referansı olduğu için; sol taraf referans türü olmadığı için sentaks hatası olurdu:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+class Refclass {
+    static_assert(std::is_lvalue_reference<T>::value, "only for LVal & types");
+};
+
+int main()
+{
+    Refclass<int&&> x; //syntax error
+}
+
+tmp(template meta programming) tarafında bu tür öğeleri(std::is_lvalue_reference<T>::value) yazmak aslında zahmetsiz gibi görünebilir ama o kadar çok yazıyoruz ki; 
+birde bunlar aynı ifade içinde birden fazla olduğunda kod yine çok verbose hale geliyor. Kod kalabalığı oluşuyor. Onun için şunu yapıyoruz:
+ben her defasında IsValueReference'ın T açılımının value'su demek yerine burada bir variable template oluşturacağım; genelde isim olarak aynı isim kullanılıyor
+konvensiyonel olarak fakat sonuna _v ekleniyor. Her zaman _v ile biten template'ler variable template'lerdir; aslında bir başka meta fonksiyonun hesapladığı 
+değerle ilk değerini alıyor.
+template <typename T>
+struct IsValueReference : std::false_type {
+    
+};
+
+ template <typename T>
+struct IsValueReference<T&> : std::true_type {
+    
+};
+
+template <typename T>
+constexpr bool IsValueReference_v = IsValueReference<T>::value; 
+//böylece zaten artık IsValueReference_v'nin T açılımı demekle IsValueReference<T>::value aynı anlama gelicek böylece yazım kolaylığı sağlamış oldum:
+
+template <typename T>
+class Myclass {
+    static_assert(IsValueReference_v<T>);
+};
+
+Standart kütüphanede böyle onlarca variable template var. Her değer hesaplayan meta fonksiyona karşılık onun value'suna karşılık gelen bir de variable template var.
+Bazıları yoktu ama bazıları da sonradan eklendi, eksikler tipik olarak kapatıldı.
+
+Örneğin bir diğer örnek:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+void func(T x)
+{
+    using namespace std;
+
+    static_assert(is_pointer_v<T> || is_reference_v<T>, "only pointer/reference types!!!");
+}
+//C++17 ile string literali opsiyonel oldu; daha öncesinde mecburiydi. Böylece template argümanının pointer ya da referans türü olması gerekiyor. 
+int main()
+{
+    func(12); //syntax error
+}
+veya:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+void func(T x)
+{
+    using namespace std;
+
+    static_assert(is_pointer_v<T> || is_reference_v<T>, "only pointer/reference types!!!");
+}
+//C++17 ile string literali opsiyonel oldu; daha öncesinde mecburiydi. Böylece template argümanının pointer ya da referans türü olması gerekiyor. 
+int main()
+{
+    int x{};
+    func(&x); 
+}
+
+Yalnız static_assert'te şöyle bir problem var; static assert fonksiyon interface'nin bir parçası değil. Ama çoğu zaman biz bunları şu şekilde kullanıyoruz: derleyici daha 
+specialization'ının kodunu üretmeden. Az önce specialization'ının kodunu üretirken hata verdi. Peki şimdi specialization'ını üretme aşamasına daha geçmeden sentaks hatasını 
+sadece interface'de verdirebilir miyim? Örneğin sadece T türünün pointer türü olması durumunda bu fonksiyon geçerli olsun dikkat ederseniz geçerli olsun diyorum belki başka 
+overload'ları var. Yani istenen derleme aşamasına gelmeden bile sentaks hatası vermesi! İşte şimdi burada static_assert kullanamayız. İşte bir template'in kısıtlanması için
+C++20 standartlarından önce hakim kullanılan teknikler SFINAE teknikleriydi. 
+
+SFINAE tekniği şu demekti; bir template function overload sete girmiyor function overload sete giren o template'den oluşturulacak specialization. Fakat şimdi tam tersi
+ben bu specialization'ının overload setten çıkarılmasını istiyorum. 
+template <typename T>
+void func(T x);
+Yani SFINAE şunu demek istiyor; eğer bu fonksiyon şablonu söz konusu olduğunda overload sete dahil edilicek bir specialization oluştururken substitution aşamasında hata alırsa
+o overload setten çıkartılır yani substitution aşamasında bir hata olduğu zaman derleyici sentaks hatası vermez sadece o template overload setten çıkarılır.
+Bunun olması için:
+a) template'ın interface'inde template parametresine karşılık gelen tür argümanı default argüman ise ve onun kullanılması durumunda böyle bir türün olmamasından dolayı bir hata
+oluşursa işte bu bir substitution failure:
+template <typename T = type> 
+void func(T x);
+
+b) fonksiyonun geri dönüş değeri türü, parametre türü buralarda substitution'da bir hata olursa; örneğin en tipik örnek:
+template <typename T>
+typename T::value_type func(T x); eğer substitution aşamasında T'nin Myclass sınıfı olduğu anlaşılsa Myclass'ın value_type gibi bir türü olmasa o zaman ben bu fonksiyona 
+örneğin Myclass türünden bir argüman gönderirsem bu durumda derleyici T türünün çıkarımını Myclass olarak yaptı ama Myclass'ın value type'ı olmadığı için substitution'da
+error olur ve onu overload setten çıkarır. Öte yandan overload sette'de başka bir fonksiyon olmadığı için sentaks hatası oldu:
+template <typename T>
+typename T::value_type func(T x); 
+
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass m;
+    func(m); //syntax error
+}
+yani bunun geçerli olabilmesi için argüman olarak gönderilen değişkenin value_type'nın olması gerekiyor. Fakat bu örneğe non-template overload sete girecek başka 
+fonksiyon eklersek; sentaks hatası ortadan kalkar:
+#include <iostream>
+
+template <typename T>
+typename T::value_type func(T x)
+{
+    std::cout << "template\n";
+    return typename T::value_type {};
+}
+
+void func(...)
+{
+    std::cout << "non-template\n";
+}
+
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass m;
+    func(m);  //non-template
+}
+sentaks hatası ortadan kaltı çünkü template için substitution aşamasında hata olunca derleyici hard error vermek yerine o overload'u overload setten çıkardı; ve variadic fonksiyon
+kaldı. Böylece eğer T türünün value_type'ı(nested type'ı) varsa template olan func kullanılacak yoksa aşağıdaki fonksiyon kullanılıcak.
+#include <iostream>
+
+template <typename T>
+typename T::value_type func(T x)
+{
+    std::cout << "template\n";
+    return typename T::value_type {};
+}
+
+void func(...)
+{
+    std::cout << "non-template\n";
+}
+
+class Myclass {
+public:
+    using value_type = int;
+};
+
+int main()
+{
+    Myclass m;
+    func(m);  //template
+}
+böylece biz SFINAE'yin ne olduğunu anlatmış olduk. Yani SFINAE eğer overload sete girme aşamasında substitution yapılırken bir türün olmaması  ya da o tür ile ilgili bir hata 
+senaryosu olması durumunda derleyici sentaks hatası vermek yerine onu overload setten çıkartıyor.
+
+Şimdi bunu teknil olarak kullanmak gerekirse bir araca daha ihtiyacımız var; çok zekice tasarlanmış bir araç var. Bir meta fonksiyon var adı enable_if ve eneable_if'in 
+2 tane template parametresi var. 1. template parametresi non-type bool türden 2. template parametresi ise tür parametresi ve o da default tür argümanı almış. 
+#include <iostream>
+#include <type_traits>
+
+int main()
+{
+    std::eneable_if<true, double>
+    std::eneable_if<false, int>
+}
+fakat eneable_if'i şu şekilde tasarlamışlar: eneable_if'in true açılımı bir nested type'a sahip ve ismi type. Öte yandan eneable_if'in false açılımı söz konusu olduğunda
+onun type nested type'ı yok! Sadece true açılımının nested type'ı var. 
+#include <iostream>
+#include <type_traits>
+
+int main()
+{
+    std::eneable_if<true, double>::type
+    std::eneable_if<false, int>
+}
+
+biz sözde eneable_if yazalım:
+template <bool b, typename T = void>
+struct EnableIf {
+
+};
+
+//true argüman aldığında nested type'ı olsun diye bir partial specialization oluşturalım:
+template <typename T>
+struct EnableIf<true, T>
+{
+    using type = T;
+}
+bu durumda örneğin EnableIf'in true, double açılımının türü double olur, EnableIf'in true, char açılımının türü char olur, EnableIf'in true açılımının türü void olur
+çünkü 2. template parametresi default tür argümanı olarak void türü aldığı için. true bir sabit ve bizim type_traits'lerimizinde value sabiti olduğuna göre o zaman ben 
+şöyle bir kod yazsam örneğin:
+#include <iostream>
+#include <type_traits>
+
+template <bool b, typename T = void>
+struct EnableIf {
+
+};
+
+template <typename T>
+struct EnableIf<true, T>
+{
+    using type = T;
+}
+
+int main()
+{
+    EnableIf<is_pointer_v<int*>, double>::type
+}
+EnableIf<is_pointer_v<int*>, double>::type true olur; çünkü int* türü pointer türü olduğu için true olucak; EnableIf'in true, double açılımının type ise double olucak. 
+
+Fakat örneğin:
+#include <iostream>
+#include <type_traits>
+
+template <bool b, typename T = void>
+struct EnableIf {
+
+};
+
+template <typename T>
+struct EnableIf<true, T>
+{
+    using type = T;
+}
+
+int main()
+{
+    EnableIf<is_pointer_v<int>, double>::type //syntax error
+}
+EnableIf<is_pointer_v<int>, double>::type sentaks hatası olur; çünkü int türü pointer türü olmadığı için false olucak; EnableIf'in false, double açılımının type olmadığı için
+sentaks hatası meydana gelir.
+
+Şimdi işimizi 1 derece daha kolaylaştıralım:
+her defasında EnableIf'in falanca açılımının type'ı demek yerine bunun için de bir alias template oluşturabiliriz(variable template değil alias template çünkü EnableIf bir type):
+#include <iostream>
+#include <type_traits>
+
+template <bool b, typename T = void>
+struct EnableIf {
+
+};
+
+template <typename T>
+struct EnableIf<true, T>
+{
+    using type = T;
+}
+
+template <bool b, typename T>
+using EnableIf_t = typename EnableIf<bool, T>::type;
+
+int main()
+{
+    EnableIf_t<is_pointer_v<int*>, double> 
+}
+
+standart kütüphanede ise şöyledir:
+#include <iostream>
+#include <type_traits>
+
+int main()
+{
+    using namespace std;
+
+    std::enable_if<is_pointer_v<int*>>::type //yazmak yerine alias template'ı kullanıp şu şekilde diyebiliriz:
+    std::enable_if_t<is_pointer_v<int*>> //artık doğrudan bir tür oldu, void türü
+    std::enable_if_t<is_pointer_v<int*>, double> //artık doğrudan bir tür oldu, double türü
+}
+işte enable_if SFINAE yapmak için kullanılıyor. Yani ben bir template'ı kısıtlamak için  ya da compile time'da template'leri arasında seçim yaptırmak için fonksiyon 
+şablonlarında SFINAE'yi destekleyici araç olarak enable_if kullanabilirim. O halde kullanalım; 3 farklı şekilde enable_if'i kullanabilirim:
+1) func fonksiyonu öyle bir fonksiyon ki sadece pointer türleri ile çağrı yapmak geçerli olsun. Ve static_assert'ü kullanmayacağım, doğrudan interface'de olucak.
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+std::enable_if_t<std::is_pointer_v<T>> func(T x);
+//eğer T türü pointer türü ise burada hata olmayacak ve fonksiyonun geri dönüş değeri yukarıda açıkladığımız gibi void olacak:std::enable_if_t<std::is_pointer_v<T>> türü void
+
+int main()
+{
+    func(12); //syntax error
+}
+sentaks hatası çünkü func fonksiyonuna argüman olarak int verdim, T türü int oldu fakat std::enable_if_t<std::is_pointer_v<T>> bir pointer türü olmadığı için overload 
+setten çıkarıldı başka bir overload olmadığı için de sentaks hatası oldu!! Fakat eğer başka uygun bir overload olsaydı örneğin:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+std::enable_if_t<std::is_pointer_v<T>> func(T x);
+
+void func(double);
+
+int main()
+{
+    func(12); 
+}
+sentaks hatası yok, peki nasıl oldu da yukarıda verilen fonksiyon şablonu devreden çıktı? İşte buna ingilizcede it's SFINAE out deniliyor. SFINAE tarafından devre dışı/çıkarıldı.
+Çünkü buradaki substitution error bir sentaks hatası olarak değerlendirilmedi. Fakat ben buna gerçekten bir pointer ile çağrı yaparsam:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+std::enable_if_t<std::is_pointer_v<T>> func(T x);
+
+void func(double);
+
+int main()
+{
+    func((int*)(0)); 
+}
+sentaks hatası olmaz, gönderilen argüman pointer olduğu için template olan func seçilir. T = int* olur, T türü int* olduğundan is_pointer_v<T> true olacak; dolayısıyla 
+enable_if'in true, void açılımı kullanılmış olucak. Peki fonksiyonun geri dönüş değerini void yapmak istemeseydim T türünün kendisi yapmak istesem:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+std::enable_if_t<std::is_pointer_v<T>, T> func(T x);
+
+void func(double);
+
+int main()
+{
+    func((int*)(0)); 
+}
+
+Yani enable_if meta fonksiyonunu SFINAE amaçlı fonksiyonların geri dönüş değeri türünde kullanabilirim!!!!
+
+2)template parametresini default tür argümanı yapabilirim:
+#include <iostream>
+#include <type_traits>
+
+template <typename T, typename U = std::enable_if_t<std::is_pointer_v<T>>>
+void func(T x); 
+//2. template parametresi substitution'da eğer T türü pointer türü değilse hata olucak bu da overload setten çıkartılmasını sağlayacak yani SFINAE out olacak!
+
+int main()
+{
+    int x{};
+    func(&x); //legal
+    func(12); //syntax error
+}
+
+3)fonksiyonun parametre değişkeninin varsayılan argüman alması:
+#include <iostream>
+#include <type_traits>
+
+usin namespace std;
+
+template <typename T>
+void func(T x, enable_if_t<is_pointer_v<T>>* = nullptr);
+//fonksiyonun 2. parametresine varsayılan argüman verdik, ama 2. parametre bir pointer; enable_if_t<is_pointer_v<T>> bir tür ve bu örnekte bu ya sentaks hatası oluşturur(pointer 
+//olmayan bir tür) ya da void türü olur. Dolayısıyla eğer enable_if_t<is_pointer_v<T>> ifadesi true ise fonksiyonun 2. parametresi void* türünden default argüman olarak da 
+//null pointer almış olur. Fakat T türü pointer türü değilse substitution'da failure olucak dolayısıyla sentaks hatası oluşturucak!
+
+int main()
+{
+    int x{};
+    func(&x);
+    func(12); //syntax error
+}
+işte SFINAE tekniklerinin ayrılmaz bir bileşeni enable_if yardımcı meta fonksiyonudur. Tabii ki konu çok geniş biz sadece bunun SFINAE out olmasını inceledik; farklı tür
+kategorilerine göre fonksiyon seçimlerinin nasıl olacağını ayrı bir derste ele alacağız!!
+
+SFINAE bir zamanlar yıldızdı ama C++20 ile pabucu dama atıldı; çünkü şimdi hata mesajları çok daha kolay olacak şekilde ve hiç bu karmaşıklığa yol açamayacak şekilde bu 
+constraint'leri isimlendirme imkanımız var. İşte bunu yapan aracç setine de concepts'ler deniyor. C++20 standartı ile dile eklendi.
+
+Sonuç olarak template'ları kısıtlamak mümkündür. Bunlardan biri template'ın içinde static_assert'ü kullanmak ama eğer bunu bildirime taşımak istiyorsak SFINAE kullanmak!!!
+Örneğin öyle bir fonksiyon olsun ki sadece tam sayı türlerinden argüman kabul etsin:
+#include <iostream>
+#include <type_traits>
+
+int main()
+{
+    is_integral_v<int> //true
+    is_integral_v<double> //false
+}
+buradaki constraint'i SFINAE ile ifade etmek istersek:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+std::enble_if_t<std::is_integaral_v<T>> func(T x);
+int main()
+{
+    //func(1.2); //syntax error
+    func(12);
+    func(true);
+    func('A');
+}
+
+is_integral'ı biz yazalım:
+template <typename T>
+struct IsIntegral : std::false_type {
+
+};
+
+template <> struct IsIntegral<int> : std::true_type{};
+template <> struct IsIntegral<unsigned int> : std::true_type{};
+template <> struct IsIntegral<long> : std::true_type{};
+template <> struct IsIntegral<unsigned long> : std::true_type{};
+
+int main()
+{
+    IsIntegral<long>::value
+}
