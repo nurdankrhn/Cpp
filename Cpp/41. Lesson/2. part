@@ -1,0 +1,660 @@
+
+Önceki derste değer hesaplayan meta fonksiyonlardan bahsetmiş olduk; bir tane daha güzel örnek ise şu: bazen de bir template parametresine karşılık gelen 
+template argümanı olan tür'ün sadece belirli bir tür olup olmadığını test etmemiz gerekiyor. Örneğin:
+biz argüman olarak gönderieln türün int olup olmadığını test etmek istersek, bunun içinde şöyle bir meta fonksiyon olabilir:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+void func(T)
+{
+    static_assert(std::is_same<T, int>::value);
+}
+veya:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+void func(T)
+{
+    static_assert(std::is_same_v<T, int>);
+}
+
+int main()
+{
+    func(12);
+    //func(1.2); //syntax error
+}
+
+is_same acaba nasıl implemente edilebilir? Şu şekilde implemente edilebilir:
+template <typename T, typename U>
+struct IsSame : std::false_type {
+
+};
+
+template <typename T>
+struct  IsSame<T, T> : std::true_type {}; 
+
+template <typename T, typename U>
+constexpr bool IsSame_v = IsSame<T, U>::value;
+
+int main()
+{
+    IsSame_v<int, double> //false
+    IsSame_v<int, int> //true
+}
+
+is_same en çok kullanılan meta fonksiyonlardan biridir!!
+
+Şimdi 2. kategorideki meta fonksiyonlara örnek verelim: type transformation meta function
+template <typename T>
+??? func(T);
+fonksiyon template'ının geri dönüş değerini T referans türü olsun ya da olmasın referans olmayan tür yapmak istiyoruz; işte türden haraketle o tür ile ilgili o türü input olarak
+alıp output olarak o türden haraketle bize başka tür veren meta fonksiyonlara "type transformation" meta fonksiyonları deniliyor!! Standart kütüphanedeki trait kütüphanesinde 
+bulunan remove_reference'dır. Öncelikle standart kütüphanedeki karşılığını inceleyelim:
+#include <iostream>
+#include <type_traits>
+
+template <<typename T>
+typename std::remove_reference<T> func(T);
+//böylece fonksiyonun  template parametresi referans türü olsa dahi fonksiyonun geri dönüş değeri türü referans türü olmayacak!
+
+int main()
+{
+    int x = 5;
+    func<int &>(x);
+}
+gönderilen argümanın türü int& olmasına rağmen fonksiyonun geri dönüş değeri int'tir.
+
+Standart kütüphanede böyle bir sürü type transformation template'leri var. Örneğin biz bunlardan remove_reference'ı implemente etmek istersek:
+Bu sadece referans kaldırmak üzere olmayabilir; referansı ekleyebilirim, pointer ekleyebilirim, pointer olmasını silebilirim, vb. Burada konvensiyon
+şudur: bir meta fonksiyonda type alias kullanmak; nasıl value hesaplayanlarda sınıfın constexpr static value elemanı varsa type transformation template'lerde de
+bir tür eş isim bildirimi var. Şu şekilde yazıyoruz:
+template <typename T>
+struct RemoveReference {
+    using type = T;
+};
+
+int main()
+{
+    RemoveReference<int&>::type
+}
+bu durumda RemoveReference<int&>::type ifadesinin türü int& olur; ben bu type'ın referans türleri için referans türü olmasını istemiyorum. Bu sebeple partial specailazation
+yaparız:
+template <typename T>
+struct RemoveReference {
+    using type = T;
+};
+
+//sol taraf referansı için partial specailazation
+template <typename T>
+struct RemoveReference<T&>
+{
+    using type = T;
+}
+
+//sağ taraf referansı için partial specailazation
+template <typename T>
+struct RemoveReference<T&&>
+{
+    using type = T;
+}
+
+int main()
+{
+    RemoveReference<int&>::type //int
+    RemoveReference<int&&>::type //int
+    RemoveReference<int>::type //int
+}
+
+O halde en başta istenen fonksiyon geri dönüş değeri T referans türü olsa dahi referans türü olmasın:
+template <typename T>
+struct RemoveReference {
+    using type = T;
+};
+
+//sol taraf referansı için partial specailazation
+template <typename T>
+struct RemoveReference<T&>
+{
+    using type = T;
+}
+
+//sağ taraf referansı için partial specailazation
+template <typename T>
+struct RemoveReference<T&&>
+{
+    using type = T;
+}
+
+template <typename T>
+using RemoveReference_t = typename RemoveReference<T>::type;
+
+template <typename T>
+RemoveReference_t<T> func(T);
+
+böylece template meta programming tarafında alias template'ın çok fayda sağladığı bir örnek daha görmüş olduk. Sonuç olarak _t'yi gördüğünüzde onun alias template olduğunu
+_v'yi gördüğümüzde de onun variable template  olduğunu anlayabilirsiniz. 
+
+Örneğin yine bir value hesaplayan template:
+#include <iostream>
+#include <type_traits>
+
+int main()
+{
+    std::is_floating_point_v<double> //bir true sabiti
+    //şu şekilde yazmakta aynı şeydir:
+    std::is_floating_point<double>::value
+}
+
+=====================================================================================================================================================================================
+variadic template
+
+variadic template bir template kategorisi değildir!!! template'lere ilave edilen bir sentaks özelliği yani herhangi bir template'ı variadic template haline getirebilirsiniz. 
+Önce variadic template'ın genel mantığını anlayalım:
+Sınıf şablonları ya da fonksiyon şablonları söz konusu olduğunda biz 1 parametreli de 2 parametreli de veya daha fazla parametreli şablonlar tanımlayabiliyoruz. Öncelikle 
+fonksiyon şablonunu baz alalım:
+template <typename T>
+void func(T x);
+
+template <typename T, typename U>
+void func(T x, U y);
+böyle 2 tane, 3 tane, 5 tane template parametresi  olabilsin istiyorum. Modern C++'tan önce bu şekilde template'ları oluşturmanın kolay bir yolu yoktu. Fakat modern C++ ile
+birlikte variadic templates dediğimiz template sentaksı dile eklendi. Burada yine karşımıza yeni kavramlar çıkacak. Burası yine C++'ın yine karmaşık araçlarından biri hem de
+aynı zamanda yine fazla öğrenme yükü var o sebeple dikkatle ele alacağız.
+
+Şimdiye kadar biz bir template parametresini template <typename T> şeklinde type parameter olarak ya da template <int n> şeklinde non-type parameter olarak seçebiliyorduk. 
+Ama template parametresinin bir başka biçimi daha var buna da template parametre paketi deniliyor. Bunun özel bir sentaksı var:
+//template parameter pack
+template <typename ...Ts>
+bu şekilde oluşturulan template parametresine template parametre paketi deniyor. Bu bir sınıf şablonu ya da bir fonksiyon şablonu olabilir ya da bir variable template ya da
+alias  template olabilir. Bu şu demek Ts 0 dahil n tane template parametresini ifade eden bir isim. template parametre paketinde 0,1,2,3 tane template parametresi olabilir.
+Bu template'ı instantiate ettiğimizde yani bir specialization oluşturduğumuzda derleyici template parametre paketinde kaç tane parametre olduğunu kendisi saptayacak. Örneğin
+şöyle yazarsam:
+template <typename ...Ts> //Ts ismi farklı olabilir, sonuçta bu bir identifier!!!
+class Myclass {
+
+};
+
+int main()
+{
+    Myclass<int> m1;//template parametre paketinde 1 tane template parametresi olacak: int
+    Myclass<int, double, int> m2;//template parametre paketinde 3 tane template parametresi olacak: int, double, int
+}
+Dikkat: tek bir template var fakat bu template'ın parametre paketi variadic parametre paketi olduğu için bu template'i n tane(n compile time'da belirlenmek üzere) template
+parametresi olabilicek şekilde kullanabiliyorum demek. 
+
+Fonksiyon şablonlarında da kullanabiliyorum ama fonksiyon şablonlarında önemli bir sentaks özelliğine dikkat etmeliyiz!!! 
+//template parameter pack
+//pack expansion
+template <typename ...args>
+void func(Ts ..args)
+{
+    
+}
+buna ingilizcede elipsis atomunun template parametre paketi ile bu şekilde kullanılmasına ingilizce de "pack expansion" deniliyor. pack expansion ile bu örnekte aslında
+biz derleyiciye şu talimatı vermiş oluyoruz derleyici öyle bir fonksiyon yazacaksın ki template parametre paketinde kaç tane parametre varsa fonksiyonun da o kadar parametre 
+değişkeni olucak. Yani örneğin ben bu fonksiyona şöyle çağrı yaparsam:
+//template parameter pack
+//pack expansion
+template <typename ...args>
+void func(Ts ..args)
+{
+    
+}
+
+int main()
+{
+    func(12, 34L, 4.5);
+}
+fonksiyona 3 tane parametre değişkeni olucak, dolayısıyla template parametre paketinde 3 tane tür olacak. Yani böyle bri template'ın şundan bir farkı kalmayacak:
+template <typename T, typename U, typename W>
+void func(T t, U u, W w);
+ben böyle bir fonksiyon yazsaydım ve bu fonksiyonun 3 tane template parametresi ve 3 tane parametre değişkeni olurdu. İşte derleyici tıpkı bu şekilde bir fonksiyon 
+oluşturucak. 
+
+Bu parametre paketi tek başına olmak zorunda değil. Yani başka template parametreleri de olabilir. Örneğin şöyle olsaydı:
+//template parameter pack
+//pack expansion
+
+template <typename T, typename ...args>
+void func(Tx, Ts ..args)
+{
+    
+}
+
+int main()
+{
+    func(12, 34L, 4.5);
+}
+bu durumda template parametre paketinde 2 tane template paremetresi var. Çünkü 1. argüman 1. parametreye gitti bu durumda 2. ve 3. argüman parametre paketine gitti. 
+Böylece template parametre paketinde 2 tane tür  parametresi oldu. 
+
+Bu tür template'lerde kullanılabilicek bir de ilginç bir operator'ümüz var. Bu operator compile time'da değer üreten bir operator. Bu operator sizeof operator'ü. Fakat 
+dikkat bu sizeof operator'ü C'den gelen sizeof operator'ü değil. Bu sizeof operator'ü modern C++ ile dile eklenen sizeof operator'ü:
+template <typename ..Ts>
+void func(Ts ...args)
+{
+    sizeof...(Ts)
+}
+parantezin için template parametre paketini ismi ya da
+template <typename ..Ts>
+void func(Ts ...args)
+{
+    sizeof...(args)
+}
+fonksiyonun parametre paketinin ismini yazıyoruz ve bu ifade sizeof...(args) bir constant expression, size_t türünden değeri template parametre paketindeki ya da fonksiyon
+parametre paketindeki öğe sayısıdır.
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    constexpr std::size_t x = sizeof...(Ts);
+    constexpr std::size_t y = sizeof...(args);
+
+    std::cout << x << y << '\n';
+}
+
+int main()
+{
+    func(1, 2.3, 7L, "alican");
+}
+x'de y'de 4 değerine sahip olur. x ve y'nin 4 olduğunu göstermek için standart output'a yazdırdık ama yanlış anlamayınız x ve y compile time'da sabitleri. 
+template parametre paketinde ya da  fonksiyon parametre paketinde öğe sayısı 0'da olabilir bu durumda sizeof operator'üde sabit ifadesi olarak 0 değerini 
+elde edicek:
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    constexpr std::size_t x = sizeof...(Ts);
+    constexpr std::size_t y = sizeof...(args);
+
+    std::cout << x << y << '\n';
+}
+
+int main()
+{
+    func();
+}
+
+Bazı kurallar var; o kuralları sırayla ele alacağız:
+1)fonksiyon parametre paketi ya da template parametre paketi bir özel durumun dışında hep son parametre olmak zorunda. Ve birden fazla olamaz yani 1 tane parametre paketi
+olabilir. 
+template <typename T, typename ...Ts>
+void func(T x, Ts ...args)
+{
+    constexpr std::size_t x = sizeof...(Ts);
+    constexpr std::size_t y = sizeof...(args);
+
+    std::cout << x << y << '\n';
+}
+
+int main()
+{
+    func(1, 2, 3, 4);
+}
+x ve y değerleri 3 olur çünkü 1. argüman parametre paketine gitmedi, normal parametre paketi olmayan template parametresine yani fonksiyonun 1. parametresine gitti. 
+Yani parametre paketine giden 2, 3 ve 4. Dolayısıyla template parametre paketinde 3 tane tür parametresi var, fonksiyonun parametre paketinde de 3 tane fonksiyon 
+parametresi var. 
+Örneğin:
+template <typename ...Ts>
+soru: burada isim hep Ts mi olmak zorunda? Hayır, Ts'de bir identifier istediğimiz ismi verebiliriz(Args, Types vb.) fakat tahmin edildiği üzere konvensiyonel 
+isimler çok daha sık kullanılıyor. En çok kullanılan isimler Args, Ts ya da Types. 
+
+template argument deduction parametre paketindeki her bir parametre için ayrı ayrı yapılıyor:
+template <typename ...Ts>
+void func(Ts ...args);
+
+int main()
+{
+    func(1, 2.3, 4.5, "ali");
+}
+derleyicinin yazdığı fonksiyonun 4 tane parametresi olur ve bunların türleri: int, double, double, const char* şeklinde olur. Yani parametre paketindeki her bir parametre 
+için ayrı ayrı çıkarım yapılıyor. Burada ben explicit olarak template argümanlarını yazabilirim:
+template <typename ...Ts>
+void func(Ts ...args);
+
+int main()
+{
+    func<double, double, int>(1.2f, 4.5f, 'A');
+} 
+herhangi bir sentaks hatası olmaz; diğer template'lerden bu açıdan herhangi bir farkı yok. Şimdi template argümanlarını açıkça belirttiğim için template argümanları
+paketteki parametrelere karşılık  gelen sırasıyla double, double ve int türleri olacak. Yine normal template'lerde olduğu gibi burada da template parametrelerini
+a) sol taraf referansı yapmanız
+template <typename ...Ts>
+void func(Ts& ...args);
+b) const sol taraf referansı yapmanız
+template <typename ...Ts>
+void func(const Ts& ...args);
+c) universal reference yapmanız mümkün
+template <typename ...Ts>
+void func(Ts&& ...args);
+
+Örneğin:
+#include <iostream>
+#include <string>
+
+
+template <typename ...Ts>
+void func(Ts& ...args);
+
+int main()
+{
+    int x{};
+    double dval;
+    std::string name{ "atakan" };
+
+    func(x, dval, name);
+}
+bu durumda derleyicinin yazdığı fonksiyonun yine 3 tane parametresi olacak ama herbir parametre sırasıyla hepsi L value reference olucak. Yani biz derleyiciye birinci parametresi
+int& olan, 2. parametresi double& olan ve 3. parametresi ise std::string& olan bir fonksiyon yazdırmış olacağız. Eğer fonksiyonun parametre paketi Ts& değilde şöyle bildirilirse:
+#include <iostream>
+#include <string>
+
+
+template <typename ...Ts>
+void func(Ts&& ...args); //bu şekilde standart kütüphanede bu tarzda çok sayıda fonksiyon var. 
+
+int main()
+{
+
+}
+bu da şunun karşılığı olur; örneğin bu fonksiyona 3 tane argüman ile çağrı yapsam adeta 
+template <typename T, typename U, typename W>
+void func(T&& t, U&& u, W&& w);
+sanki böyle bir fonksiyon şablonu varmış gibi derleyiciye bir fonksiyon yazdıracaktım; bu durumda fonksiyonun 3. parametreside forwarding reference ya da Scott Meyers'ın 
+ifadesiyle universal reference olucaktı. Ve template parametreleribi perfect forwarding mekanizması ile argüman olarak gönderebilicektik. Bu sınıf şablonları içinde geçerli.
+Örneğin:
+standart kütüphane'den örnek verelim: örneğin en çok kullanılan ilerde de detaylı olarak imceleyeceğimiz tuple'a bakalım:
+tuple variadic bir sınıf şablonu, dolayısıyla istediğim kadar argüman verebiliyorum:
+#include <iostream>
+#include <tuple>
+
+int main()
+{
+    using namespace std;
+
+    tuple<int, int double, long, float> x;
+    tuple<int> y;
+    tuple<int,double> z;
+}
+bunu yazabilmemi sağlayan tuple'ın variadic bir template olması. tuple'ın şöyle olduğunu düşünebiliriz:
+template <typename ...Types>
+class Tuple {
+
+};
+
+int main()
+{
+    using namespace std;
+
+    Tuple<int> t1;
+    Tuple<int, int> t2;
+    Tuple<int, double, int> t3;
+}
+
+sor: bu template parametre paketi tür parametrelerinden mi oluşmak zorunda? Örneğin şöyle bir şey yazabilir miyim?
+template <int ...n>
+class Neco {
+
+};
+//yani parametre paketi non-type parametrelerden de olaşabilir mi? Kesinlikle!! Bu durumda:
+
+int main()
+{
+    Neco<1, 3, 5> n1;
+    Neco<3, 5, 7> n2;
+    Neco<1> n3;
+}
+şeklinde açılımları olabilir. Burada yine parametre paketi var ama parametre paketi non-type parametrelerden oluşuyor. Demekki parametre paketi type parametrelerden ya da
+non-type parametrelerden oluşabilir demekmiş bu.
+
+Örneğin şöyle bir template yazsam:
+template <typename ...Ts>
+void func(Ts ...args)
+{
+
+}
+biz bu foksiyon içinde foksiyon parametrelerini nasıl kullanacağız? Çünkü burada bu fonksiyonun 3 tane parametresi de olabilir, 5 tane parametresi de olabilir, 12 tane 
+parametresi de olabilir. Parametre değişkenlerini kullanmaya yönelik araçlar var; bu araçları sırası ile öğreneceğiz. Fonksiyonun parametre paketi ya da template'ın 
+parametre paketi ile ilgili ilginç bazı patern'ler var. O pattern'lere yine pack expansion deniliyor! Bakın en basit pack expansion şöyle:
+fonksiyonun parametre paketini yazıp yanına ... atomunu koyarsanız bu durumda belirli contekslerde derleyici bu ifadeyi fonksiyonun parametre değişkenlerinin virgüllerle
+ayrıldığı bir listeye dönüştürüyor. 
+//pack expansion
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    args...
+}
+yani bu benim yazdığım template olsaydı, parametre paketi olmasaydı bu durumda fonksiyonların parametre değişkenlerinin ismi p1, p2, p3 olsaydı ben yukarıdaki gibi yazdığımda
+belirli kontekste bunlar şuna dönüştürülücek:p1, p2, p3
+Demekki en basit pack expansion belirli bir kontekste fonksiyon parametre paketini elipsis atomunun izlemesi ile oluşturuluyor; bu durumda derleyici yazdığı fonksiyonun 
+parametrelerini virgüller ile ayrılmış bir listeye dönüştürüyor
+
+
+Örnek:
+void foo(int a, double b, long c)
+{
+    std::cout << "a = " << a << '\n';
+    std::cout << "b = " << b << '\n';
+    std::cout << "c = " << c << '\n';
+}
+
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    foo(args...);
+}
+//bu durumda ben foo fonksiyonuna derleyicinin yazdığı fonksiyonun parametre değişkenlerini argüman olarak gönderiyorum. 
+
+int main()
+{
+    func(12, 34.56, 98L);
+}
+pack expansion bu şekilde kullanılıcak bir araç değil; sadece pack expansion'ının ne olduğunu göstermeye çalışıyoruz. Yani bunun şundan bir farkı yok:
+template <typename T, typename U, typename W>
+void func(T t, U u, W w)
+{
+    foo(t, u, w);
+}
+
+int main()
+{
+    func(12, 34.56, 98L);
+}
+
+En basit pack expansion senaryosu bu ama çok daha karmaşıkları var:
+void foo(int a, double b, long c)
+{
+    std::cout << "a = " << a << '\n';
+    std::cout << "b = " << b << '\n';
+    std::cout << "c = " << c << '\n';
+}
+
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    {args...} //bu seferde parametre değişkenlerini küme parantezi içindeki virgüllerle ayırmış olurum
+}
+küme parantezi içindeki listeyi farklı farklı şekillerde kullanabiliriz; örneğin şöyle bir dizi oluşturabilirsiniz:
+void foo(int a, double b, long c)
+{
+    std::cout << "a = " << a << '\n';
+    std::cout << "b = " << b << '\n';
+    std::cout << "c = " << c << '\n';
+}
+
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    int a[] = { args... };
+
+    for (auto val : a)
+        std::cout << val;
+}
+
+int main()
+{
+    func(1, 4, 6, 9);
+}
+bu fonksiyon derleyicinin yazdığı kodda a bir yerel dizi olucak, 3 elemanlı bir dizi olucak bu dizinin elemanlarına derleyicinin yazdığı fonksiyonun parametre değişkenleri
+ile ilk değer verilecek; parametre değişkenlerinin değeri de 1, 4, 6, 9 olduğu için bu yerel dizinin elemanları 1, 4, 6, 9 değerleri ile hayata başlayacak. 
+
+Fakat başka pattern'lerde var:
+void foo(int a, double b, long c)
+{
+    std::cout << "a = " << a << '\n';
+    std::cout << "b = " << b << '\n';
+    std::cout << "c = " << c << '\n';
+}
+
+template <typename ...Ts>
+void func(Ts& ...args)
+{
+    foo(++args...);
+}
+bu durumda derleyicinin oluşturduğu kodda ++ her bir parametre değişkenini operand olarak alıcak. Fakat daha da güzeli şu:
+sadece fonksiyon parametre paketini değil template parametre paketinide expand edebiliyoruz:
+tuple'ın kendisi bir variadic sınıf şablonu olduğuna göre
+#include <iostream>
+#include <tuple>
+
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    std::tuple<Ts...> x;
+    std::cout << typeid(x).name() << '\n';
+}
+
+int main()
+{
+    func(1, 4, 6, 9);
+}
+func fonksiyonunu bu şekilde çağırdığımda tuple'ın int, int, int, int specialization'ını kullanmış olacaktım yani x tuple<int, int, int, int> türden olacaktı.
+
+veya:
+#include <iostream>
+#include <tuple>
+
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    std::tuple<Ts...> x;
+    std::cout << typeid(x).name() << '\n';
+}
+
+int main()
+{
+    func(1, 4.5, 6L, 9.f, "alican");
+}
+func fonksiyonunu bu şekilde çağırdığımda tuple'ın int, double, long, float, const char* specialization'ını kullanmış olacaktım yani x tuple<int, double, long, float, const char*>
+türden olacaktı. 
+İlginç bir yapıya bakalım; kodu şöyle oluştursaydım:
+bu seferde fonksiyon parametre paketini açtım:
+#include <iostream>
+#include <tuple>
+
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    std::tuple<Ts...> x(args...);
+    std::cout << typeid(x).name() << '\n';
+}
+//bu seferde tuple'nin ctor'ına func fonksiyonunun parametrelerini virgüllerle ayrılmış liste ile argüman olarak göndermiş olacağız.
+//yani buradaki tuple şöyle bir tuple olucak: diyelim ki fonksiyonun parametreleri gerçekten parametre paketi olmasaydı aşağıda olduğu gibi 5 tane template parametresi olsaydı
+//fonksiyonunda 5 tane parametre değişkeni olacaktı. Bu 5 tane parametre değişkeninin ismininde sırasıyla p1, p2, p3, p4, p5 olduğunu düşünelim. Dolayısıyla 
+//std::tuple<Ts...> x(args...); kodu şuna karşılık geliyor: std::tuple<int, double, long, float, const char*> x(p1, p2, p3, p4, p5);
+int main()
+{
+    func(1, 4.5, 6L, 9.f, "alican");
+}
+
+burada mülakatlarda çok sık sorulan bir soru var:
+#include <iostream>
+#include <tuple>
+
+template <typename ...Ts>
+void bar(Ts ...)
+{
+    std::tuple<Ts ...> x;
+    std::cout << typeid(x).name() << '\n';
+}
+
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    bar(&args...);
+}
+
+int main()
+{
+    func(1, 4.5, 6L, 9.f);
+}
+soru: tuple'ın türü nedir? Yani tuple'ın template argümanları ne olacak bu durumda? argümanlar her parametrenin adresi yani: std::tuple<int*, double*, long*, float*>
+Çünkü burada pattern şu şekilde ...'nın önündeki ifade(&args) her bir parametreye uygulanıyor.  Yani aslında ben bar'ı şu şekilde çağırmış oluyorum: bar(&p1, &p2, &p3, &p4);
+
+Dikkat: cppreference.com'da pack expansion konusu çok iyi anlatılmış orayı en az 1 defa okumanızda fayda var!!!
+
+Başka pack expansion kategorilerini inceleyelim:
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    //foo(args...)
+    //bar(args)...
+}
+
+int main()
+{
+    func(1, 4.5, 6L, 9.f);
+}
+
+soru: pack expansion olarak foo(args...)'ı kullanmak ile pack expansion olarak bar(args)...'ı kullanmak arasında ne fark olur?
+foo(args...)'ında func'ın parametre değişkenleri argüman olarak gönderiliyor yani örneğin func'ın 4 tane parametre değişkeni varsa foo'ya argüman olarak 4 tane argüman gönderiyorum.
+Fakat bar(args)... ifadesinde virgüllerle ayrılan listeye dönüştürülecek olan şunlar: bar(p1), bar(p2), bar(p3)... şeklindedir
+
+Yine çok sık kullanılan bir pack expansion var:
+template <typename ...Ts>
+void func(Ts ...args)
+{
+    foo<Ts>(args)...
+}
+
+int main()
+{
+    func(1, 4.5, 6L, 9.f);
+}
+Bu şöyle bir expansion işlemine tabi tutulacak: burada ilginç bir özellik var; açısal parantez içinde verilen Ts template parametre paketi ama parantezin içinde args fonksiyon
+parametre paketi. Bunu aslında şuna dönüştürecek: bu örnekte template parametre paketindeki türler: int, double, long, float. İşte bunu şuna dönüştürecek:
+foo<int>(p1), foo<double>(p2), foo<long>(p3), foo<float>(p4) Şimdi buna örnekler verelim; çünkü variadic parametre paketinin en fazla kullanıldığı yer perfect forwarding mekanizması.
+perfect forwarding'e en güzel örneklerden biri:
+smart pointer sınıfları ile ilgili, standart kütüphanenin make_unique fonksiyonu; make_unique fonksiyonunun nasıl çalıştığını çok iyi anlamanız gerekiyor!!!!! Çünkü hem 
+mülakatların çok tipik sorusu hem de pack expansion'ının en güzel örneklerinden biri. Öncekilke make_unique ne yapıyor biraz ondan bahsedelim:
+#include <iostream>
+#include <memory>
+
+int main()
+{
+    using namespace std;
+
+    //make_unique<Nec>(x, y, z);
+}
+make_unique bir fonksiyon şablonu; fonksiyon şablonunun 1. parametresi için çıkarım yapılamayacağından onu doğrudan explicit template argümanı veriyoruz; örneğin Nec sınıfı olsun.
+Fonksiyona gönderdiğim argümanlar ise x, y, z olsun. Fonksiyon yine bir sınıf şablonu olan unique_ptr'nin Nec açılımı türünden bir nesne döndürüyor; o işte bir smart pointer nesnesi.
+Fakat sizin make_unique'e gönderdiğiniz argümanları Nec sınıfının ctor'ına perfectly forward ediyor; dinamik ömürlü bir nesne oluşturuyor ve ctor'ada argümanları forward ediyor.
+
+make_unique'i kendimiz implemente edelim:
+template <typename T, typename ...Ts>
+std::unique_ptr<T> MakeUnique(Ts && ...args); //forwarding reference parametre yapısı; yani bu fonksiyonun forwarding reference olan 1, 2, ....n tane parametresi olabilir
+{
+    return std::unique_ptr<T>(new T(std::forward<Ts>(args)...));
+}
+new T ifadesi ile T hangi türden ise o türden bir dinamik ömürlü bir nesne oluşturacağım; fakat T sınıf türünden ise onun ctor'ına argümanları göndermem gerekiyor. Ona argümanları
+göndermek için parametre paketindeki parametrelerden faydalanacağım. Fakat bunların const'luğunu, value category'sini değiştirmeden T sınıfınıın forward etmem gerekir!! 
+perfect forwarding'i normalde 1 tane parametresi olsaydı şu şekilde yapıyordum: 12 gönderilen argüman olmak üzere; new T(std::forward<T>(12)) şeklinde göndericektim. Fakat
+şimdi parametre paketinde n tane parametre var; her birini forward etmem gerekiyor; işe burada pack expansion devreye giriyor:new T(std::forward<Ts>(args)...) aslında 
+böylece MakeUnique fonksiyonunun  her bir parametresini forward'a argüman olarak gönderip forward'ın geri dönüş değerini T sınıfının ctor'ına argüman olarak gönderdim bu da 
+perfect forward etmek demek. Yani fonksiyonun bütün parametrelerini ben T sınıfının ctor'ına perfect forward etmiş oldum. new T(std::forward<Ts>(args)...) ifadesinde açısal 
+parantez içinde template parametre paketinin isminin fakat fonksiyon çağrı operatörünün içindeyse de fonksiyon parametre paketinin olduğunu görüyorsunuz! Fakat dahası;
+new T(std::forward<Ts>(args)...) ifadesi ile aslında T türünün ne olduğu compile time'da belli olduğu için o T türünden dinamik türlü bir nesne oluşturuyorum. Ama o ifadeyi de
+new operator'üde bir pointer ürettiği için o pointer'ıda std::unique_ptr<T>(new T(std::forward<Ts>(args)...)) bir nesne oluşturma ifadesine dönüştürüyorum yani new ifadesinin 
+oluşturduğu adresi unique_ptr'nin ctor'ına argüman olarak gönderiyorum ve elde edilen ifade de benim geri dönüş değerim oluyor.
+
+cppreference.com'da bulunan pack expansion bölümünü okuyunuz!!!
