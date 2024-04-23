@@ -1,0 +1,529 @@
+26 Nisan 2023 - Çarşamba
+
+template <typename ...Ts>
+void func(Ts ...args);
+variadic parametre paketine sahip fonksiyon şablonları adeta C'deki (C++'ta da geçerli) variadic fonksiyonlara çok daha iyi ingilizcesi ile çok daha type-safe tür güvenli 
+bir alternatif. Tek kullanım alanı bu değil, fakat şu da bir gerçek modern C++'ın ortaya çıkması ile birlikte generic programlama tarafında en önemli en sık kullanılan 
+araçlardan biri haline geldi variadic template'ler. Her yerde karşımızda örneğin STL'e geldiğimizde göreceğiz container sınıfların emplace ismine sahip yada isminde 
+emplace geçen fonksiyonları bunlar variadic fonksiyon şablonları. Ya da std::tuple ise variadic sınıf şablonudur. Ve daha birçok örneği var. Örneğin bir meta fonksiyon 
+olan integer_sequence yine bir variadic  meta fonksiyon/sınıf şablonu. Ve bazı yine template meta programming'e yönelik tekniklerde variadic parametreye sahip meta 
+fonksiyonlar kullanılıyor örneğin void_t bir tür eş ismi SFINAE yapmakta kullanılıyor. 
+
+C++'ta C tarzı variadic fonksiyonların kullanılması tercih edilmiyor. Yani eğer böyle özel bir sebap yoksa kullanmayı tercih etmiyoruz çünkü variadic fonksiyonlar bazı 
+sakıncalara sahip. Örneğin variadic fonksiyonların C'deki dezavantajlarına bakacak olursak:
+1) fonksiyona kaç tane argüman gönderdiğinizi de söylemek zorundasınız; yanş diyelim ki func bir variadic fonksiyon olsun; örneğin func'ı şu şekilde çağıramazsanız:
+func(1, 2, 3, 4) bunlar func fonksiyonuna gönderilen argümanlar olamaz çünkü doğrudan böyle bir mekanizma kullanırsanız arka plandaki yapının(makrolar kullanılıyor)
+(işte C++'ta tercih etmememizin bir nedenide bunun önişlemci makroları ile ilgisinin de bulunması) yapısı ile uyumlu olmaz. Bir şekilde fonksiyona kaç tane argüman 
+gönderdiğinizi de fonksiyona belirtmeniz gerekiyor. Örneğin kaç tane argüman olursa olsun bunların toplamasını yapan bir fonksiyon: sum(1, 2, 4, 7) C'de olan bir
+variadic fonksiyon ise bunu asla böyle yazamazsınız; ya şöyle bir yapı olucak 1. parametre fonksiyona gönderilen argüman sayısını belirtecek ama aslında bu parametre
+fonksiyona gönderilen bir parametre değil sadece fonksiyonun kaç tane argümanla çağırdığımı bilmesi için gönderdiğim bir argüman: sum(4, 1, 2, 4, 7) 
+bu 1. yöntem bazı variadic C fonksiyonları bu şekildedir. 2. yöntem olarak; fonksiyonun 1. parametresine bir string göndericeksiniz o string'den haraketle/o string'i
+parse ederek kaç tane argüman gönderildiğini anlayacak; örneğin printf öyle yani bu tarz bir variadic fonksiyon:
+int printf(const char*, ...);
+printf("%d %d %d", x, y, z);
+zaten C'de ki kural ile C++'taki kuralda farklı C'de variadic parametreden önce en az 1 tane parametre olmalı! Bu durumda 1. argüman string literalini pointer parametre olan
+1. parametreye geçiyorsunuz. Fonksiyon variadic parametre karşılığı kaç tane argüman gönderildiğini 1. parametreye gönderdiğimiz string'i parse ederek anlıyor; string'de
+kaç tane conversion specifier varsa oradan anlıyor. 2. yöntem ise bu.
+
+3. yöntem ise şu olabilir; foo variadic bir fonksiyon olmak üzere: foo(1, 2, 3, 5, -1); yani bir argümanın belki pointer ise pointer parametre için nullpointer gibi bir değer
+ya da özel başka bir değer olabilir. Ama o gerçek anlamda bir argüman değil (örnekte -1) artık başka bir argüman fonksiyona gönderilmediğini bunun son argüman olduğunu söylüyor.
+Yani gerçekte örneğin -1 fonksiyona gönderilen argüman değil. Veya örneğin: bar(&x, &y, &z, NULL); gibi belki bu bir variadic fonksiyon, fonksiyonun son parametresine gönderilen 
+değer null pointer ama özel bir değer olarak kullanılıyor gerçek anlamda argüman değil. 
+Yani ilk sakıncası bu: kaç tane argüman gönderilceğini biz kendimiz söylüyoruz. 
+
+2) type-safety değil!!
+stdarg.h başlık dosyası içindeki makrolar kullanılıyor ondan onu include ettik. sum içinde bulunan va_list bir pointer türünün eş ismi; buna ilk değer vermek için variadic 
+parametreden bir önceki parametreyi kullanıyorsunuz. for döngüsünün her turunda bir tane makroyu kullanıyorsunuz: va_arg, va_arg'ın 1 tane parametresi sizin va_list türünden
+değişkeniniz diğeri ise tür bilgisi; işte krtitik kısım bu. Yani bir şekilde fonksiyon gönderilen argümanların türünün ne olduğunu baştan kabul ediyor ona göre arka plandaki
+pointer işlemleri yapılıyor. 
+#include <stdarg.h>
+#include <stdio.h>
+
+int sum(int n, ...)
+{
+    va_list args;
+    va_start(args, n);
+    int sum = 0;
+
+    for(int i = 0; i < n; ++i) {
+        sum += va_args(args, int);
+    }
+
+    va_ends(args);
+
+    return sum;
+}
+
+int main()
+{
+    printf("%d\n", sum(4, 1, 5, 7, 9));
+}
+1. kusur örneğin değilde 6 argüman göndermek istediğimde gönderilen agüman sayısı bilgisini veren 1. parametrenin değerini değiştirmeyi unutursam:
+#include <stdarg.h>
+#include <stdio.h>
+
+int sum(int n, ...)
+{
+    va_list args;
+    va_start(args, n);
+    int sum = 0;
+
+    for(int i = 0; i < n; ++i) {
+        sum += va_args(args, int);
+    }
+
+    va_ends(args);
+
+    return sum;
+}
+
+int main()
+{
+    printf("%d\n", sum(4, 1, 5, 7, 9, 56, 90));
+}
+bir diğer kusur ise ben fonksiyona yanlışlıkla int olmayan bir değer geçersem; buradaki makro tamamen pointer'ları kullanarak int türden bir değer elde etmeye yönelik:
+#include <stdarg.h>
+#include <stdio.h>
+
+int sum(int n, ...)
+{
+    va_list args;
+    va_start(args, n);
+    int sum = 0;
+
+    for(int i = 0; i < n; ++i) {
+        sum += va_args(args, int);
+    }
+
+    va_ends(args);
+
+    return sum;
+}
+
+int main()
+{
+    printf("%d\n", sum(4, 1, 5, 7.8, 9, 56, 90));
+}
+dolayısıyla bu compile time'da tespit edilecek bir hata da değil run time'da tanımsız davranış söz konusu!! Bu 2 dezavantaj zaten yeterli!!! C++'taki variadic template'ler bunla
+karşılaştırıldığında bu 2 önemli dezavantajı taşımayabiliyor; yani type-safe bir yapı oluşturabiliyorsunuz işte örnekte double göndermenin run time'da bir hata olması gibi.
+Bir diğeri ise fonksiyona kaç tane argüman göndereceğimizi belli etme zorunluluğumuz ortadan kalıkıyor. Ama burada tabii ki kullanılan çok sayıda teknik var. 
+
+Birkaç tane pack expansion kalıbı inceleyeceğiz:
+template parametre paketinin ya da fonksiyon parametre paketinin expan edilmesi aslında bazı kalıplara uygun olarak yapılıyor. Dilin standartları o kalıpları belirliyor.
+Yani kafamıza göre expand edemiyoruz. Her expansion'un bir yapısı var; 
+#include <iostream>
+
+template <typename ...Ts>
+class Var {
+    //...
+};
+
+template <typename ...Types>
+class Myclass : public Var<Types..> {
+public:
+    constexpr static size_t size = sizeof...(Types);
+};
+
+int main()
+{
+    constexpr auto n = Myclass<int, double>::size; //compile time sabiti ve değeri 2 
+}
+Myclass<int, double> açılımı aslında kalıtımla ile elde edilen bir sınıf; ve bu arada Myclass template'ının içinde verilen sizeof operator'üde bir pack expansion'dır. 
+Ve template parametre paketini sizeof operatör'ünün operandı yaptığımda compile time sabiti elde ediyorum. template parametre paketine gönderilen türleri görmek için
+Var sınıf şablonunun ctor'ını yazabiliriz:
+1. örnek:
+#include <iostream>
+
+template <typename ...Ts>
+class Var {
+public:
+    Var()
+    {
+        std::cout << typeid(*this).name() << '\n';
+    }
+};
+
+template <typename ...Types>
+class Myclass : public Var<Types..> {
+public:
+    constexpr static size_t size = sizeof...(Types);
+};
+
+int main()
+{
+    Myclass<int, double, long, char> x;
+}
+x Var'ın <int, double, long, char> açılımından elde edilicektir. 
+
+2. örnek:
+#include <iostream>
+
+template <typename ...Ts>
+class Var {
+public:
+    Var()
+    {
+        std::cout << typeid(Var).name() << '\n';
+    }
+};
+//1. örnekte *this'i typeid'ye parametre olarak geçtik fakat bunda Var'ı yani sınıfı kullandık ve sınıfın ismini kullandığınızda ilgili specialization'ı kullanmış oluyorsunuz.
+
+template <typename ...Types>
+class Myclass : public Var<Types*..> { };
+//burada da Types değil Types* pattern olarak kullanılmış!
+
+int main()
+{
+    Myclass<int, double, long, char> x;
+}
+Myclass<int, double, long, char> açılımı aslında derleyicinin ürettiği kodda virgüllerle ayrılmış liste ile Var<int*, double*, long*, char*> açılımından kalıtım yoluyla elde edicek.
+
+eğer şöyle olsaydı:
+#include <iostream>
+
+template <typename ...Ts>
+class Var {
+public:
+    Var()
+    {
+        std::cout << typeid(Var).name() << '\n';
+    }
+};
+
+template <typename ...Types>
+class Myclass : public Var<Type*..> { };
+
+int main()
+{
+    Myclass<int, double, long, char> x;
+}
+Myclass<int, double, long, char> açılımı aslında derleyicinin ürettiği kodda virgüllerle ayrılmış liste ile Var<int, double, long, char> açılımından kalıtım yoluyla elde edicek.
+
+eğer şöyle olsaydı:
+#include <iostream>
+
+template <typename ...Ts>
+class Var {
+public:
+    Var()
+    {
+        std::cout << typeid(Var).name() << '\n';
+    }
+};
+
+template <typename ...Types>
+class Myclass : public Var<Type**..> { };
+
+int main()
+{
+    Myclass<int, double, long, char> x;
+}
+Myclass<int, double, long, char> açılımı aslında derleyicinin ürettiği kodda virgüllerle ayrılmış liste ile Var<int**, double**, long**, char**> açılımından kalıtım yoluyla elde 
+edicek.
+
+3. örnek:
+#include <iostream>
+
+struct X {
+    X(int i)
+    {
+        std::cout << "X(int i) i = " << i << '\n';
+    }
+};
+
+struct Y {
+    Y(int i)
+    {
+        std::cout << "Y(int i) i = " << i << '\n';
+    }
+};
+
+struct Z {
+    X(int i)
+    {
+        std::cout << "Z(int i) i = " << i << '\n';
+    }
+};
+
+template <typename ...Types>
+class A : public Types ... { //pack expansion dolayısıyla yine A'nın X, Y, Z açılımı bu seferde multiple inheritance, burada her defasında virgüller ile ayrılan liste ile
+public:                      //pattern'i tekrar edicek
+    A() : Types{ 0 }... { //burası ise sınıfın ctor'ı türemiş sınıf olduğuna göre türemiş sınıfın ctor'ı eğer derleyiciye bırakmazsak taban sınıflarının her birinin ctor'ını
+                          //çağırması gerekiyor. İşte buradaki elipsis ve öncesi bir pattern oluşturduğu için, derleyici bunu buradaki türler X, Y, Z olduğuna göre X{ 0 }, 
+                          //Y{ 0 }, Z{ 0 }' a dönüştürecek. Yani böylece aslında A<X, Y, Z> açılımı kalıtım yoluyla X, Y, Z sınıflarından elde edilecek ve elde ettiğim türemiş
+    }                     //sınıfın default ctor'ı taban sınıfın int parametreli ctor'larını 0 argümanı ile çağırmış olacak. 
+};
+
+int main()
+{
+    A<X, Y, Z> ax;  
+}
+eğer gereçkten burada taban sınıfın ctor'ları çağırılıyorsa ctor içindeki yazıların kod çalışırken çıkması gerekir. Kodu derlediğimizde bu yazıların çıktığını görüyoruz. 
+Hatta ve hatta ekrandaki yazıların çıkış sırasının X, Y, Z olduğunu görüyoruz. X, Y, Z çünkü multiple inheritance'da kalıtımdaki sıra taban sınıf nesnelerinin hayata gelme
+sırasını belirliyordu. 
+
+4. örnek:
+#include <tuple> 
+#include <iostream>
+
+template <typename T>
+void print_type(const T&)
+{
+    std::cout << typeid(T).name() << '\n';
+}
+
+template <class A, class B, class... TS>
+void func(A arg1, B arg1, TS ...pack) 
+{
+    std::tuple<A, B, TS...> t1;     //std::tuple<A, B, E1, E2, E3>
+
+    print_type(t1);
+    std::tuple<TS..., A, B> t2;     //std::tuple<E1, E2, E3, A, B>
+    print_type(t2);
+    std::tuple<A, TS..., B> t3;     //std::tuple<A, E1, E2, E3, B>
+    print_type(t3);
+}
+//bu dilin kurallarını anlatmak için çok güzel bir örnek: fonksiyon şablonunda sadece variadic parametre paketi yok, normal tür parametresi de var: class ya da typename anahtar
+//sözcüğü kullanılıyordu. Görüldüğü gibi bir template'de sadece variadic parametre paketi olmak zorunda değil. Tür parametresi ve variadic parametre paketi bir arada bulunabilir.
+//fonksiyon parametrelerine baktığımızda 1. parametre 1. template tür parametresi türünden, 2. parametre 3. template tür parametresi türünden fakat 3. parametre bir fonksiyon 
+//paremetre paketi ve variadic parametre türünden. Burada amaç şunu göstermek; tuple'ın A, B, Ts... pack expansion açılımında derleyici şöyle bir kod üretecek; variadic parametreye
+//gelen türler nelerse derleyici onları kullanacak.
+int main()
+{
+    func(1, 1.2f, 3.4, 4L, 'A');
+}
+dikkat kodu çalıştırırken fonksiyon şablonu içinde bir tane tuple kalacak şekilde diğer tuple'ları yorum satırına alarak çalıştırınız!
+
+
+Örnek 5:
+#include <iostream>
+
+template <size_t ...n>
+struct A {
+    A()
+    {
+        std::cout << typeid(A).name() << '\n';
+    }
+};
+
+template <size_t ...n>
+void func()
+{
+    A<n...> ax;
+}
+
+int main()
+{
+    func<1, 3, 7, 8>();
+}
+Görüldüğü gibi parametre paketi non-type parametre paketide olabilir. A isimli sınıf şablonu; template parametre paketi fakat parametre paketinde non-type parametreler var. 
+Dolayısıyla ben bu template'ı kullanırken template argümanı olarak size_t türünden argümanlar göndermem gerekiyor. 
+
+Gerekn gcc'de gerek clang gerek Microsoft derleyicisinde çok faydalı bir predefined macro var:
+bu standart değil!! gcc'de bu makro:  __PRETTY_FUNCTION__, microsoft derleyicisinde ise adı şu: __FUNCSIG__
+Biz bu makroyu kullandığımız zaman fonksiyonun geri dönüş değeri, ismi ve parametrelerinin türü olan bir yazıyı kullanmış oluyorsunuz. Örneğin:
+#include <iostream>
+
+int foo(int, int, double)
+{
+    std::cout << "__FUNCSIG__" << '\n';
+    return 4;
+}
+
+int main()
+{
+    foo(1, 3, 3.4);
+}
+
+Özellikle variadic fonskiyonlar ile variadic fonksiyon şablonlarında bazı konuları anlamakta zorluk çekiyorsanız; derleyicinin nasıl bir fonksiyon yazdığını görmek istiyorsanız
+bir hata mesajı olmadan run time'da böyle bir yapıda kullanabiliriz:
+#include <iostream>
+
+template <typename T>
+void func(T&)
+{
+    std::cout << __FUNCSIG__ << '\n';
+}
+
+int main()
+{
+        int a[10]{};
+        func(a);
+}
+T = int[10], func(int (&)[10]) eğer şöyle olsaydı:
+#include <iostream>
+
+template <typename T>
+void func(T)
+{
+    std::cout << __FUNCSIG__ << '\n';
+}
+
+int main()
+{
+        int a[10]{};
+        func(a);
+}
+T = int*, func(int *)
+
+örnek 6:
+#include <iostream>
+
+template <typename ...TS>
+void func(TS ...)
+{
+    std::cout << __FUNCSIG__ << '\n';
+}
+
+int main()
+{
+    func(1, 3.4, 8.F, "alican");
+}
+T = int, double, float, const char* func ise func(int, double, float, const char*); şeklindedir. Örneğin şöyle olsaydı:
+#include <iostream>
+
+template <typename ...TS>
+void func(int, TS ...)
+{
+    std::cout << __FUNCSIG__ << '\n';
+}
+
+int main()
+{
+    func(1, 3.4, 8.F, "alican");
+}
+T = double, float, const char* func ise func(int, double, float, const char*); şeklindedir, yani sadece fonksiyonun kimliği söz konusu olduğunda artık int template argümanı değil!
+
+Örnek 7:
+#include <iostream>
+
+template <typename... Types, int... N>
+void func(Types(&...args)[N])
+{
+    //MSVS
+    std::cout << __FUNCSIG__ << '\n';
+}
+
+int main()
+{
+    int a[2]{};
+    char b[3]{};
+    long c[5]{};
+    double d[7]{};
+
+    func(a, b, c, d);
+}
+bu örnek çok değişik bir pack expansion. Öncelikle 2 tane  template parametresi var. 1.'si template tür parametre paketi, 2. ise template non-type parametre paketi.
+Ve fonsksiyonun parametrik yapısı şu anlama geliyor: fonksiyonun parametre paketinde kaç tane parametre varsa bu fonksiyonu o kadar tane diziye refarans olan parametresi
+olacak. Bu örnekte fonksiyonun 4 tane parametresi var; fonksiyonun parametrelerinin hepsi diziye referans. Derleyici specialization'ı yazmasaydı biz kendimiz yazsaydık bu 
+örnek için şöyle bir fonksiyon yazmamız gerekirdi:
+void func(int(&)[2], char(&)[3], long(&)[5], d(&)[7]); Bu örnekte 8 tane template argümanı var, sırasıyla: int, char, long, double, 2, 3, 5, 7 şeklinde
+
+variadic template ile ilgili örneklerin çok daha fazlasını standart kütüphaneyi öğrendiğimizde karşımıza çıkacak. Şimdi daha önemli bir sorunun cevabını öğrenmemiz gerekiyor:
+variadic template'da parametre değişkenlerini nasıl kullanacağız??
+template<typename ...TS>
+void func(TS ...args)
+{
+
+}
+yani bu fonksiyonu ayrı ayrı yazsaydık derleyiciye yazdırmasaydık yani derleyicinin oluşturduğu specialization'ını kendimiz yazsaydık o zaman  parametreleri zaten kullanabilirdim,
+fakat şimdi nasıl kullanacağım? Örneğin ben func'ı func(1, 5.6, 7L); bu şekilde çağırdığım zaman bu argümanları 3 tane parametresi olan int, double, long olan bir fonskiyonun 
+parametrelerine gönderiyorum; çünkü func(1, 5.6, 7L); şeklinde çağırmak demek func<int, double, long>(1, 5.6, 7L); gibi bir fonksiyonu çağırmak demek. 
+
+O halde bu parametreleri nasıl kullanacağız??
+Birden fazla  yol var:
+1. compile-time recursivity (hocamız eksiltme tekniği diye isimlendirmiş)
+2. init_list tekniği (hocamız bu şekilde isimlendirmiş)
+3. fold expressions (katlama ifadeleri şeklinde hocamız isimlendirmiş) (C++17)
+4. static if (C++17)
+ilk 3 tekniği bugünkü derste ele alacağı; fakat static if tekniği sadece bu konu ile ilgili değil; zaten generic programlama tarafında yine C++17 ile dile eklenen çok önemli 
+bir araç. O halde burada modern C++ ile değil C++17 ile dile eklenen 2 tane daha önemli araçla tanışacağız. static if biraz daha geniş alanda kullanılan bir araç seti olduğu 
+için daha önemli.
+
+compile-time recursivity (eksiltme tekniği)
+Buradaki tenkik şu aslında: öyle bir yapı oluşturacağız ki diyelim ki fonksiyona func(12, 34, 56, 89, 77) bu şekilde argüman gönderdiğimizde func bir fonksiyon 
+şablonu olmak üzere derleyici fonksiyon şablonundan bir specialization oluşturacak; fakat bu specialization'da 1. gönderdiğim argüman parametre paketine gitmeyecek
+1. fonksiyona gönderdiğim 1. argüman başka bir template parametresine gidecek. Dolayısıyla ilk çağrıda geriye kalan argümanları parametre paketine göndermiş olacağız.  
+Bu durumda fonksiyon parametre paketinde 4 tane parametre olucak. Sonrasında o fonksiyon içinde yine func'ı çağıracağız ancak bu run time recursivity'si değil o sebeple 
+karıştırılıyor!! Parametre paketinin ismi args olmak üzere; func'ı bu sefer parametre paketine expand edeceğiz: func(args...) bu durumda fonksiyona 4 argüman göndermiş 
+olacağız ve yine aynı fonksiyon şablonundan derleyici fonksiyon yazacak bu seferde aslında ilk yazılan fonksiyonun içinde yapılan fonksiyon çağrısında bu sefer çağrı 
+şöyle yapılmış olacak: func(34, 56, 89, 77) burada da 1. argümanı parametre paketi olmayan normal template parametresi alacak, paket'te 3 tane tane kalacak. Tekrar fonksiyon
+yazılacak pakette 2 tane kalacak, tekrar fonksiyon yazılacak pakette 1 tane kalacak ancak pakette 1 tane kaldığında expand ettiğimde fonksiyonu sadece 1 argüman ile çağırmış
+olacağım onun içinde 1 tane base case oluşturacağım; base case daha fazla specialize olduğundan bu sefer derleyici variadic parametre paketine sahip template'ten değil de
+gerçek fonksiyondan veya alternatif farklı bir template olabilir onu kullanacak; böylece recompile time'daki recursive yapı durucak. O halde örneğin: 
+buarad amaç tıpkı printf benzeri bir fonksiyon yazmak olsun:
+#include <iostream>
+#include <bitset>
+#include <string>
+
+template <typename T>
+void print(const T& r)
+{
+    std::cout << r << '\n';
+}
+
+template <typename T, typename ...Ts>
+void print(const T& r, const Ts& ...args)
+{
+    print(r);
+    print(args...);
+}
+//tipik eksiltme tekniği; template'e tipik olarak 2 tane template parametresi koyuyorsunuz 1. template parametresi type parametre bu işte o ilk elemanı yiyecek ancak 
+//diğer argümanlar parametre paketindeki parametre türlerinden parametreler tarafından alınacak. Dolayısıyla burada tekrar print fonksiyonu çağırıldığında: print(args...);
+//bu sefer ben bu fonksiyonu fonksiyon parametre paketini verince bu virgüllerle ayrılan bir listeye dönüştürüyordu. Aslına print(args...); da ilk yazılan fonksiyonun 2. 3. 4.
+//parametreleri sırasıyla cont char&, const float&, const double&. Şimdi parametreleri virgüllerle ayrılan liste ile argüman yapıp tekrar print fonksiyonuna gönderdim. Bu durumda
+//bu fonksiyon şablonundan tekrar fonksiyon yazıldığında bu seferde 1. template parametresi 'A' yı alır sonra float'u. En son template parametre paketinde 1 tane parametre kaldığında
+//o zaman print(args...) da bir tane argüman olucak, bir tane argüman olduğunda o zaman bu template aday olmaktan çıkacak bu örnek için yukarıdaki more specializad olduğu için o 
+//kullanılıcak ve o parametreyi yazdıracak!!! 
+
+int main()
+{
+    print(12, 'A', 2.F, 5.);
+}
+Bunu daha iyi görebilmek için __FUNCSIG__ makrosunu kullanabiliriz:
+#include <iostream>
+#include <bitset>
+#include <string>
+
+template <typename T>
+void print(const T& r)
+{
+    std::cout << r << '\n';
+    std::cout << "non variadic\n";
+}
+
+template <typename T, typename ...Ts>
+void print(const T& r, const Ts& ...args)
+{
+    //print(r);
+    std::cout << __FUNCSIG__ << '\n';
+    print(args...);
+}
+
+int main()
+{
+    print(12, 'A', 2.F, 5.);
+}
+bu örnek için yukarıda ki template şöyle olsaydı:
+#include <iostream>
+#include <bitset>
+#include <string>
+
+void print(int x)
+{
+    std::cout << x << '\n';
+    std::cout << "non template\n";
+}
+//yine base case olarak kullanılabilir miydi? Son argümanın int olması durumunda yine base case olarak kullanılabilirdi!
+template <typename T, typename ...Ts>
+void print(const T& r, const Ts& ...args)
+{
+    //print(r);
+    std::cout << __FUNCSIG__ << '\n';
+    print(args...);
+}
+
+int main()
+{
+    print(12, 'A', 2.F, 5., 6);
+}
