@@ -1,0 +1,368 @@
+Önceki derslerde yaptığımız n tane sayıyı toplayan fonksiyon yazmıştık. Ancak bunu C variadic fonksiyonu olarak yapmıştık. Şimdi onu variadic template yapmaya çalışalım:
+bunu yapmanın 1'den fazla yolu var; 4 ayrı teknik kullanabiliriz. Fakat şimdi eksiltme tekniği ile yapalım:
+#include <iostream>
+
+template <typename T>
+T sum(const T& t)
+{
+    return t;
+}
+
+template <typename T, typename ...Ts>
+T sum(const T& t, const TS& ...args)
+{
+    return t + sum(args...);
+}
+
+int main()
+{
+    std::cout << sum(1, 3, 5, 7, 9, 11, 13);
+}
+bunun hiçbir ilave maliyeti yoktur!!!, çünkü bütün bu fonksiyonlar inline olarak açıldığında derleyicinin oluşturduğu assebmly koda bakarsanız 6 parametreli fonksiyonun 
+doğrudan yazılmasından hiçbir farkı olmadığını görürüz. Tabii bu örneğe string argümanlar'da gönderebiliriz sonuçta bu generic:
+#include <iostream>
+#include <string>
+
+template <typename T>
+T sum(const T& t)
+{
+    return t;
+}
+
+template <typename T, typename ...Ts>
+T sum(const T& t, const TS& ...args)
+{
+    return t + sum(args...);
+}
+
+int main()
+{
+    using namespace std;
+    string s1{ "fur" }, s2{ "kancan " }, s3{ "Bilal " }, s4{ "Yuce" };
+    std::cout << sum(s1, s2, s3, s4);
+}
+
+virgül operator'ü ile ilgili birkaç önemli nokta:
+1) bazı yerlerde bazı bağlamlarda operator, bazıları ise comma seperator list'in virgülü yani sentaksın bir bileşeni:
+foo(a, b) buradaki virgül operator değil
+int a[]{1, 2, 3}; buradaki virgül de operator değil
+foo((a,b)) buradaki virgül operator yani normalde sentaks'ın bir bileşeni olan virgül ifadeyi parantez içine alırsam operator olan virgül olur. Örneğin:
+#include <iostream>
+
+int main()
+{
+    int a[]{1, 2, 3, 4, 5}; 
+    std::cout << std::size(a) << '\n'; //5
+}
+buradaki virgül operator değil! oysa şöyle olursa:
+#include <iostream>
+
+int main()
+{
+    int a[]{(1, 2, 3, 4, 5)}; 
+    std::cout << std::size(a) << '\n'; //1
+}
+buradaki virgüller operator olucak bu operator'ün ürettiği değer 5 olucak ve dolayısıyla aslında 1 tane initializer vermiş olacağım dizinin boyutu 1 olucak!
+
+2) virgül operator'ü sequence point yaratıyor!! Yani örneğin:
+#include <iostream>
+
+int main()
+{
+    int x = 10;
+    int y = 20;
+
+    int z{};
+
+    x++, y = ++x, z = x + y;
+
+    std::cout << x << '\n';
+    std::cout << y << '\n';
+    std::cout << z << '\n';
+}
+virgül operator'ü sequence point oluşturuyor dolayısıyla order of evalution'ı belirliyor. Bu durumda önce x++ yapılacak yan etkisi gerçekleştikten sonra  y-- bununda yan etkisi 
+gerçekleştikten sonra z = x + y yapılacak. 
+
+3) virgül operator'ünün ürettiği bir değer var btün operator'lerde olduğu gibi. virgül operator'ünün ürettiği değer sağ operandın değeridir, örneğin:
+#include <iostream>
+
+int main()
+{
+    int a = 10;
+    int b = 33;
+    int c{};
+
+    c = (a, b);
+    std::cout << "c = " << c '\n';
+    c = (b, a);
+    std::cout << "c = " << c '\n';
+}
+
+
+Dikkat: C dili ile C++ dili arasında bir kural farklılığı var, eğer aşağıda verilen kodu C'de yazıyor olsaydık (a, b)'ye yapılan atama sentaks hatası olurdu. 
+int main()
+{
+    int a = 10;
+    int b = 33;
+
+    (a, b) = 56; //snytax error in C
+}
+fakat C++'ta eğer virgül operator'ünün ilgili operand'ı/veya duruma göre operand'ları L val. expr. ise virgül operator'ü ile oluşturulan ifade L value expr'dir:
+#include <iostream>
+
+int main()
+{
+    int a = 10;
+    int b = 33;
+
+    (a, b) = 56; 
+
+    std::cout << "a = " << a << '\n';
+    std::cout << "b = " << b << '\n';
+}
+
+Hatta ve hatta şöyle de olabilir:
+#include <iostream>
+
+int main()
+{
+    int a = 10;
+    int b = 33;
+
+    (a, b)++;
+    
+    std::cout << "a = " << a << '\n';
+    std::cout << "b = " << b << '\n';
+
+    (b, a)++;
+    std::cout << "a = " << a << '\n';
+    std::cout << "b = " << b << '\n';
+}
+
+2. teknik: virgül operator'ünün sequene point özelliğinden yararlanılarak Print benzeri fonksiyon yazma
+template <typename ...Ts>
+void Print(const Ts& ...args)
+{
+    int a[] = {((std::cout << args << '\n'), 0)};
+} 
+derleyici parametre paketini expand ettiğinde virgüllerle ayrılmış listede şunlar var: ((std::cout << args << '\n'), 0) ancak bu ifadelerdeki virgül virgül operatr'ü o halde bu 
+ifadelerin değeri 0 olur. Yani aslında fonksiyona 3 tane argüman gönderirsem 3 elemanlı bir dizinin bütün elemanlarına 0 değeri ile ilk değer vermiş oluyorum. Öte yandan virgül
+operator'ünün bir önemli özelliği daha devreye giriyor: sequence point'ten dolayı önce virgül operator'ünün sol operandı(std::cout << args << '\n';),) yapılacak onun yan etkisi 
+tamamlandıktan sonra sağ(0) operandı yapılacak. Böylece ben bir diziye ilk değer vermiş olacağım ama virgül operator'ünün sol operandı olan ifadenin evaluate edilmesi sonucu 
+dizinin her bir elemanına ilk değer verilirken, o sırada garanti altında argümanlardan biri yazdırılmış olucak. Burada ilk tepki şu oluyor; ya gelen argümanlar farklı türden ise?
+Biz buradaki parametre ile diziye ilk değer vermiyoruz ki, parametreyi virgül operator'ünün sol operandında kullanıyoruz!!! Sağ operandı olan 0 aslında diziye ilk değer veren bu
+0. Çünkü virgül operator'ü ile oluşturulan ifadenin değeri sağ operandın değeri. Dolayısıyla derleyicinin yazdığı specialization'da fonksiyon parametrelerinin türü ne olursa olsun
+burada aslında dizinin elemanlarına verilen ilk değer 0. Bunu deneyelim:
+#include <iostream>
+
+template <typename ...Ts>
+void Print(const Ts& ...args)
+{
+    int a[] = {((std::cout << args << '\n'), 0)};
+} 
+
+int main()
+{
+    Print(2, 3.4, 7L, "necmettin");
+}
+bunun şöyle bir dezavantajı var,  gereksiz array oluşturmuş olduk, kullanılmadığı için yer kaplamaz belki ama derleyici uyarı mesajıda verebilir. O sebeple bunu şu şekilde 
+yazmak daha çok tercih ediliyor:
+#include <iostream>
+#include <initializer_list>
+
+template <typename ...Ts>
+void Print(const Ts& ...args)
+{
+    (void) std::initializer_list<int> {((std::cout << args << '\n'), 0)};
+} 
+//initializer_list'in özellikle kullanılmadığını göstermek için void türüne cast ettik!!
+
+int main()
+{
+    Print(2, 3.4, 7L, "necmettin");
+}
+
+
+C++17 ile dile eklenen: fold expressions birçok durumda az önce ele aldığımız tekniğin yerini alabilir; her zaman olmasa da fold expession ile son derece kolay ifadeler yazabiliyoruz.
+Fold expression dilin sentaksına C++17 ile  yapılan eklemedir. Yani daha önce gördüğünüz diğer yapılara benzemiyor. Ve aslında fold expressions öyle bir ifade ki o ifadeyi 
+gördüğünde derleyici fonksiyon parametre paketindeki parametreleri özel bir forma dönüştürüyor. Ve fold expressions aslında 4'e ayrılıyor:
+unary left fold
+unary right fold
+binary left fold
+binary right fold
+
+fold fold expressions'ı kullanabilmeniz için bir binary operator kullanmanız gerekiyor; +, -, *, karşılaştırma operator'ü, vb!!! Ve ayrıca fold expression olması için bir de
+paranteze ihtiyacım var; burada parantez sentaksın bir bileşeni yani öncelik parantezi değil bu sentaksta olmak zorunda!!!
+//unary left fold
+template <typename ...Ts>
+auto sum(const TS& ...args) //auto olduğu zaman auto return type oluyordu
+{
+    (... + args)
+}
+//biz binary operator olarak toplama operator'ünü seçtik.
+Derleyici koda bakarak, dilin sentaksına uygun şekilde bunun bir fold expressions ve unary left fold olduğunu anlıyor. Bunu şuna dönüştürüyor; örneğin bu fonksiyona 5 tane argüman
+gönderseydim bu fonksiyonun 5 tane parametre değişkeni olacaktı, operator de toplama olduğuna göre:
+//unary left fold
+template <typename ...Ts>
+auto sum(const TS& ...args) //auto olduğu zaman auto return type oluyordu
+{
+    return (... + args);
+    //((((p1 + p2) +  p3)) + p4) + p5
+}
+unary left fold olması left associativity yapı oluşturmak demek yani derleyici p1 + p2 +  p3 + p4 + p5'i şuna dönüştürür: ((((p1 + p2) +  p3)) + p4) + p5
+Yani aslında ben (... + args) böyle bir fold ifadesini fonksiyonun geri dönüş değeri yaptığımda aslında derleyicinin yazdığı kodda bunun karşılığı şu:
+return ((((p1 + p2) +  p3)) + p4) + p5 
+
+Örnekle deneyelim:
+#include <iostream>
+
+//unary left fold
+template <typename ...Ts>
+auto sum(const TS& ...args) 
+{
+    return (... + args);
+    
+}
+
+int main()
+{
+    std::cout << sum(1, 3, 5, 7, 9, 11, 13, 15); //64
+}
+
+eğer şöyle olsaydı unary right fold olurdu:
+//unary right fold
+template <typename ...Ts>
+auto sum(const TS& ...args) 
+{
+    return ( args + ...);
+    //return p1 + (p2 + (p3 + (p4 + p5))); 
+    
+}
+//bu sefer tam tersi right associativity olucak
+int main()
+{
+    std::cout << sum(1, 3, 5, 7, 9, 11, 13, 15); //64
+}
+Diğer tekniklere göre eğer fold expression işinizi görüyorsa çok daha pratik bir yapı!
+
+right fold ve left fold'a başka örnek:
+#include <string>
+#include <iostream>
+
+template <typename... T>
+auto sum_left(T... args)
+{
+    return (... + args);
+}
+
+template <typename... T>
+auto sum_right(T... args)
+{
+    return ( args + ...);
+}
+
+int main()
+{
+    using namespace std::literals;
+
+    auto sx = sum_left("ali"s, "can", " usta", "oglu"); //alican ustaoglu
+}
+"ali"s'te bulunan s bir operator fonksiyonu; burada bilmemiz gereken şey bu operator fonksiyonunun geri dönüş değerinin std::string olmasıdır. Yani "ali" olarak yazdığım zaman 
+bu cstirng yani stirng literali fakat bu operator fonk. çağırdığımda "ali"s bu artık bir fonksiyonun geri dönüş değeri ve artık bu std::string. Bu şurada çok işe yarıyor; eğer
+böyle bir araç olmasaydı ben çift tırnak içindeki ali'yi std::string nesnesi olarak kullanamk için en iyi ihtimalle std::string{"ali"} şeklinde bir geçici nesne oluşturacaktım.
+İşte bu tür durumlar da std::string{"ali"} şeklinde yazmak yerine "ali"s olarak yazdığımda sonuç olarak yine  aynı(chrono kütüphanesinde güzel örnekleri var). Ben burada unary
+left hold'u kullandığı zaman derleyicinin ürettiği kodda string ile string literali toplanır. Dikkat: string ile cstring toplandığında string elde edildi, burada herhangi bir 
+şekilde sentaks hatası olmaz. Fakat eğer sum_right'i çağırsaydım sentaks hatası olurdu:
+#include <string>
+#include <iostream>
+
+template <typename... T>
+auto sum_left(T... args)
+{
+    return (... + args);
+}
+
+template <typename... T>
+auto sum_right(T... args)
+{
+    return ( args + ...);
+}
+
+int main()
+{
+    using namespace std::literals;
+
+    auto sx = sum_right("ali"s, "can", " usta", "oglu"); //syntax error
+}
+Sentaks hatası çünkü sağdan toplama yaptığımızda pointer ile pointer toplanmış olur ve ne C'de ne de C++'ta pointer ile pointer toplanmaz!!! Yan bu hata mesajının "ali" + "veli"'de 
+verilen sentaks hatasından bir farkı yok. 
+
+Bir diğer örnek:
+#include <iostream>
+
+void f(int i)
+{
+    std::cout << i << ' ';
+}
+
+template <typename ... Ts> //variadic parametre paketi
+void call(Ts... ts)
+{
+    (f(ts), ...); //virgül operator'ünün unary fold'u (unary right fold)
+}
+
+int main()
+{
+    call(4, 1, 6, 3, 8, 10); //4 1 6 3 8 10
+}
+unary right fold olduğu için derleyici şöyle bir kod yazar: f(p1), (f(p2), (f(p3), (f(p4), (f(p5), f(p6))))) 
+
+Bir diğer örnek:
+//ellipsis paketinin solunda
+//unary left fold
+//operator &&
+template <typename... Args>
+bool all(Args... args)
+{
+    return (... && args);
+}
+
+#include <iostream>
+
+int main()
+{
+    std::cout << std::boolalpha;
+    std::cout << all(true, true, true, true) << '\n'; // (((true && true) && true) && true) && true
+    std::cout << all(true, true, true, false) << '\n'; // (((true && true) && true) && true) && false
+}
+elipsis atomu paketin solunda o halde unary left fold sağınd olsaydı unary right fold olurdu. unar left fol bu örnekte lojik ve operator'ü için, yani unary fold over operator 
+logical and. Bu arada yanlış anlaşılmasın derleyicinin yazdığı kodda aslında orada true değil fonksiyonun parametre değişkenleri var yani sentaks açısından bakarsak lojik ve 
+operator'lerinin operandı true ve false sabitleri değil, fonksiyonun parametre değişkenleri(onlarda zaten true ve false sabitleri).
+
+Bir diğer örnek:
+/*
+    bu örnek
+    unary left fold ile unary right fold arasındaki farkı
+    göstermeye yönelik
+*/
+
+#include <utility>
+
+template <typename ...Args>
+auto fdiv_r(Args && ...args)
+{
+    return (args / ...); //unary right fold
+}
+
+template <typename ...Args>
+auto fdiv_l(Args && ...args)
+{
+    return (... / args); //unary left fold
+}
+
+int main()
+{
+    std::cout << fdiv_r(500, 50, 5, 2); //20
+    std::cout << fdiv_l(500, 50, 5, 2); //1
+
+}
