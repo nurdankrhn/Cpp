@@ -1,0 +1,350 @@
+binary fold ise şöyle: binary left/right olduğunda işin içine fonksiyonun parametre paketi/parametre değişkenleri dışında bir de operator ifadesinde kullanılacak bir
+initial value geliyor. Sentaks daha farklı yine parantez içinde fakat bu kez operator'ü 2 kere kullanıyorsunuz arasına elipsisi yazıyorsunuz. Eğer initial value'yu 
+sağa yazarsanız parametre paketini sola yazarsanız bu binary right fold oluyor. Ancak eğer initial value sola parametre paketini sağa yazarsanız binary left fold oluyor.
+(pack op...op init) //binary right fold
+(init op...op pack) //binary left fold
+initial value burada doğrudan aritmetik operator'ün operandı olabilir ancak özellikle left ve right shift operator'leri söz konusu olduğunda örneğin binary left fold
+yaptığınızda bu durumda initial value olarak stream nesnesini kullanma şansınız olacak.
+template <typename T, typename ...Ts>
+auto sum(T init, Ts ...args)
+{
+    return (init +...+ args); //binary left fold
+}
+
+bir tane basit örnek ile başlayalım:
+#include <iostream>
+
+template <typename T, typename ...Ts>
+auto sum(T init, TS ...args)
+{
+    return (init +...+ args); //binary left fold
+}
+
+int main()
+{
+    int ival = 100;
+
+    std::cout << sum(ival, 1, 3, 5, 7) '\n'; //116
+}
+eğer bu binary right fold olsaydı:
+#include <iostream>
+
+template <typename T, typename ...Ts>
+auto sum(T init, TS ...args)
+{
+    return (args +...+ init); //binary right fold
+}
+
+int main()
+{
+    int ival = 100;
+
+    std::cout << sum(ival, 1, 3, 5, 7) '\n'; //116
+}
+!!!operator'ler birbirinden farklı olamaz!!!
+
+bir diğer örnek:
+#include <iostream>
+
+template <typename... Ts>
+int subtract(int num, Ts... args)
+{
+    return (num -...-args); //binary left hold
+}
+
+int main()
+{
+    int result = subtract(100, 50, 20, 7); // result is (((100 - 50) - 20) - 7) = 23
+    std::cout << "result = " << result << '\n';
+}
+
+bir diğer örnek: bu en meşhur örneklerden biri:
+#include <iostream>
+#include <utility>
+#include <bitset>
+#include <string>
+
+//binary left fold
+//operator <<
+template <typename ...Args>
+void fprint(Args&& ...args)
+{
+    (std::cout << ... << std::forward<Args>(args)) << '\n';
+}
+
+int main()
+{
+    std::string name{ "Necati" };
+    std::bitset<8> bs{ 15u };
+
+    fprintf(name, 12, 4.5, "Tahsin", bs);
+}
+biz print'i ilk defa eksiltme tekniği ile yazdık; 2. teknikte initializer_list kullanık. Ancak bu yöntem ile çok daha kolay. Burada init yerine gelen ifade std::cout, dikkat ederseniz
+fonksiyonun parametre paketi için yine aynı şekilde pattern uygulayabiliyorum!! Dolayısıyla fonksiyonun parametreleri aslında forwarding reference ya da diğer ismi ile universal 
+reference ve bu insterter fonksiyona gönderirken aslında perfect forward etmiş oluyorum. Yani bu aslında tipik bir f-perfect forwarding örneği. Dolayısıyla fonksiyonun argümanları 
+p1, p2, p3, p4, p5 olmak üzere derleyicinin ürettiği kod şöyle olucak:
+((((cout << p1) << p2) << p3) << p4) << p5) Yani işte bu ifade yürütüldüğünde önce p1 sonra p2 ardından p5'e kadar standart çıkış akımına yazdırılır.Burada perfect forwarding kısmı
+ile konumuzun doğrudan alakası yok; perfect forwarding sadece L value'yu L value olarak gönderiyor, R value'yu R value olarak gönderiyor, const'u const olarak gönderiyor, 
+non-const'ı non-const olarak gönderiyor! 
+
+bir diğer örnek:
+#include <utility>
+#include <iostream>
+
+//binary right fold
+//operator +
+//elipsis paketin sağında binary right fold
+
+template <typename ...Args>
+auto sum(Args&& ...args)
+{
+    return (std::forward::<Args>(args)+...+ 10);
+}
+
+int main()
+{
+    std::cout << sum(12, 4.5, 50L) << '\n'; // 12 +(4.5 + (50L + 10)
+}
+veya şöyle bir fonksiyon yazabilirdik: girilen parametreler ile bir dosyanın path'ini elde etmek:
+#include <utility>
+#include <iostream>
+
+//binary right fold
+//operator +
+//elipsis paketin sağında binary right fold
+
+template <typename ...Args>
+auto sum(const char *p_ext, Args&& ...args)
+{
+    return (std::forward::<Args>(args)+...+ p_ext);
+}
+
+===========================================================================================================================================
+
+static if
+özellikle STL konusuna geldiğimizde STL ile beraber generic programlama paradigmasında çok işimize yarayacak, oldukça önemli bir araçtır.
+stati4 if ile compile time'da ele alınan bir if deyiminden bahsediyoruz; C++17'den önce böyle bir if deyimi yoktu. Generic programlama 
+tarafında kullanılma zorunluluğu yok ama generic programlama olmadan da kullanılmasının fazla anlamı yok. 
+Dikkat!!!!Burada kullanılan if ile run time'da kullanılan if'in alakası yoktur; en çok karıştırılan noktalardan biri budur!!! 
+run time'daki if run time'da belli olan bir koşula göre o iş mi yapılsın bu iş mi yapılsın veya iş yapılsın mı yapılmasın mı onun 
+kararı veriliyor. Ancak compile time'daki if derleyici bu kodu mu derlesin, şu kodu mu derlesin ya da derleyici bu kodu derlesin mi 
+yoksa bu kodu'u görmezden mi gelsin bunu belirlemeye yönelik. Sentaks ise şöyle:
+template <typename T>
+void func(T x)
+{
+if constexpr (sizeof(T) > 4); { //parantez içindeki ifade constant expr. çünkü sizeof operator'ü compile time'da değer üretiyor
+    ++x;
+
+}
+
+}
+/*
+buradaki constexpr anahtar sözcüğünün constexpr değişken tanımlamasında veya constexpr fonksiyon tanımlamasında bildirimi yapımından 
+farklı; 3. bir kullanım. Burada constexpr'den sonra yine parantez var; fakat bu parantezin içinde bulunan ifadenin bir constant expr.
+olması gereiyor!!!
+*/
+class Myclass {
+
+};
+
+int main()
+{
+    func(Myclass{});
+}
+compile time'da olduğumuzu unutmayınız!!, derleyici koda bakıyor Myclass{} ifadesinin türünün Myclass olduğunu anlıyor; template
+parametresine karşılık gelen template argümanı Myclass. static if'i compile time'da evaluate ediyor derleyici. sizeof değeri 
+4'ten büyük olmadığı için blok içindeki kodu derlemiyor! Dolayıısyla derleyicinin yazdığı fonksiyon adeta içi boş bir fonksiyon. 
+Bu örnekte klasik/önemli bir noktayı göstermek istedik aynı zamanda: kodu derlediğimiz zaman sentaks hatası olmadığını gördük!!!
+İşte if bloğu içindeki kodun derleyici tarafından derlenmediğini göstermek istedik. Çünkü derlenseydi Myclass'ın ++ operator fonksiyonu
+olmadığı için sentaks hatası oluşurdu!! Tam tersi şekilde eğer ki kodu şöyle yazarsak:
+template <typename T>
+void func(T x)
+{
+if constexpr (sizeof(T) < 4); { 
+    ++x;
+}
+
+}
+
+class Myclass {
+
+};
+
+int main()
+{
+    func(Myclass{}); //syntax error
+}
+sentaks hatası olur çünkü derleyici ++x kodunu derleyecek artık; fakat bu kodu derlediğinde Myclass için ++ operator'ünü overload 
+eden bir fonksiyon olmadığı için sentaks hatası olacak. 
+
+Burada yapılan birkaç tipik noktaya değinelim:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+void func(T x)
+{
+    if constexpr (std::is_integral_v<T>) {
+        ++x;
+    }
+
+    else {
+        x.foo();
+    }
+}
+
+int main()
+{
+    func(12);
+}
+sentaks hatası yok, çünkü derleyici compile time'da template argument deduction ile T2nin türünün int olduğunu gördü, 
+std::is_integral_v<T> ifadesi ise sabit ifadesi bu durumda bu ifade true oldu çünkü T türü bir tam sayı türü. Dolayısıyla 
+derleyici ++x kodunu elde etti. Fakat eğer ben func fonksiyonuna 2.3 değerini argüman olarak gönderseydim:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+void func(T x)
+{
+    if constexpr (std::is_integral_v<T>) {
+        ++x;
+    }
+
+    else {
+        x.foo();
+    }
+}
+
+int main()
+{
+    func(2.3); //syntax error
+}
+sentaks hatası çünkü if bloğunun koşulu yanlış olacak, yanlış olduğu için yanlış kısmı derlenecek ancak double türünün foo fonksiyonu
+olmadığı için sentaks hatası olacak.
+
+
+C++17 standart'ı ilk oluşturulmaya başlandığı zaman hocamız şu hatayı yaptığını çok sonra anlamış:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+void func(T x)
+{
+    if constexpr (std::is_integral_v<T>) {
+        ++x;
+    }
+
+    else if(sizeof(T) > 4) {
+        
+    }
+}
+soru: burada hata nedir? Tabii bu kodun kendisi doğrudan sentaks hatası değil ancak ikinci if'in compile time ile bir alakası yok!!
+Eğer compile time'da else if yapısı oluşturmak isterseniz o da constexpr olmalı:
+#include <iostream>
+#include <type_traits>
+
+template <typename T>
+void func(T x)
+{
+    if constexpr (std::is_integral_v<T>) {
+        ++x;
+    }
+
+    else if constexpr (sizeof(T) > 4) {
+        
+    }
+}
+
+
+static if ile ilgili birkaç örnek inceleyelim:
+#include <iostream>
+#include <string>
+#include <type_traits>
+
+template <typename T>
+std::string as_string(T x)
+{
+    if constexpr(std::is_same_v<T, std::string>) { //is_same_v bir variable template ve 
+                                                    //is_same_v is_same meta fonksiyonunun meta değeri
+                                                    //bu compile time'da T türünün std::string olup olmadığını sınıyor!!
+        return x;
+    }
+
+    else if constexpr (std::is_arithmetic_v<T>) { //bu da T türünün aritmetik tür olup olmadığını sınıyor
+        return std::to_string(x); //aritmetik türlerden parametreleri olan overload edilmiş global string fonk.
+    }
+
+    else {
+        return std::string(x); //std::string sınıfının ctor'ına x'i argüman olarak geçmiş olacağım
+    }
+}
+
+
+normal if ile constexpr if yani static if bir arada bulunabilir; aşağıda verieln örnekte en dışta bulunan if'in static if ile 
+hiçbir alakası yok yani bu if her zaman kodda var. Ama static if şunu belirliyor: en dıştaki if'in içindeki kodun ne olacağını
+ya da ne olmayacağını belirliyor:
+#include <type_traits>
+
+template <typename T>
+void func(T& tx)
+{
+    if (tx > 0) {
+        if constexpr (std::is_integral_<T>) {
+            ++tx;
+        }
+        else {
+            --tx;
+        }
+    }
+}
+
+int main()
+{
+    int ival = 5;
+    func(ival);
+
+    std::cout << "ival = " << ival << '\n'; //6
+}
+
+eğer ival -5 değerinde olsaydı:
+#include <type_traits>
+
+template <typename T>
+void func(T& tx)
+{
+    if (tx > 0) {
+        if constexpr (std::is_integral_<T>) {
+            ++tx;
+        }
+        else {
+            --tx;
+        }
+    }
+}
+
+int main()
+{
+    int ival = -5;
+    func(ival);
+
+    std::cout << "ival = " << ival << '\n'; //-5
+}
+-5 çünkü en dışta bulunan if'in yani run time'da çalışacak olan if'in static if ile bir alakası yok. Aslında görülen kod şöyle:
+#include <type_traits>
+
+template <typename T>
+void func(T& tx)
+{
+    if (tx > 0) {
+        ++tx;
+    }
+}
+
+int main()
+{
+    int ival = -5;
+    func(ival);
+
+    std::cout << "ival = " << ival << '\n'; //-5
+}
+yani if'in doğru kısmına girmez!
