@@ -1,0 +1,235 @@
+2. önemli grup iteratorler, iteratorler pointerların daha fazla soyutlanmış hali. Bir pointer örneğin bir dizideki elemanın adresini 
+tutabilir o pointer yoluyla dizinin diğer elemanlarına erişebilirim, pointer'ı içerik operator'ünün operandı yaptığımda pointerın 
+gösterdiği dizi elemanına erieşbilirim. Pointerı 1 arttırırsam dizinin  bir sonraki elemanın adresine erişirim, pointerı 1 eksiltirsem 
+bir önceki elemanın adresine erişirim. Pointerın değerinin dizinin bittiği yerin adresi olup olmadığını sınayabilirim.  Böylece 
+pointer'ı sürekli arttırarak dizinin son elamanına erişmiş miyim onu anlayabilirim. Fakat veri yapıları söz konusu olduğunda her bir
+yapısı bellekte ardışık öğelerden oluşmuyor. Örneğin ikili arama ağacı öyle değil, node'larda tutuluyor öğeler. Çifte bağlı liste 
+node'lae içinde tutuluyor, her bir node dinamik olarak allocate ediliyor. Ancak bizim compile time'da kullanılıcak container'larda
+tutulan öğelerin konumları ile ilgili ortak bir static interface oluşturmamız gerekiyor, işte orada kullanılan kavram iterator. 
+
+iterator öyle bir varlık ki bir veri yapısındaki öğenin konumunu tutuyor. Gördüğünüz üzere burada biraz daha yüksek seviyede bir 
+soyutlama var, adres tutuyor demiyoruz bir veri yapısındaki öğenin konumunu tutuyor. Derefernce ettiğimde o konumdaki öğeye erişiyorum.
+iterator'ü arttırdığım zaman iterator'ün değeri bir sonraki öğünin konumu oluyor gibi. Yine iterator'ü container'daki son öğeden sonra 
+olmayan öğenin konumu ile karşılaştırarak, container'daki son öğeyi gelip gelmediğimi anlayabiliyorum. Böylece iterator interface'ine 
+göre container'ların range'leri üstünde genel işlem yapan/genelleştirilmiş kodlar oluşturabiliyorum. İşte iteratorler tipik olarak sınıf
+şablonu ancak C'nin pointerları yani örneğin raw pointerlarda iterator olarak kullanılabiliyor. Sonuç olarak iterator vasıtası ile 
+containerdaki öğeleri ortak bir arayüzde dolaşabiliyor o öğelere erişebiliyorum. 
+
+
+3. önemli öğe ise algoritmalar!! Buradaki algoritma terimi hem C++'a spesifik bir anlam içeriyor: aslında parametreleri iterator olan veri yapılarının tuttuğu öğelerin 
+konumlarını kullanarak  o konumlar arasındaki öğeler üstünde belirli algoritmaları implemente eden fonksiyon şablonlarıdır. Yani aslında 3 bileşen çok zor değil;
+container'lar veri yapıları, algoritmalar fonksiyon şablonları, container'lar sınıf şablonları, iterator'lerde container'daki öğelerin konumunu tutan ya sınıflar ya da 
+raw pointerlar. Algoritmalar parametre değişkeni olarak iterator parametre değişkenine sahip fonksiyonlardır. 
+
+Bizim birçok işlem için vector'de tutulan öğelerin konum bilgisine ihtiyacımız var, bu şu şekilde sağlanıyor: STL'de tipik olarak container sınıfları söz konusu 
+olduğunda böyle; her container'a bağlı o container'daki öğelerin konumunu tutan bir tür var buna tipik olarak birer nested-type:
+//sözde vector sınıfı
+template <typename T>
+class Vector {
+public:
+    class iterator {
+    public:
+        T& operator*();
+        T* operator->();
+        iterator& operator++();
+        iterator operator++(int);
+        bool operator==(iterator)const;
+        bool operator'=(iterator)const;
+        //...
+
+    };
+
+    iterator begin();
+    iterator end();
+
+    void push_back(const T&);
+    void push_back(T&&);
+    void pop_back();
+    std::size_t size()const;
+    bool empty()const;
+
+    iterator insert(iterator, const T&val);
+    iterator erase(iterator);
+
+};
+client kodlar örneğin insert fonksiyonuna çağrı yaparken erase fonksiyonuna çağrı yaparken iterator'e ihtiyaç duyacaklar ve bu vector'de tutulan öğelere erişmek için
+yine konumları üstünden erişim yapacaklar. Çünkü ancak iterator sınıfının operator * fonksiyonu çağırılırsa o iterator konumundaki nesneye erişiceğim. O halde vector 
+gibi sınıflara client koda iterator veren fonksiyon ya da fonksiyonlar lazım. Programlamada son öğenin konumunu döndürmek yerine son öğeden sonra ki olmayan öğenin 
+konumunu döndürsün şeklindeki değerlere "sentinel" deniliyor. (Bilgisayar programlamasında, sentinel değeri, tipik olarak bir döngü veya özyinelemeli algoritmada, 
+varlığını bir sonlandırma koşulu olarak kullanan bir algoritma bağlamındaki özel bir değerdir. Sentinel değeri, bant dışı veri sağlanmadığında verinin sonunun tespit 
+edilmesini mümkün kılan bir bant içi veri biçimidir.) Örnekte end fonksiyonunun geri dönüş değeri de sentinel bir değerdir. 
+
+Eğer herhangi bir kod vector sınıfının begin fonksiyonunu çağırıp ondan bir iterator alırsa ve end fonksiyonunu çağırıp ondan bir iterator alırsa begin'den aldığı 
+iterator'ü end fonksiyonuna  eşit oluncaya kadar arttırırsa sınıf o süreçteki iteratorlerimiz vector'deki öğelerin konumları olacak. Onları dereference ederek 
+vector'deki tüm öğelere erişmiş olacağım. 
+
+Eğer şöyle bir genelleme yapılırsa, compile time polymorphism'inin en önmeli ilkesi: nasıl vector sınıfı var(vector dinamik dizi veri yapısını temsil ediyor)
+örnekteki sınıfa çok benzer ama başka bir veri yapısını temsil eden başka sınıflar olsa, örneğin list sınıfıda çifte bağlı liste sınıfı olsa:
+template <typename T>
+class List {
+public:
+    class iterator {
+    public:
+        T& operator*();
+        T* operator->();
+        iterator& operator++();
+        iterator operator++(int);
+        bool operator==(iterator)const;
+        bool operator'=(iterator)const;
+        //...
+
+    };
+
+    iterator begin();
+    iterator end();
+
+    void push_back(const T&);
+    void push_back(T&&);
+    void pop_back();
+    std::size_t size()const;
+    bool empty()const;
+
+    iterator insert(iterator, const T&val);
+    iterator erase(iterator);
+
+};
+
+O halde ben buna güvenerek örneğin şöyle bir fonksiyon şablonu yazsam:
+template <typename Iter>
+void Print(Iter beg, Iter end)
+{
+
+}
+işte böyle yazılan fonksiyonlara algoritma diyoruz. Algoritma generic bir fonksiyon şablonu. Sizden tipik olarak bir ya da birden fazla range alıyor. Range demek 
+iki iterator tarafından  belirlenen bir aralık. Yani sizden şöyle bir garanti istiyor, diyor ki örneğin Print algoritması bana bir container'ın bir range'ini 
+göndericeksin yani bana iki tane iterator göndereceksin bu iterator'lerin belirli bir interface'e sahip olduğunu varsayacak bu fonksiyon. Burada görülmesede aslında 
+bu fonksiyon diyor ki benim geçerli bir kod üretmem için Iter'in öyle bir tür olması gerekir ki içerik operator'ünün operandı olabilmeli Iter türünden nesne, 
+++ operator'ünün operandı olabilmeli, iki iterator karşılaştırılabilmeli. O halde dizinin elemanlarını ekrana yazan bir örneği Print fonksiyonu ile yapalım:
+#include <iostream>
+
+template <typename Iter>
+void Print(Iter beg, Iter end)
+{
+    while(begin != end) {
+        std::cout << *begin << ' ';
+    }
+
+    std::cout << '\n';
+}
+
+int main()
+{
+    int a[5]{1, 2, 3, 4, 5};
+    Print(a, a + 5);
+}
+
+soru: yukarıdaki örnek için benim elimde bir STL container'ı olsa ve Print fonksiyon şablonu ile vector'deki öğelerin değerlerini standart output'a yazdıracak bir 
+fonksiyon oluşturabilir miyim?
+#include <iostream>
+
+template <typename Iter>
+void Print(Iter beg, Iter end)
+{
+    while(begin != end) {
+        std::cout << *begin << ' ';
+    }
+
+    std::cout << '\n';
+}
+
+int main()
+{
+    std::vector<int> ivec {10, 20, 30, 40, 50, 60}; 
+    Print(ivec.begin(), ivec.end());
+}
+cevap: tabii ki işte burada imdadımıza iterator interface'i yetişiyor!!! 
+
+Bir başka örnek: burada list sınıf şablonu çifte bağlı veri yapısı üstelik mylist içinde string tutan çifte bağlı liste türünden nesne:
+#include <iostream>
+#include <list>
+#include <string>
+
+
+template <typename Iter>
+void Print(Iter beg, Iter end)
+{
+    while(begin != end) {
+        std::cout << *begin << ' ';
+    }
+
+    std::cout << '\n';
+}
+
+int main()
+{
+    using namespace std;
+    list<string> mylist{"gul", "naz", "eda", "tan", "erkan", "can"};
+    Print(mylist.begin(), mylist.end());
+}
+bu örnek için derleyicinin yazdığı fonksiyonu kendimiz yazsaydık:
+using namespace std;
+
+void Print(lis<string>::iterator beg, lis<string>::iterator end)
+{
+    while(begin != end) {
+        std::cout << *begin << ' ';
+    }
+
+    std::cout << '\n';
+}
+Burada static bir polymorphism'in olduğuna dikkat ediniz!! Yani aslında nasıl list'in string sınıfının iterator nested type'ı varsa vector'ünde string açılımının 
+iterator type'ı var o da karşılaştırılabiliyor o da dereference edilebiliyor onun koduda ona göre yazılmış!! 
+
+O halde STL'in 3 tane önemli öğesi:
+container
+iterator
+algoritma
+
+Sonuç olarak standart container'ları kullanıp o container'ların iterator'ü yoluyla standart algoritmalara çağrı yaparsam birçok işlemi kolaylıkla yapabilirim.
+Örneğin Fighter isimli bir sınıfınız var, Fighter'ları dinamik bir dizide tutmak istiyorsunuz yapmanız gereken tek şey vector'ün Fihgter specialization'ını kullanmak: 
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+class Fighter {
+
+};
+
+int main()
+{
+
+    std::vector<Fighter> fvec;
+    //...
+    sort(fvec.begin(), fvec.end());
+    reverse(fvec.begin(), fvec.end());
+}
+Şimdi örneğin bu vektörde Fighter'ları belli özelliklerine göre sıralamak isteyelim, işte bu tür işlemleri de algoritmalar ile yapacağız. Burada algoritma 
+STL'deki standart veri yapıları üstünde işlem yapan fonksiyon şablonlarına verilen terim. Bu fonksiyon şablonlarının çok büyük kısmı ismi algorithm olan 
+başlık dosyasında bir kısmı numerec başlık dosyasında!!
+
+O halde sonuç olarak STL'i verimli bir şekilde kullanabilmemiz için minimal olarak STL container'larını bilmemiz gerekiyor, onların iterator'leri hakkında bilgi 
+sahibi olmamız gerekiyor. Bir de bu algoritma dediğimiz fonksiyonları bilmemiz gerekiyor. 
+
+Soru: Bu algoritmaların parametreleri iterator olmasaydı; algoritmaların parametreleri doğrudan container olsaydı yine biz bu işi yapamaz mıydık?
+Cevap: Kesinlikle yapardık ve işte C++20 ile dile eklenen ranges kütüphanesi böylesi devrimsel bir ekleme yapmıştır dile. Ranges kütüphanesi ile C++ 
+kursu konusu ancak ranges kütüphanesinin C++20 ile dile yapılan çok önemli bir ekleme olduğunu söylememiz gerekiyor!!!  Ranges kütüphanesinde bu sefer 
+algoritmaların bu range yeni sürümleri doğrudan sizden 2 tane iterator istemek yerine o iteratorleri aslında bir şekilde o iteratorlere sahip olan 
+bir range nesnesi isteyecek. container'ların kendiside doğrudan bir range olarak kullanacak. Ranges kütüphanesindeki öğeler std namespace'i içinde 
+ranges nested namespace'i içindedir. Dolayısıyla yukarıdaki kodu ranges kütüphanesi ile şöyle yazardık:
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <ranges>
+
+class Fighter {
+
+};
+
+int main()
+{
+
+    std::vector<Fighter> fvec;
+    //...
+    std::ranges::sort(fvec);
+    std::ranges::reverse(fvec);
+}
