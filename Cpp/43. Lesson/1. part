@@ -1,0 +1,366 @@
+28 Nisan 2023 - Cuma
+
+static_assert nerede olursa olsun her halde ele alınıyor!!!! static_assert bir fonksiyonun içinde kullanılabilir bu fonksiyon generic
+bir fonksiyon olabilir ya da olmayabilir, static_assert global kod alanında kullanılabilir veya static_assert bir sınıfın içinde her 
+yerde kullanılabilir. Fakat örneğin sınfın üye fonksiyonu içinde kullanılırsa o zaman üye fonksiyon çağırılmadığı süre boyunca 
+static_assert kodu derlenmez:
+#include <type_traits>
+
+template <typename T>
+class Myclass {
+    void func()
+    {
+        static_assert(std::is_pointer_v<T>, "pointer type required");
+    }
+};
+
+int main()
+{
+    Myclass<int> x; 
+}
+yani üye fonksiyon içinde kullanıldığı zaman durum farklı ancak sınıfın içinde kullanıldığı zaman o zaman hata olucak:
+#include <type_traits>
+
+template <typename T>
+class Myclass {
+   
+    static_assert(std::is_pointer_v<T>, "pointer type required");
+    
+};
+
+int main()
+{
+    Myclass<int> x; //syntax error
+}
+
+bu örnekte isimlerle ilgili dikkatli olunuz:
+#include <type_traits>
+
+template <typename T>
+void func(T tx)
+{
+    if constexpr (std::is_integral_v<T>) {
+
+    }
+    else {
+        //foo();
+        //bar(tx);
+        //tx.baz();
+    }
+}
+
+int main()
+{
+    func(12);
+}
+soru: else kısmındaki fonksiyon çağrıları yorum satırından çıkarıldığı zaman herhangi bir sentaks hatası oluşturur mu?
+Evet foo oluşturur: foo identifier not found şeklinde bir hata verdi. Çünkü foo fonksiyonu template parametresine bağlı değil!!!
+Daha önce de benzer bir tema görmüştük çünkü bu ismin aranması template parametresine bağlı değil. bar'da durum böyle değil sentaks 
+hatası olmayacak çünkü bar'daki argüman template parametresine bağlı; dependent type. Örneğin buradaki template parametresibir namespace
+içindeki türden olabilir bu durumda ADL ile bu isim bulunabilir. tx.baz ise pekala yine T türünün  ne olduğuna bağlı olarak yine türün
+bir member function'ını baz olabilir bu da sentaks hatası değildir. 
+
+Burada önemli bir diğer nokta daha var: eğer static if generic bir fonksiyon içinde değilse koşulun yanlış ya da doğru olduğuna 
+bakılmaksızın doğru kısmıda yanlış kısmıda derleniyor; yani ya doğru ya da yanlış kısmı derlensin mantığının oluşturulması için 
+generic kod olması gerekiyor:
+//usage in non template function
+
+struct Nec{
+
+};
+
+int main()
+{
+    Nec nec;
+
+    if consexpr (sizeof(int) > 4) {
+        ++nec; //syntax error
+    }
+    else {
+        //--nec; //syntax error
+    }
+
+}
+sizeof int'im 4 dolayısıyla if'in doğru kısmındaki koşul yanlış ama koşul yanlış olmasına rağmen ++nec ifadesi sentaks hatası!
+Çünkü bu durumda yine bu işlemlerin/ifadelerin geçerliliği sınanacak çünkü generic bir contexte değiliz, bu da dilin kuralı yine!!!
+
+
+Bir diğer örnek:
+#include <iostream>
+#include <memory>
+
+template <typename T>
+auto getval(T t)
+{
+    if constexpr(std::is_pointer_v<T>)  
+        return *t;
+    else 
+        return t;
+}
+
+int main()
+{
+    int ival { 87 };
+    double dval{ 4.5 };
+    int* iptr{ &ival };
+    double* dptr{ &dval };
+
+    std::cout << getval(ival) << '\n';
+    std::cout << getval(iptr) << '\n';
+    std::cout << getval(dval) << '\n';
+    std::cout << getval(dptr) << '\n';
+}
+
+yine tmp için güzel bir örnek:
+template <int N>
+constexpr int fibo()
+{
+    if constexpr (N >= 2)
+        return fibo<N - 1>() + fibo<N- 2>();
+    else 
+        return N;
+}
+
+//1 1 2 3  5 8  13 21 
+int main()
+{
+    constexpr auto y = fibo<8>(); //21
+}
+
+
+static if ile ilgili örneklerimizi incelemeye devam edelim:
+#include <type_traits>
+
+template <typename T>
+void func(T tx)
+{
+    if constexpr (std::is_integral_v<T>) {
+        static_assert(false, "not integral type"); //syntax error
+        if(tx != 0) {
+            func(tx--);
+            //....
+        }
+    }
+
+    else {
+        //undeclared_f(); //syntax error (name non dependant on template parameter)
+        undeclared(tx); //error if else  part instantiated
+    }
+}
+
+int main()
+{
+    //func(2);
+    func(2.5);
+}
+
+
+bir diğer örnek:
+eğer static if olmasaydı muhtemelen örneğin aşağıdaki gibi bir problem ile karşılaştığımda başka olanaklarda olabilir ancak 
+derdimi böyle anlatabilirdim:
+#include <string>
+#include <iostream>
+
+template <typename T> 
+std::string tostr(T t)
+{
+    return std::to_string(t);
+}
+
+std::string tostr(const std::string& s)
+{
+    return s;
+}
+
+std::string tostr(const char* cstr)
+{
+    return cstr;
+}
+
+std::string tostr(bool b)
+{
+    return b ? "true" : "false";
+}
+
+int main()
+{
+    std::cout << tostr("necati") << '\n';
+    std::cout << tostr(std::string{ "necati" })) << '\n';
+    std::cout << tostr(13) << '\n';
+    std::cout << tostr(5.9) << '\n';
+    std::cout << tostr(true) << '\n';
+}
+O halde aynı şeyi C++17 ile dile eklenen static if ile yapalım:
+#include <string>
+#include <iostream>
+
+template <typename T> 
+std::string tostr(T t)
+{
+    if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, const char*>)
+        return t;
+    else if constexpr (std::is_arithmetic_v<T>)
+        return std::to_string(t);
+    else if constexpr (std::is_same_v<T, bool>)
+        return t ? "true" : "false";
+    //...
+}
+
+
+int main()
+{
+    std::cout << tostr("necati") << '\n';
+    std::cout << tostr(std::string{ "necati" })) << '\n';
+    std::cout << tostr(13) << '\n';
+    std::cout << tostr(5.9) << '\n';
+    std::cout << tostr(true) << '\n';
+}
+
+======================================================================================================================================
+
+Standard Template Library 
+Kronolojik olarak bakarsak STL demek aslında C++'ın standart kütüphanesi demek değil! STL çıkışı itibarı ile temel veri yapılarını ve 
+algoritmalarını implemente etmek üzere oluşturulan generic kodlara ilişkin kütüphanenin bir bileşeni ancak standart kütüphane sadece bu
+kodlardan oluşmuyor! Fakat zaman içinde STL biraz daha kişilerin yanlış kullanımının giderek geçerli hale gelmesi ile C++'ın standart
+kütüphanesi anlamında da kullanılıyor. Dolayısıyla teknik olarak STL standar C++ kütüphanesi demek değil ama pratik olarak daha çok 
+bu anlamda kullanılıyor. STL demekle generic kompanentlerden bahsedildiğini anlıyoruz ya da böyle bir vurgu yapıyoruz. STL'in bir sürü
+bileşeni var. Zaman içinde yapılan eklemelerle generic kompanentler doğrudan veri yapılarını ve algoritmalarını implemente eden 
+varlıkların yanında yardımcı birçok araç eklendi; onlarda günümüzde STL'in bir bileşeni olarak görülüyor. Örneğin akıllı pointer 
+sınıfları, C++17 ile dile eklenen vocabulary types yeni sınıflar veya regex kütüphanesi, giriş çıkış kütüphanesi vb. gibi.
+
+STL öncelikle bir nesne yönelimli programlama paradigmasına ilişkin kütüphane değil; generic bir library. Örneğin rum time 
+polymorphism'i burada ana öğe değil, kalıtımda yine direk kullanılan bir araç değil yani evet kalıtımın kullanıldığı yerler 
+var ama burada kullanılan kalıtım is-a relationship amacı ile farklı türden olucak nesneleri aynı türden kısmen öyle olsa da
+burada kalıtım tamamen compile time'a yönelik! Yani burada static bir polymorphism söz konusu, dinamik polymorphism söz konusu 
+değil!!
+
+exception handling yine belirli yerlerde kullanılıyor fakat ağırlıklı kullanıldığını söyleyemeyiz. 
+
+Burada kritik nokta şu: STL efficiency odaklı bir kütüphane yani buradaki temel kaygı derlenen kodların hızlı çalışması zaten 
+C++'ın kullanıldığı alanların ortak özelliği bu. Dolayısıyla STL user friendly olmaktan ziyade efficiency üstüne odaklanmış,
+her şey efficiency üzerine kurulmuş bir kütüphane. Ve generic programlama kütüphanesi yani buradaki öğeler, tamamen generic programlama
+öğeleri.
+
+STL'de 7-8 farklı türden araçlar var diyebiliriz:
+
+1)containers (sınıf şablonları)
+C#, Java, vb dillerde daha çok collection  terimini kullanır. Yani container'lar aslında veri yapılarını implemente eden 
+sınıflardır. Dinamik dizi gibi, bağlı liste gibi, hash table gibi. Yani öğelerin programın çalışma zamanında bellekte 
+farklı düzeneklerden tutulması ve bu öğelere erişmesi olanağı veren genelleştirilmiş sınıflar. Sınıf deeğil de sınıf şablonu 
+çünkü veri yapısının  genel kodlaması implementasyonu veri yapısında hangi türden öğe tutulduğu ile doğrudan ilgili değil. 
+Yani örneğin dinamik dizi yapısında int'de tutabilirsiniz, double'da tutabilirsiniz hatta dinamik dizinin kendisini de 
+tutabilirsiniz. İşte compile time'da derleyici sınıf şablonundan haraketle spesifik olarak hangi türden öğe tutulacak ise
+o türden öğe tutulmaya yönelik bir sınıf kodu yazacak. 
+
+Buradaki generic yapı derleyicinin derleme zamanında türden bağımsız fakat türden bağımsız olan kod formu başka gerçek kod
+türe bağlı.türden bağımsız koddan faydalanarak derleyici tam tersi belirli bir tür için kod yazıyor. 
+
+nelere container diyoruz?
+Neyin container olup olmadığı kişisel bir yargı değil!! Bütün bunlar compile time'da constrain edilebiliyor. Yani container olup 
+olmadığı tartışmaya açık bşr konu dğil!! container olup olmadığını compile time'da sorgulamanın yolları var. Ya da container olmanın
+bir takım gerekleri var. 
+
+STL'de  hangi standart containers(kaplar) var? Ve neler kap kabul ediliyor?
+containers farklı kategorilere ayrılıyor:
+sequence containers
+====================
+C arrays
+std::vector
+std::deque
+std::list
+std::forward_list (C++11)
+std::string
+std::array (C++11)
+bu containers oluşturduğu gruba sequence containers deniliyor. Burada array ve forward_list haricindekiler eski C++'ta da vardı.
+
+associative containers
+=======================
+std::set
+std::multiset
+std::map
+std::multimap
+Bu associative containers eski C++'ta varlardı. Ancak modern C++'ın getirdiği araçlardan faydalanmaya yönelik a)container sınıflara
+yeni üye fonksiyonlar eklendi b)containers taşıma semantiğinden ve/veya perfect forwarding'den yani eski C++'ta olmayan bu araçlardan
+da faydalanmaya başladılar. Yani STL çok daha verimli çok daha hızlı!
+
+unordered associative containers
+=================================
+std::unordered_set
+std::unordered_multiset
+std::unordered_map
+std::unordered_multimap
+Tamamen modern C++ ile dile eklenmiştir. 
+
+Bütün container'lar bir yana std::vector bir yana. Çünkü en çok kullanılan veri yapısı dinamik dizi veri yapısı. Onlarca avantaja 
+sahip belki duruma göre bazı dezavantajları var. Ancak std::vector'in avantajları o kadar fazla ki; programcılara verilen ilk 
+tavsiyelerden biri biri veri yapısı/container seçeceksen  default her zaman vector olsun; ancak açık bir şekilde veector kullanmak bir 
+dezavantaja sahipse ya da seni işini görmüyorsa başka bir container açık ara sana bir tartışılmayacak şekilde avantaj sağlıyorsa o
+zaman diğer container'ları kullan. Doğal olarak biz container'ları incelemeye başladığımızda en fazla ağırlığı std::vector sınfına 
+vereceğiz. string sınıfının kursun ilk yarısında belirli bir düzeyde gördük; her ne kadar yazı işlemlerinde kullanılan bir sınıf 
+olsada özünde string sınıfıda dinamik bir dizi sınıfı olduğu için veri yapısı özellikleri açısından aynı; vector'de string'de 
+dinamik dizi. 
+
+deque ise double ended que'nin kısalması olarak isimlendirilmiştir. Aslında tipik olarak dinamik dizilerin dizisidir. Yani burada 
+tek bir contiguous bellek alanı allocate etmek yerine ayrı ayrı contiguous memory allocate ediliyor. Ve böylece hem baştan hem sondan 
+ekleme amortized constant time'a çekiliyor. 
+
+std::list aslında tipik bir çifte bağlı liste implementasyonu, derleyicilerin hepsinde std::list doubly linked list. 
+
+std::forward_list modern C++ ile dile eklendi tek farkı bu single linked list, isimlendirmenin farklı olması isim çakışmasının 
+önüne geçmek amaçlı. 
+
+std::array aslında bir wrapper, C dizilerinin bir wrapper'ı çok önemli bir sınıf, özellikle embedded tarafta! C dizilerini 
+doğrudan kullanmak yerine bir C dizisini eleman olarak alıp onu sarmalayan onu adapte eden bir interface sunan böylece STL'in 
+diğer öğeleri ile onu daha uyumlu hale getiren ve bazı durumlarda hata yapma riskinide minimize eden araçlarla donatılmş. Ancak 
+sonuçta tipik yine zero-overhead ilkesi ile oluşturulmuş bir sarmalayıcı sınıf.
+
+associative container'ların hepsini aralarında farklar olmak üzere bildiğimiz ikili arama ağaçları. Hemen her derleyicide binary 
+search tree olarak implemente ediliyorlar. Ve özellikle derleyicilerin tercih ettiği implementasyonlar  dengelenme kat sayısı yüksek
+ingilizcede "red-black tree" olarak geçen özel ikili arama ağaçları olarak implemente ediliyorlar. Aradaki fark ise şu; set'de sadece 
+anaharlar tutuluyor yani key ile arama yapıp key buluyorsunuz. Dolayısıyla en tipik kullanım biçimi belirli bir veri kümesi içinde
+yani bir set'te bu öğe var mı yok mu? sorgulamasını yapmak. İşte burada aramaya konu değere key deniyor. set ile multiset arasındaki 
+fark; set'te bir key'den bir tane olabilir ama multiset'te aynı key'den aynı anahtardan birden fazla olabilir. Bu şu anlama gelir:
+örneğin diyelim ki ben string'lerin seti'ni tutacağım ama set'i oluşturma amacım Türkiye'nin ilçelerini tutmak olsun. Şimdi eğer set 
+olsaydı anahtardan 2 tane olamazdı. O halde ben bunları set'te tutarsam diyelim ki aynı isimli 2 tane ilçe varsa bir tane tutabilirim.
+multiset'te ise ismi üzerinde bir anahtardan birden fazla olabiliyor. map'te ise ikili arama ağacında tutulanlar pair'ler çünkü 
+burada amaç herbir anahtarı bir value'ya map etmek. key ile arama yapacağız ama anahtar ile arama yaptığımızda o anahtara karşılık 
+gelen value'ya erişebileceğiz. Örneğin kişilerin isimleri ile arama yapıp isimleri karşılığı telefon numaralarına erişmek gibi.
+Az önceki örnekten diyelim ki ilçeden ilçenin nufüsuna erişmek gibi. Yani aynı şekilde map ile multimap arasındaki farkta mapta bir 
+anahtardan 1 tane olacakken multimap'te birden fazla olabilir. Örneğin İngilizce-Türkçe sözlük oluşturduğumuzu düşünelim; eğer bu map
+olsaydı map'te key olarak string kullanacaktım diyelim ki o key İngilizce sözcük olacaktı ona karşılık gelen value o da bir string 
+olacaktı ama o da onun Türkçe karşılığı olacaktı. O zaman eğer ben bunu map olarak tutarsam herbir ingilizce sözcük için 1 tane 
+Türkçe karşılık olabilirdi. Ancak multimap olsaydı o zaman İngilizce sözcükleri key olarak kullanırsak örneğin herhangi bir sözcüğün
+birden fazla ayrı ayrı Türkçe karşılığını map'te tutabilicektik. associative container'lara veri yapısı olarak bakarsak aslında burada
+temel temel fikir anahtar ile arka planda tabii ki ikili arama ağacı olacak diye standart söylemiyor. Önemli olan C++ stanart'ı 
+açısından complexity garantisi. Burada anahtar ile erişme yani anahtar ile var mı yok mu sorgulamasını yapmak logartimik 
+karmaşıklıkta(Olog(n)) yeni bir anahtar eklemek ya da silmek Olog(n) karmaşıklığında. Dolayısıyla bu karmaşılığı test edecek tipik
+bilinen veri yapısı binary search tree.  Yani standartlar size multiset, multimap, set, map binary search tree olacak demiyor; ancak 
+aklın yolu bir bunları implemente etmenin klasik yolu ikili arama ağacı.
+
+unordered associative container'lar yine anahtar ile arama yapabileceğiniz ya da associative container'larda olduğu gibi anahtar ile
+değere erişebileceğiniz veri yapıları. Ancak burada amaç logaritmik karmaşıkta değil, constant time'da anahtarın olup olmadığını 
+sınamasını yapmak(amortized constant time) ya da anahtarın karşılık gelen değere amortized constant time'da erişmek. Burada aslında 
+yine standartlar söylemesede hash-table dediğimiz veri yapısı. Ancak hash-table implemente etmeninde birçok yolu var; burası tamamen 
+derleyiciye bırakılmış.
+
+
+STL'in en öenmli özelliğinden biri extendable olması. Yani STL'in farklı farklı kompanentleri var ancak herhangi bir kompanent
+kategorisine yeni bir tane ekleyebiliyorsunuz. Örneğin yukarıdakiler dışında başka bir container olarak boost kütüphanesinde
+(standart değil) en az yukarıdaki kadar standart olmayan custom container var. Şunu da belirtmekte fayda var: C++'ın kullanıldığı
+bazı özel alanlarda high-frequency trading gibi STL'in standart container'ları performans açısından o kadar challanging olmuyor
+daha custom contaier kullanma ihtiyacı olabiliyor, yani bunlarla sınırlı değiliz. 
+
+
+Bir de container adaptörleri var; container adaptörleri ile container'lar birbiri ile karıştırılıyor:
+container adaptors
+===================
+std::stack
+std::queue
+std::priority_queue
+bunlara container adaptors deniliyor. container adaptors composition ilişkisi ile bir container'ı eleman olarak alıyorlar ve o 
+container'ın öğelerini kullanarak özelleştirilmiş bir abstract data type için interface oluşturuyorlar. İşte stack stack interface'i
+sunuyor yani son giren ilk çıkar(last in first out). 
+'
+queue kuyruk interface'i sunuyor. Yani priorty queue'da öncelik interface'i sunuyor yani önceliği yüksek olan önce çıkar. Dolayısıyla 
+bunlar container değil; evet yine öğeler beraber tutuluyor ama bir container'ı member olarak alıp bir abstract data type'ı(stack,
+queue, priority_queue) ona göre bir interface kazandırıyor. Zaten adaptör'de böyle bir patter'in ismi genel olarak.
