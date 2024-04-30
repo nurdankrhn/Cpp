@@ -1,0 +1,170 @@
+STL'in genel mantığı compile time'da bazı tekniklerin kullanılmasına dayanıyor. Yani aslında belirli varıklar belirli türleri ya da operator'leri destekliyor.
+Generic kodlarda buna güvenilerek yazılıyor. Bu container dediğimiz sınıfların şöyle ortak özellikleri olduğunu göreceğiz:
+1) container'ların belirli member function'ları var hemen hemen bütün container'larda bazen istisna olabiliyor aynı anlamdaki üye fonksiyonlar, örneğin biri
+hariç her container'ın size fonksiyonu var. size fonksiyonu container'da tutulan öğe sayısını döndürüyor. Dolayısıyla ister vector'ün size'ını çağırın ister
+set'in ister array'in size'ını çağırın bunların geri dönüş değeri container'da o node'da tutulan öğe sayısıdır. Ya da örneğin empty fonksiyonu container boş mu?
+sorusunun cevabını (lojik veri türünden yani bool türünden) veriyor. Yani öyle bir interface var ki küçük bir istisnanın dışında bütün container'ları ortak interface'i
+(biz interface terimini java, C# dillerdeki anlamında değilde client'ları ilgilendiren arayüz anlamında kullanıyoruz.) O halde örneğin bütün container'ların size 
+fonksiyonu var o zaman ben  generic bir kodda bir container'ı template parametresi yaparsam o türden bir parametre değişkeni koyarsam onunda size fonksiyonunu 
+çağırırsam o fonksiyon şablonundan yazılacak fonksiyon bütün container'lar için çağırılabilir olacak. Fakat bazı interface'ler ise şu container kategorileri için
+özel olabiliyor; örneğin sequence container'ların bazı ortak fonksiyonları var: front fonksiyonu gibi. 
+
+2)Yine generic programlamada ki destek noklarından biri container'ların bazı nested type'larının olması yani her container aynı nested type'ı bildirirse o zaman generic 
+bir kodda bir container'ın aynı isimli nested type'ını kullandığımızda sentaks hatası olmayacak. Örneğin C bir container olmak üzere:
+template <typename C>
+void func(C& c)
+{
+    auto iter = c.begin();
+}
+böyle bir fonksiyon şablonu yazdığım zaman, bütün container'ların begin fonk. olduğuna göre o zaman bu generic kod bu noktada C türünün ne olduğundan bağımsız 
+olarak derlenebilir bir yapı oluşturacak ve anlamsal açıdanda iter container'daki ilk öğenin konumu olacak.  Diyelim ki ben bu container'daki tutulacak öğelerden
+birinin konumunu tutmak istiyorum ve öyle bir context var ki type deduction olmadan açık açık o türü kullanmam gerekiyor. Yani iterator türünden bir nesne oluşturmam 
+gerekiyor; her container'ın iterator nested type'ı var ise o zaman ben şöyle bir nesne oluşturursam:
+template <typename C>
+void func(C& c)
+{
+    auto iter = c.begin();
+    ///
+    typename C::iterator iter; //bu tür nested type bildirimlerinde typename anahtar sözcüğü kullanmamız gerektiğini unutmayınız!!
+}
+o zaman buradaki container'ın iterator'ü türünden bir nesne oluşturmuş olacağım. Burada yine bunu container olmasından dolayı iterator bir nested type'ı olacağına 
+olan güvenimden yazıyorum.  Peki yine type deduction olmadan bu container'ın tuttuğu öğenin türünü kullanmak istiyorum, yani vector<int> ise burada ki C o zaman int
+vector<Fighter> ise Fighter türünü kullanmak istiyorum. İşte ortak arayüz diyor ki her container'ın value_type nested-type'ı container'da tutulan öğenin türüdür. 
+O zaman o türü kullanmak için:
+ template <typename C>
+void func(C& c)
+{
+    auto iter = c.begin();
+    ///
+    typename C::iterator iter; 
+    typename C::value_type val;
+}
+
+Demek ki container'ların iterator'lerin yani belirli varlıkların belirli özellikleri sağladığına güvenilerek oluşturulmuş generic yapı. Ama sadece container'lar için
+değil örneğin iterator içinde olabilir:
+template <typename Iter>
+void func(Iter beg, Iter end)
+{
+    typename Iter::value_type val;
+}
+bu kodu neye güvenerek yazmış oluyorum? Eğer Iter bir iterator türü ise o zaman iterator olmanın gerekliliğini/constraint'lerini sağlamak zorunda. iterator olmanın 
+constraint'lerinden biri de her iterator türünün bir value_type'nın nested-type'ı olacak. Ve iterator'ün value_type'ı o iterator konumundaki öğenin türü. 
+Yani derleyicinin yazacağı fonksiyon parametre olarak vector<int> açılımının iterator parametresine sahipse Iter'in value_type'ı int olacak. Eğer set'in double 
+açılımının iterator'ü ise Iter o zaman Iter'in value type'ı bu durumda double olacak. Örneğin 2 iterator'ü birbirinden çıkardığım zaman elde edilecek ifadenin türü
+o iterator konumundaki nesneyi gösterecek pointerın türü o iterator konumundaki nesneye referans olan tür, hepsi compile time'daki generic type mekanizmasıyla 
+oluşturulmuş.
+
+iterator bir container'daki tutulan öğelerden birinin konumunu tutan bir nesne. iterator nesnesi konum tutan bir nesne yani pointerın genelleşmiş hali. Container'lar
+diyorlar ki bizim begin fonksiyonumuzu çağırırsanız size tuttuğumuz ilk öğenin konumunu döndürürüz. Ancak diyor ki bizim end fonksiyonumuzu çağırırsanız container'da
+tutulsn son öğeden sonraki olmayan öğenin konumunu döndürürüz. Yani iterator diyor ki beni dereference edersen hangi öğenin konumunu tutyorsam seni o öğeye eriştiririm.
+Beni diyor 1 arttırırsan bir sonraki öğenin konumunu tutarım diyor. Aslında iterator bir yerde yapıştırıcı gibi  yani container'lar ile algoritmaları birleştiren 
+iteratorler. iteratorler algoritmaların parametreleri olarak container'ların range'leri üstünde işlem yapma olanağı veriyor. 
+
+
+STL efficeny odaklı bir kütüphane yani C++'ı verim odaklı bir dil yapan temel faktörlerden biri de STL'in kendisinin çok efficient olması. Ancak bunun da bazı 
+bedelleri var; STL'de tanımsız davranış oluşturan kod içine düşmek çok tipik bir durum yani konuyu bu kadar detaylı incelememizin nedeni biraz az bilgiye sahip 
+olsak yazdığımız kod başımıza belaya sokar. Örneğin boş bir container'ın begin fonksiyonunu çağırabilirsiniz hatta begin'in döndürdüğü iterator'üde kullanabilirim
+ancak dereference ettiğim anda ub olur!!, exception throw da etmez!! Yani özellikle begin fonk. geri dönüş değeri olan iterator'ü dereference edebilmeniz için o 
+konumda bir öğe olması gerekiyor. Benzer şekilde diyelim ki vector'ümde 20 tane öğe var fakat ben bu kez end fonksiyonunu çağırdım yani son öğeden sonraki öğenin
+konumunu elde ettim. Yine bunu dereference edersem ub!!!! iterator'ü olmayan bir değere/konuma sokmak ub oluşturuyor. 
+
+Bir diğer tanımsız davranış örneği ise şu: bir algoritmayı doğru bir şekilde çağrı yapabilmenizin ön koşulu range ifade eden fonksiyon parametresi çiftindeki 
+1. parametreye gönderdiğiniz iterator'ü ya da konumu sürekli arttırdığınızda belirli bir noktada diğerine eşit olması lazım:
+#include <iostream>
+#include <algorithm>
+#include <ranges>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{3, 6, 7, 8, 9, 1, 4};
+    sort(ivec.end(), ivec.begin()); //ub sort(ivec.begin(), ivec.end()); şeklinde olmalıydı
+    for(auto val : ivec)
+        cout << val << " ";
+}
+
+Hocamız STL'i 3'e ayırıyor ki gerçekten de böyle bir ayrım var: Klasik STL yani modern C++ öncesi çok kısıtlanmış belirli öğelerden yoksun bir STL(mecburiyet yoksa 
+kullanımı tavsiye edilmez), diğeri modern C++ ile yeni olanaklara kavuşturulmuş yeni bir STl var. Yani örneğin lamda ifadelerini kullanabiliceğimiz, range-base for
+loop kullanabileceğimiz vb. Bir de C++20 standart'ının eklediği ranges kütüphanesi var, bu ranges kütüphanesindeki  öğeler gerçekten de STL'e yeni bir yüz kazandırdı
+ki biraz espirili bir şekilde ranges kütüphanesini kullanarak bazı işlemleri yapmanız durumuna STL 2.0 deniliyor. Ki burada fonksiyonel programlama öğeleride var, 
+yani resmen python benzeri kod yazabiliyorsunuz ranges kütüphanesi sayesinde. 
+
+Modern C++ öncesi sadece container'ların member function'ları olarak içinde begin ve end sözcüğü geçen iterator veren member function'ları vardı. Fakat modern C++ 
+ile birlikte bunların global karşılıkları da dile eklendi. Yani örneğin, template tekniği ile aslında compile time'dan bir farkı yok:
+//modern C++ ile beraber
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{2, 54, 6, 7, 7};
+    //auto iter = ivec.begin();
+    auto iter = begin(ivec);
+}
+yani modern C++ ile auto iter = ivec.begin(); demekle auto iter = begin(ivec); arasında fark kalmadı!! auto iter = begin(ivec);'te çağrılan global fonksiyon şablonu
+referans semantiği ile ivec'i alıyor ve onun begin fonksiyonunu çağırıyor. Tabii ki bunlar inline fonksiyonlar olduğu için ilave bir maliyeti yok!!! Dolayısıyla eski
+kodlarda container'ların iterator veren fonksiyonları söz konusu olduğunda hep begin ve end üye fonksiyonlarınının üye fonksiyon olarak çağırıldığını göreceksiniz.
+Ancak modern C++ ile beraber gelen STL'de programcılar artık üye fonksiyon olan begin/end grubunu kullanıyorlar ama daha çok tercih global fonksiyonların çağırılması
+yönünde. 
+Neden sizce global begin, end fonksiyonları eklendi?
+Diziler, onların üye fonksiyonu olma ihtimali yok. Yani ben şöyle yazsam:
+int main()
+{
+    using namespace std;
+
+    int a[] = {1, 4, 5, 6, 7, 9, 12};
+} 
+Diziler de bir container'dır. Peki şimdi bu C dizilerinin range'ini elde etmek istesem burada iterator yerine normal pointer kullanacağım. Dolayısıyla örneğin ben 
+sort fonksiyonunu kullanarak bu diziyi küçükten büyüğe sıralayabilirim:
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    int a[] = {1, 4, 5, 6, 7, 9, 12};
+
+    sort(a, sizeof(a)/ sizeof(*a)); 
+    for(auto i : a)
+        cout << i << '\n';
+} 
+
+global begin şu şekilde düşünebilir:
+template <typename C>
+typename C::iterator Begin(C& c)
+{
+    return c.begin();
+}
+
+eğer dizi diğer container'lar gibi olsaydı a'nın begin'i a'nın end'i diyecektim ama şu an diyemiyorum çünkü bu bir sınıf değil. Global begin fonksiyonuna bir 
+specialization koysam derleyici compile time'da o specialization'ını kullanabilir:
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    int a[] = {1, 4, 5, 6, 7, 9, 12};
+
+    sort(begin(a), end(a)); 
+    for(auto i : a)
+        cout << i << '\n';
+} 
+
+begin fonksiyonunu şöyle yazabiliriz:
+template <typename C>
+typename C::iterator Begin(C& c);
+
+template <typename T, std::size_t n>
+T* Begin(T(&r)[n])
+{
+    return &r[0];
+}
+
+//end ise şöyle olurdu:
+template <typename T, std::size_t n>
+T* End(T(&r)[n])
+{
+    return &r[n];
+}
