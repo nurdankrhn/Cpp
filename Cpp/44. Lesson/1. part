@@ -1,0 +1,773 @@
+3 Mayıs 2023 - Çarşamba
+Dizinin son elemanının adresi değilde dizinin bittiği yerin adresi ingilizcesi ile valid pointer'dır. Onu dereference edemeyiz ama 
+bazı işlemlerde kullanabiliriz; örneğin çıkartma işleminde, karşılaştırma işlemlerinde. İşte nasıl dizinin bittiği yerin adresi 
+kullanılabilir bir adres ise container'ların end fonksiyonun geri döndürdüğü iterator'de dereference edilmiyor ama bazı işlemlerde 
+kullanılıyor.
+
+iteratorlerin kategorileri
+============================
+Neyin iterator'ü olursa olsun ister container'ların iterator'leri ister ataptörler ile elde edilen iteratorler olsun her iterator'ün 
+bir kategorisi var buna ingilizce de iterator category deniliyor.  iterator'ün kategorisi iterator'ün desteklediği operasyonların 
+neler olduğunu belirliyor. Yani örneğin ben bu iterator'ü hangi operator'ün operandı yapabilirim? sorusunun cevabı aslında iterator'ün 
+kategorisi ile belirleniyor. iterator'ün kategorisi o iterator'ün interface'ini oluşturuyor. Yani hangi operasyonlar var hangi 
+operasyonlar yok. Örneğin şöyle bir soru sorulsa bize: benim bir iterator değişkenim var ismi iter peki acaba ++iter ifadesi bir 
+sentaks hatası olur mu? Şimdi iterator'ler tipik olarak sınıflar olduğuna göre iterde bir sınıf türünden bir nesne ++ operator'ünün 
+operandı olabilmesi için bu sınıfın ++ operator'ün operandını overload etmesi gerekiyor. -- operator'ün operandı olabilmesi için 
+iter'in ilişkin olduğu sınıfın -- operator'ünü overload etmesi gerekiyor. 
+
+Soru: bir iterator'ün kategorisini öğrenmenin yolu var mı?
+cevap: var, STL'deki container'ların her birinin iterator'ünün kategorisi bellidir. iterator kategorileri şunlardır:
+input iterator
+output iterator
+forward iterator
+bidirectional iterator
+random-access iterator
+contigious iterator
+
+output iterator
+===============
+++ ön ek ve ++ son ek işlemlerini destekliyor. Eğer bir iterator'ün iterator kategorisi output iterator ise onu ön ek ++ veya son ek ++
+operator'ünün operandı yapabiliriz. Şüphesiz bu operator'lerin operandı yapıp bunu bie deyim haline getirirsek iterator'ümüzü 1 
+arttırmış oluyoruz yani iterator'ümüz bir sonraki öğenin konumunu tutar hale geliyor. Dereferencing operator'ünün operandı olabilir, 
+bu durumda o iterator konumundaki nesneye erişimi sağlıyor. ok operator'ünün operandı olabilir böylece o konumdaki nesne bir sınıf 
+nesnesi ise o sınıf nesnesini member'ına ok operator'ü ile erişebilliyoruz. Dikkat!!: output iterator interface'inde nelerin olmadığında 
+da dikkat ediniz! input iterator'ünde output iterator'ününde eşitlik, eşitsizlik karşılaştırması bile yok! Yani elimizde 2 tane output 
+iterator varsa onları eşitlik ya da eşitsizlik karşılaştırmasına sokamazsınız!! O halde outpur iterator içerik operator'ünün operandı 
+olabilir, ok operator'ünün operandı olabilir, ++ operator'ünün operandı olabilir ve bir iterator'ü copy ctor ile başka bir output 
+iterator ile initialize edebilirim. Dikkat edilirse output iterator kategorisinde ++ operator'ü var ancak -- operator'ü yok!!!! Yani
+eğer bir iterator output iterator ise -- operator'ünün operandı olamaz!!
+
+input iterator
+=================
+input iterator kategorisinde yine bir input iterator'ü içerik, ok, ++(öne ek ve son ek), eşitlik(==) ve eşitsizlik(!=) operator'lerinin operandı olabilir! Yani iki tane
+iterator'ü karşılaştırabiliyorum ve construct edebiliyorum yani  bir iterator'ü copy ctor ile başka bir input iterator ile initialize edebilirim. input iterator'ün 
+interface'i ile output iterator'ünün interface'ini toplarsanız oluşan interface forward iterator interface'idir diyebiliriz. 
+
+forward iterator
+===================
+forward iterator'de hem input iterator'de olduğu gibi içerik, ++(ön ek ve son ek), ok, eşitlik, eşitsizlik operator'leri var ve default ctor'da var.
+Oysa diğerlerinde default ctor yoktu, diğerlerinde olduğu gibi copy ctor var ve iterator'ü birbirine atayabiliyoruz yani atama operator'üde var. 
+
+bidirectional iterator
+=========================
+Bidirectional iterator ile forward iterator arasındaki tek fark bidirectional operator'ünün ön ek ya da son ek konumunda -- operator'ünü de destekelemsi, yani 
+forward iterator kategorisindeki bütün iteratorlerin bütün operasyonlarına sahip ekstra -- operator'ünüde kullanabiliyoruz. Bu çok önemli, bu şu demek eğer bir 
+container'ın iterator'ü sadece forward iterator ise o zaman sadece arttırabilirim yani iteratorden faydalanarak bir sonraki konumu elde edebilirim ancak bidirectional
+operator ise hem arttırabilir hem de eksiltebilirim. O halde iteratorleri bidirectional iterator kategorisinde olan iterator'lerde çift yönlü izleme yapabilirim.
+
+random-access iterator
+========================
+random access kategorisi en yetenekli iterator kategorisi çünkü raw pointer ile yapabildiğiniz her şeyi random-access iterator kategorisindeki iteratorlerlede
+yapabiliyoruz. Pointerlarla yapabileceğimiz: bir pointer köşeli parantez operator'ünü operandı olabilir, toplama çıkarma işlemleri yapabilirim, iki iteratorü/pointerı
+sadece eşitlik, eşitsizlik karşılaştırmasına değil büyüklük, küçüklük karşılaştırmasına da sokabilirim; işte burdaki operasyonlar yine additional operations yani bunlar
+bidirectional, input, output iterator kategorisinde yok!! Ama random-access kategori olunca biz pointer'larla yaptığımız bütün işlemleri random-access iteratorlerle 
+yapabiliyoruz. 
+
+Örneğin STL'in ilerde de ayrıntılı olarak ele alacağımız container sınıflarından başlayalım örneğin forward_list sınıfı:
+#include <iostream>
+#include <forward_list>
+
+int main()
+{
+    using namespace std;
+
+    forward_list<int> x(10);
+
+    auto iter = x.begin();
+
+    ++iter;
+    iter++;
+
+}
+soru: forward_list sınıfının iteratorleri hangi kategoride? cevap: forward iterator kategorisinde; bu kategoride olduğu için ön ek ++ ve son ek++ operator'ünü 
+destekler, desteklemeseydi sentaks hatası olurdu! forward iterator kategorisinde olduğu için eşitlik operator'ünün operandı da olabilir:
+#include <iostream>
+#include <forward_list>
+
+int main()
+{
+    using namespace std;
+
+    forward_list<int> x(10);
+
+    auto iter1 = x.begin();
+    auto iter2 = x.end();
+
+    ++iter1;
+    iter2++;
+
+    auto b = iter1 == iter2;
+}
+
+fakat örneğin forward iterator kategorisindeki bir iterator nesnesi < karşılaştırma operator'üne sahip değild:
+#include <iostream>
+#include <forward_list>
+
+int main()
+{
+    using namespace std;
+
+    forward_list<int> x(10);
+
+    auto iter1 = x.begin();
+    auto iter2 = x.end();
+
+    ++iter1;
+    iter2++;
+    *iter1; //içerik operator'ünü destekliyordu
+    auto b = iter1 < iter2; //syntax error
+    --iter1; //syntax error
+}
+forward iterator -- operator'ünüde desteklemiyordu, -- operator'ünü destekleyen en düşük yetenek seviyesi bidirectional iterator. O halde --iter1 yazdığım zaman 
+sentaks hatası meydana gelir. Eğer bidirectional iterator olan list container'ını kullanırsam -- operator'ü ile oluşturduğun ifade sentaks hatası olmaz:
+#include <iostream>
+#include <forward_list>
+#include <list>
+
+int main()
+{
+    using namespace std;
+
+    list<int> x(10);
+
+    auto iter1 = x.begin();
+    auto iter2 = x.end();
+
+    ++iter1;
+    iter2++;
+    *iter1; //içerik operator'ünü destekliyordu
+    auto b = iter1 < iter2; //syntax error
+    --iter1; //syntax error
+}
+en yetenekli iterator kategorisi olan random-access kategorisinde olsaydı iteratorümüz o zaman küçük operator'ünün bulunduğu ifade kodu legal olacaktı, hatta raw 
+pointer'ları hangi operator'lerin operandı yapabiliyorsam random-access iterator kategorisindeki iterator'leride o operator'lerin operandı yapabilirim:
+örneğin vector sınıfının iterator'leri random-access iterator kategorisinde:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> x(10);
+
+    auto iter1 = x.begin();
+    auto iter2 = x.end();
+
+    ++iter1;
+    iter2++;
+    *iter1; 
+    auto b = iter1 < iter2;
+    iter1 += 3;
+    auto val = iter1[2];
+    --iter1; 
+}
+
+Peki iterator'ün kategorisini compile time'da sorgulamak mümkün mü?
+iterator'ün kategorisini derleme zamanında tespit etmeye yönelik araçlar var, her iterator türünün iterator_category isimli bir nested type'ı var. Örneğin:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int>::iterator::iterator_category
+}
+
+STL'de iterator başlık dosyasında oluşturulmuş bazı empty class'lar var. Bu aslında empty class konusunuda çok güzel' gösteren örneklerden biri. Bazı empty class'lar
+yani hiçbir öğeye sahip olmayan sınıflar sadece compile time'da tür belirleme amaçlı kullanılıyor. Eğer bir iterator'ün iterator kategorisi input iterator kategorisi
+ise o iterator'ün iterator_category nested type'ı input_iterator_tag türü olmalı, input_iterator_tag bir empty class'tır. Eğer input iterator değilse output iterator 
+ise onun iterator_category'si output_iterator_tag olmalı, eğer forward iterator ise onun iterator_category'si forward_iterator_tag olmalı, eğer forward iterator
+değilde bidirectional iterator ise onun iterator kategorisi bidirectional_iterator_tag olmalı, eğer iterator'ün kategorisi ise random-access iterator ise onun iterator
+kateorisi random_access_iterator_tag olmalı bunlar empty struct'lar:
+input iterator              input_iterator_tag
+output iterator             output_iterator_tag
+forward iterator            forward_iterator_tag
+bidirectional iterator      bidirectional_iterator_tag
+random_access iterator      random_access_iterator_tag
+
+iterator kategorisini göstermek için kod yazalım, örneğin:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+
+using container = std::vector<int>;
+using iter = container::iterator;
+using cat = iter::iterator_category;
+
+
+int main()
+{
+    using namespace std;
+
+    cout << typeid(cat).name << '\n'; //random_access_iterator_tag
+}
+using bildirimindeki vector'ü örneğin set yapalım:
+
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+
+using container = std::set<int>;
+using iter = container::iterator;
+using cat = iter::iterator_category;
+
+
+
+int main()
+{
+    using namespace std;
+
+    cout << typeid(cat).name << '\n'; //bidirectional_iterator_tag
+}
+list'in ya da set'in iteratorleri bidirectional_iterator_category'sinde, örneğin değiştirelim bu kez örneğimiz forward_list olsun:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+
+using container = std::forward_list<int>;
+using iter = container::iterator;
+using cat = iter::iterator_category;
+
+
+
+int main()
+{
+    using namespace std;
+
+    cout << typeid(cat).name << '\n'; //forward_iterator_tag
+}
+Ancak iteratorler sadece container sınıflarına ilişkin olmayabilir, örneğin:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+
+using iter = std::ostream_iterator<int>;
+using cat = iter::iterator_category;
+
+
+
+int main()
+{
+    using namespace std;
+
+    cout << typeid(cat).name << '\n'; //output_iterator_tag
+}
+ostream_iterator sınıfının yani bu türden iterator'ün iterator kategorisi output_iterator, örnek istream sınıfından olsaydı:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+
+using iter = std::istream_iterator<int>;
+using cat = iter::iterator_category;
+
+
+
+int main()
+{
+    using namespace std;
+
+    cout << typeid(cat).name << '\n'; //input_iterator_tag
+}
+istream_iterator iterator'ünün iterator kategorisi input_iterator_tag'dir.
+
+
+iterator'ün kategorisinin olması aynı zamanda bize compile-time'da generic kodla bir iterator'ün kategorisinin ne olduğuna bağlı olarak kodu geçerli kılmak ve kod seçme imkanı veriyor. 
+Örneğin bir fonksiyon şablonumuz olsun:
+fonksiyon şablonlarında container'lar üstünde işlem yapacak fonksiyon şablonları range parametreye sahiptir!! Diyelim k, biz yazacağımız generic kodda ilerde öğreneceğimiz teknikler ile
+buradaki iterator türünün hangi iterator kategorisinde olduğuna bağlı olarak kod seçmemiz gerekiyor, bunu yapabilmek için en azından iterator'ün iterator kategorisini test edebilmeliyiz.
+Biz örnekte gelen iterator tag'inin random_access_iterator_tag olması durumunda static_assert ile uyarı vermesini istiyoruz:
+#include <iostream>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+
+template <typename Iter>
+void algo(Iter beg, Iter end)
+{
+    static_assert(std::is_same_v<typename Iter::iterator_category, std::random_access_iterator_tag>, "only for random access iterators");
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec(10);
+
+    algo(ivec.begin(), ivec.end());
+
+}
+arka planda olan şu: compile-time'da algo'ya yapılan çağrıda derleyici her zaman olduğu gibi template argument deduction ile ivec.begin() ve ivec.end() çağrılarının türünü fonksiyonlarının geri dönüş 
+değeri türü olan vector'ün int açılımının iterator türü olarak çıkarımını yaptı/deduce etti. Dolayısıyla iter türü derleyicinin yazacağı kodda aslında vector<int>::iterator'ü türü şeklindedir. Fonksiyon
+şablonunda is_same meta fonksiyonu ve is_same_v variable template söz konusu olduğunda iterator_category nested type'ı artık iter'in türü compile-time'da vector<int>::iterator
+türü olduğu belli olduğu için onun nested type'ıda yine compile-time'da random_access_iterator_tag. İşte daha önce öğrendiğimiz type_traits is_same ile fonksiyon şablonu 
+içinde iki türün aynı olduğu anlaşıldı, dolayısıyla buradaki varibale template'ın değeri true oldu, true olduğu için bir sentaks hatası olmadı. Fakat bu vector değilde
+std::list olsaydı:
+#include <iostream>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+
+template <typename Iter>
+void algo(Iter beg, Iter end)
+{
+    static_assert(std::is_same_v<typename Iter::iterator_category, std::random_access_iterator_tag>, "only for random access iterators");
+}
+
+int main()
+{
+    using namespace std;
+
+    list<int> ilist(10);
+
+    algo(ilist.begin(), ilist.end());
+
+}
+bu durumda sentaks hatası olur çünkü fonksiyon şablonundaki static assert'in 1. parametresindeki constant expr.'nın değeri true değil, false olur çünkü list'in 
+iterator'leri random_access_iterator kategorisinde değil bidirectional_iterator kateorisinde!!!
+
+Biz örneklerimizi en basit şekliyle static_assert kullanarak yaptık ancak generic programlama teknikleri ile ilerde ele alacağımız comp,le-time'da örneğin
+random-access iterator kategorisi için bir kodun, bidirectional iterator kategorisi için başka bir kodun seçilmesini generic programlama teknikleri ile
+gerçekleştirebilirim. En basitinden önceki derslerde öğrendiğimiz C++17 ile dile eklenen static if ile bunu yapabiliriz. Örneğin yukarıdaki örnekte beim beg
+iterator'ünü 5 pozisyon arttırmam gereksin; eğer şöyle yaparsam:
+#include <iostream>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+
+template <typename Iter>
+void algo(Iter beg, Iter end)
+{
+    beg += 5;
+}
+
+int main()
+{
+    using namespace std;
+
+    list<int> ilist(10);
+
+    algo(ilist.begin(), ilist.end());
+
+}
+sentaks hatası olur, çünkü main'deki çağrıda kullanılan iterator türü için += operator'ü yok. iterator'ü 5 arttırmam için eğer bu random-access iterator değilse 
+örneğin bidirectional iterator ise benim 5 defa ++ operator'ünü operandı yapmam lazım. Şimdi o zaman derleyiicye şöyle bir kod seçtirmem gerekiyor compile-time'da:
+derleyici Iter'in iterator kategorisine  bak eğer Iter'in kategorisi random-access iterator ise sen beg+= 5; kodunu seç ama random_access iterator değilde 
+bidirectional iterator ise o zaman döngüsel bir yapı içinde 5 kez arttır!! 
+#include <iostream>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+
+template <typename Iter>
+void algo(Iter beg, Iter end)
+{
+    if constexpr (std::is_same_v<typename Iter::iterator_category, std::random_access_iterator_tag>) {
+        beg += 5;
+        std::cout << "random access iterator\n";
+    }
+
+    else if constexpr (std::is_same_v<typename Iter::iterator_category, std::bidirectional_access_iterator_tag>) {
+        for(it i = 0; i < 5; ++i) {
+            ++beg;
+        }
+        std::cout << "bidirectional access iterator\n";
+    }
+}
+//compile-time'da kod seçiminin önemini görünüz!
+
+int main()
+{
+    using namespace std;
+
+    list<int> ilist(10);
+
+    algo(ilist.begin(), ilist.end()); //bidirectional iterator
+
+}
+derleyici compile time'da else if içindeki kodu seçti, oysa bu list değilde vector olsaydı:
+#include <iostream>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+
+template <typename Iter>
+void algo(Iter beg, Iter end)
+{
+    if constexpr (std::is_same_v<typename Iter::iterator_category, std::random_access_iterator_tag>) {
+        beg += 5;
+        std::cout << "random access iterator\n";
+    }
+
+    else if constexpr (std::is_same_v<typename Iter::iterator_category, std::bidirectional_access_iterator_tag>) {
+        for(it i = 0; i < 5; ++i) {
+            ++beg;
+        }
+        std::cout << "bidirectional access iterator\n";
+    }
+}
+//compile-time'da kod seçiminin önemini görünüz!
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec(10);
+
+    algo(ivec.begin(), ivec.end()); //random_access iterator
+
+}
+derleyici compile time'da if içindeki kodu seçti!! Dikkat biz gerçektem böyle bir ihtiyacımız olsaydı bu şekilde yapmazdım, çünkü bunu yapan ismi advanced olan 
+global bir fonksiyon var ancak konunun anlaşılması için güzel örnek teşkil ettiği için bu şekilde implemente ettik!!
+
+
+
+STL'de birtakım baş rol oyuncuları vardı: container'lar, algoritmalar, iteratorler. Algoritmalar aslında fonksiyon şablonları ancak parametreleri iterator olarak 
+belirlenen fonksiyon şablonları. Ve iterator parametreleri tipik olarak 1 ya da 1'den fazla range oluşturuyor. STL'in en çok kullanılan algoritmalarından biri olan
+copy algoritmasını kendimiz implemente edelim: copy algoritması bir range'deki öğeleri adı üstünde bir yere kopyalıyor, STL algoritmalarının en önemli faydalarından 
+biri de STL algoritmaları iterator interface'ine göre yazılmış. Bu da şöyle bir avantajda sağlıyor, eğer olaya birden fazla container müdahilse bu container'lar aynı 
+container olmak zorunda değil. Örneğin bir bağlı listeden bir vector'e kopyalama yapabilirim, bir set'ten bir vector'e kopyalama yapabilirim. Çünkü STL algoritmaları 
+range parametresine sahip, range bir vector'ün range'ide olabilir, bir başka container'ında range'ide olabilir. copy algoritmasını implemente edelim:
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+dikkat ederseniz template parametrelerine isim verirken 1.'ye InIter ismini 2.'ye OutIter ismini verdim. Bunlar çok sık kullanılan kullanılan isimler, bu isimleri
+seçtim çünkü bunlar minimum desteklediği operasyonlara göre seçildi. Bu koda bakan, 1. parametre için kullandığım InIter ismini gördüğünde buradan hemen input 
+iterator çağrışımını alacak, 2. parametreden ise output iterator çağrışımını alacak. Yani diyorum ki 1.  template parametresi minimal input iterator olabilir yani
+bu template parametresinden olan fonksiyon parametresine minimal input iterator interface'ine sahip herhangi bir iterator'ü gönderebilirsiniz demek. Bu da şu demek
+az önce saydığımız STL container'larını düşündüğümüzde bu parametreye STL container'larından iterator kategorisi en düşük olan zaten forward_iterator dolayısıyla buraya
+herhangi bir container'ın herhangi biriterator'ü ile çağrı yapabilirim demek. 2. template parametresi ise output iterator interface'i istediğini söylüyor. Burada yine
+parametrelere farklı isimler tabii ki verebiliridim bu dilin kuralı değil, sadece okuyanın işini kolaylaştırmak için bu şekilde isimlendirme yapabiliriz. STL algoritmaları
+sona yakın eklemeler ile 200'e yakın algoritma var,sayı çok gelebilir ancak belirli konvensiyonları öğrendiğimizde bu konvensiyonlar isimlendirmeye ilişkin bir kısmı 
+geri dönüş değerine türüne ilişkin; o konvensiyonları öğrendikten sonra çok rahat bir şekilde hepsini kullanabilirsiniz. 
+
+Hatta birçoğunu tahmin edebilirsiniz. Örneğin çok tipik bir konvensiyon: bu algoritmanın ismi copy olduğuna göre bir yerden okuyacak bir yere yazacak o halde 
+1. konvensiyon şudur: bir range'e yazma işlemi yapan bütün algoritmalar en son yazdıkları konumdan sonraki konumu döndürüler. Bu durumda copy algoritmasının türü 
+OutIter olur. C'de standart C kütüphanesinde özellikle bir fonksiyonun bir parametresi okuma amaçlı pointer 1 parametresi yazma amaçlı pointersa örneğin strcpy 
+yazma parametresi daha öncedir, C'deki konvensiyon yazma parametresi daha öncedir. Ancak STL'de bu durum tam tersidir. STL'de okuma parametreleri yazma parametresinden 
+daha öncedir!
+
+İşte STL'in en çok kullanılan algoritmasının kodunun bu kadar basit olması şeşırtıcı ama aynı zamanda generic programlamanında güzelliğini gösteriyor. Bu copy algoritması ile örneğin içinde
+Fighter türünden nesneler bulunan bir bağlı listedeki öğeleri bir içinde Fighter tutan bir vector'e kopyalayabilirim tabii container'ların türü de aynı olabilir. Yazılan copy algoritmasında
+sentaks hatası olmaması için  *destbeg++ = *beg++ ifadesinde bulunan iterator konumundaki nesnelerin yani 1. ve 2. parametredeki iterator'lerin konumundaki nesnelerin InIter türünden iterator'lerin
+gösterdiği nesnelerin türü ile OutIter türünden iterator'lerin gösterdiği nesnelerin türü tamamen aynı olmak zorunda değil!! örneğin *destbeg++ ifadesinin türü double olabilir, *beg++ ifadeisinin 
+türü ise int olabilir. double'a int atanabilir mi? Tabii ki, o halde bu şu demek, örneğin bağlı listede içinde int tutulan bir bağlı listedeki öğeleri copy algoritması ile içinde double tutan bir
+vector'e kopyalayabilirim demek, içinde std::string tutan bir container'daki öğeleri ya da içinde const char* tutan bir container'daki öğeleri içinde std::string tutan bir range kopyalayabilirim. 
+Bu algoritma için önemli olan container'ların türlerinin aynı olması değil, iterator konumundaki nesnelerin birbirine assignable olması!!!! Bu algoritmayı bir örnekte kullanalım:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{1, 3, 5, 7, 9, 13};
+    list<int> ilist(6);
+    //vector'den list'e kopyalama
+    Copy(ivec.begin(), ivec.end(), ilist.begin());
+}
+bu kodu şu şekilde değiştirisek ub oluşur:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{1, 3, 5, 7, 9, 13};
+    list<int> ilist; //ub list is empty
+    //vector'den list'e kopyalama
+    Copy(ivec.begin(), ivec.end(), ilist.begin());
+}
+ub çünkü list boş bir container yani bu şekilde default ctor edilmiş bir container henüz öğe tutmayan bir container'dır. Dolayısıyla burada fonksiyon şablonu içind verilen döngünün ilk turunda 
+siz *destbeg'e geldiğinde ub oluyor. Dolayısıyla copy algoritmasının görünmeyen bir constraint'i var; o da şu: fonksiyon şablonu içindeki OutIter destbeg'den sonra en az beg-end arasındki mesafe kadar
+öğe olmalı!!! Peki ilist'de 5 tane öğe olsaydı yine ub olur muydu? Evet döngünün son turunda yine ub olurdu: 
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{1, 3, 5, 7, 9, 13};
+    list<int> ilist(5); //ub 
+    //vector'den list'e kopyalama
+    Copy(ivec.begin(), ivec.end(), ilist.begin());
+}
+
+ilist'in eleman sayısı vector'den fazla olsaydı ub olmazdı:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{1, 3, 5, 7, 9, 13};
+    list<int> ilist(5000); 
+    //vector'den list'e kopyalama
+    Copy(ivec.begin(), ivec.end(), ilist.begin());
+}
+
+ilk örneğe geri dönüp ilist'teki öğeleri yazdıralım:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{1, 3, 5, 7, 9, 13};
+    list<int> ilist(6);
+    //vector'den list'e kopyalama
+    Copy(ivec.begin(), ivec.end(), ilist.begin());
+    for(auto i : ilist)
+        std::cout << i << '\n';
+}
+
+burada bazı örneklerde hocamızın kendi yazdığı nutility isimli başlık dosyasını kullanacağız; bunun nedeni kolaylıklardan faydalanmak olacak, kodlarda böyle fonksiyonların nutility modülünden geldği
+bilgisini paylaşacağım!
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{1, 3, 5, 7, 9, 13};
+    list<int> ilist(6);
+    //vector'den list'e kopyalama
+    Copy(ivec.begin(), ivec.end(), ilist.begin());
+    print(ilist, cout); //nutility başlık dosyasından gelmekte, 1 3 5 7 9 13 şeklinde ekran çıktısı olur
+}
+
+Bu örnekta vector'ün string açılımını alalım:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 200, rname) //nutility başlık dosyasından gelmekte
+    print(svec, cout, '\n');  //nutility başlık dosyasından gelmekte
+}
+bunu daha incelemek için, bu kez stringleri bir dosyay yazalım:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+int main()
+{
+    using namespace std;
+
+    std::ofstream ofs{"out.txt"};
+    if( !ofs ) {
+        std::cerr << "out.txt dosyasi olusturulamadi\n";
+        exit(EXIT_FAILURE);
+    }
+
+    vector<string> svec;
+    rfill(svec, 20'000, rname) //nutility başlık dosyasından gelmekte
+    print(svec, ofs, '\n');  //nutility başlık dosyasından gelmekte
+}
+yukarıdaki örnekte copy algoritmasını kullanrak bir listeye bu öğeleri kopyalayalım:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+int main()
+{
+    using namespace std;
+
+    std::ofstream ofs{"out.txt"};
+    if( !ofs ) {
+        std::cerr << "out.txt dosyasi olusturulamadi\n";
+        exit(EXIT_FAILURE);
+    }
+
+    vector<string> svec;
+    rfill(svec, 20'000, rname) //nutility başlık dosyasından gelmekte
+    list<string> slist(20'000);
+    Copy(svec.begin(), svec.end(), slist.begin());
+    print(slist, ofs, '\n');  //nutility başlık dosyasından gelmekte
+}
