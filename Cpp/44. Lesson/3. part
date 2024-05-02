@@ -1,0 +1,325 @@
+const iteratoründe bir iterator adaptörü olduğunu söyledik fakat içerik operator fonksiyonunu çağırdığımız zaman bize T& döndürmak yerine const T& döndürüyor,
+böylece dereference edilmiş iterator nesnesini salt okuma amaçlı kullanmış oluyoruz. STL'deki bazı fonksiyonlar iterator'lere manipüle ediyor:
+bu fonksiyonların isimleri:
+std::advance
+std::distance
+std::next
+std::prev
+std::iter_swap
+bunların iterator başlık dosyasında ve std namespace'i içinde.
+
+std::advance
+===============
+advance fonksiyonu bir iterator'ü arttırmak ya da eksiltmek için kullanılıyor. Yani diyelim ki elimizde bir iterator var(iterator'ün arttırılmaya uygun bir iterator olduğunu
+düşünün ki hepsi uygun, ++ operator'ü hepsini destekliyor) örnekte iterator'ü 4 arttırmak isteyelim:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec(100);
+
+    auto iter = ivec.begin();
+
+    iter += 4;
+}
+bu örnekte olduğu gibi eğer iterator'ümüz random_access iterator kategorisinde ise vector'ün iterator'leri random_access_iterator kategorisinde o zaman doğrudan
+iter += 4; kodunu yazabiliriz. Ancak iterator random_access_iterator kategorisinde değilse örneğin input/outpu/bidirectional iterator ise o zaman += işlemini desteklemez! O halde döngüsel bir yapı 
+içinde iterator'ü 4 kez arttırmamız gerekir. Burada şöyle bir problem de var: generic bir kodu düşünün:
+template <typename Iter>
+void func(Iter first, Iter last)
+{
+    int n = 5;
+
+    first += n;
+}
+bu kod random_access iterator için doğru diğer iterator kategorileri için sentaks hatası olucak!! Ancak bu şekilde yazmak yerine advance fonksiyonunu çağırırsak:
+template <typename Iter>
+void func(Iter first, Iter last)
+{
+    int n = 5;
+
+    std::advance(iter, n);
+}
+advance fonksiyonu generic programlama tekniği ile (önceki derslerde onun nasıl yazılabileceğini göstermiştik) iterator'ün kategorisine bakacak compile time'da ramdom_access_iterator ise +='i dönüştürecek
+ama random_access_iterator değilse onu döngüsel bir yapı içinde n kez arttırmaya dönüştürecek. Aşağıda advance fonksiyonunun nasıl yazıldığı konusunda da fikir vereceğiz ve template konusunda incelemediğimiz
+bir yöntemi ilk defa ele alacağız! Bu yine C++ programcıları ile yapılan mülakatlarda çok sık sorulan bir teknik: tag dispatch (bir generic programlama tekniği), birçok yerde STL'de de tag dispatch 
+kullanılıyor:
+//tag dispatch
+önce orjinalini inceleyelim:
+std::advance fonksiyonunu incelediğimiz zaman 2 tane parametresi olduğunu görüyoruz; 1. template parametresi InIter iterator'ü, 2. template parametresi arttırılma değeri biz örnekte int'i kullanacağız
+ancak orjinalinde o da template parametresi yani int olmak zorunda değil hatta custom bir type'da olabilir. Yani 1. template parametresi iterator'ün türü 2. template parametresi difference'nin türü yani
+kaç farklı eksiltme ya da arttırılma yapılacak onun türü. Şimdi biz bunun biraz daha basitleştirilmiş halini yazalım:
+//biz Diff türü yerine int kullandık ama normalde şöyle:
+template <typename Iter, typename Diff>
+void Advance(Iter &iter, Diff n)
+{
+    //...
+}
+biz basitce tag dispatch'i şöyle implemente ettik:
+template <typename Iter>
+void Advance_impl(Iter& iter, int n, std::random_access_iterator_tag)
+{
+    std::cout << "random access iterator\n";
+    iter += n;
+}
+
+template <typename Iter>
+void Advance_impl(Iter& iter, int n, std::bidirectional_access_iterator_tag)
+{
+    std::cout << "bidirectional access iterator\n";
+    while(n--)
+        ++iter;
+}
+
+template <typename Iter>
+void Advance(Iter &iter, int n)
+{
+    Advance_impl(iter, n, typename Iter::iterator_category{});
+}
+Dikkat: ben bu işi birden fazla teknikle yapabilirim, yani ben bu işi yani compilte time'da kod seçimini bu örnek için SFINAE ile de ya da örnekte kullanılan zaten tag dispatch yöntemi ile veya
+if constexpr(C++17 ile dile eklendi) ile yapabilirim. Ancak her zaman her teknik birbirinin yerini tutmayabilir; duruma göre bu tekniklerden birini ya da bir başkasını kullanmak işinize gelebilir. 
+İdeali bütün teknikleri bilmek. Yukarıda yazdığımız kodu deneyelim:
+#include <<iostream>
+#include <vector>
+
+template <typename Iter>
+void Advance_impl(Iter& iter, int n, std::random_access_iterator_tag)
+{
+    std::cout << "random access iterator\n";
+    iter += n;
+}
+
+template <typename Iter>
+void Advance_impl(Iter& iter, int n, std::bidirectional_access_iterator_tag)
+{
+    std::cout << "bidirectional access iterator\n";
+    while(n--)
+        ++iter;
+}
+
+template <typename Iter>
+void Advance(Iter &iter, int n)
+{
+    Advance_impl(iter, n, typename Iter::iterator_category{});
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> x(100);
+    auto iter = x.begin();
+
+    Advance(iter, 5); //random access iterator
+}
+vector yerine list yapalım:
+#include <<iostream>
+#include <vector>
+#include <list>
+
+
+template <typename Iter>
+void Advance_impl(Iter& iter, int n, std::random_access_iterator_tag)
+{
+    std::cout << "random access iterator\n";
+    iter += n;
+}
+
+template <typename Iter>
+void Advance_impl(Iter& iter, int n, std::bidirectional_access_iterator_tag)
+{
+    std::cout << "bidirectional access iterator\n";
+    while(n--)
+        ++iter;
+}
+
+template <typename Iter>
+void Advance(Iter &iter, int n)
+{
+    Advance_impl(iter, n, typename Iter::iterator_category{});
+}
+
+int main()
+{
+    using namespace std;
+
+    list<int> x(100);
+    auto iter = x.begin();
+
+    Advance(iter, 5); //bidirectional access iterator
+}
+isminin advance olması bizi belki şu açıdan şaşırtabilir, eğer bidirectional iterator ise advance fonksiyonuna negatif bir değerde geçebilirim, dolayısıyla bizim yukarıda yazdığımız kod baştan söylediğimiz
+gibi tam doğru değil çünkü örneğin bidirectional tag için negatif olması durumunuda işlemem gerekirdi:
+#include <<iostream>
+#include <vector>
+#include <list>
+
+int main()
+{
+    using namespace std;
+
+    list<int> mylist(100);
+
+    auto iter = mylist.end();
+    advance(iter, -20);
+}
+tabii advance'in 2. parametresine negatif değer geçmeniz için bunun minial bidirectional iterator kategorisinde olması gerekir -- işlemini desteklemesi gerekiyor. 
+
+2. iterator fonksiyonumuz ki çok kullanılan iterator fonksiyonumuz: distance
+
+std::distance
+===============
+bir iterator'den diğer iterator'e varıncaya kadar iterator'ü kaç kez arttırmamız gerekiyor o değeri döndürüyor!! Yalnız aman dikkat bu fonksiyonu çağırabilmeniz için  yani ub olmaması için
+fonksiyonun 1. parametresine geçtiğiniz iterator'ün n kez arttırıldığında 2. parametresine geçtiğiniz iterator'e eşit hale gelebilmesi gerekiyor, yani biraz daha teknik tanımla fonksiyonun 1. ve 2.
+parametresine geçtiğiniz değerlerin geçerli bir range oluşturması gerekiyor!! Fonksiyonun geri dönüş değeri aslında bir nested type; iterator'ün difference_type'ı; bizim standart container'larımız 
+için bu çoğunlukla işeretli bir tam sayı türü olduğunu göreceksiniz. Orjinali şöyle:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    list<string> slist;
+
+    rfill(slist, 20, rname); //rname and rfill comes from utility header file
+    print(slist, cout);
+
+    string name;
+    cout << "aranan ismi girin: ";
+    cin >> name;
+
+    if(auto iter = find(slist.begin(), slist.end(), name); iter != slist.end()) {
+        cout << "bulundu... index = " << distance(slist.begin(), iter) << '\n';
+    }
+    else {
+        std::cout << "bulunamadi\n";
+    }
+}
+yine tabii ki tahmin ettiğiniz gibi distance'da generic kodlarda kullanabiliriz çünkü iterator'ün kategorisine bağlı olarak kod seçimi söz konusu yine. 
+
+3. fonksiyonumuz eski C++'ta yoktu modern C++ ile dile eklendi bu fonksiyon:
+std::next
+===========
+C++ ile yeni tanışanlar advance ve next'i birbiri ile karıştırıyorlar; aradaki fark ise şu: advance referans parametrete sahip, gönderdiğimiz iterator'ün değerini değiştiriyor. next ise geri dönüş değeri 
+ile size yeni bir iterator veriyor. Yani siz bir iterator konumundan n sonraki konumu elde etmek istiyorsanız örneğin onu bir fonksiyona argüman olarak göndermek isteyebilirsiniz next fonksiyonunu
+çağırabilirsiniz. Bu şu demek: 
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    list<string> slist;
+
+    rfill(slist, 20, rname); //rname and rfill comes from utility header file
+    print(slist, cout);
+
+    cout << *next(slist.begin(), 3) << '\n';
+
+}
+next fonksiyonunun bir diğer faydalı özelliği daha var: 2. parametresi varsayılan argüman olarak 1 değerini alıyor; dolayısıyla iterator konumundan bir sonraki konumu elde etmek için fonksiyonun 
+2. parametresine argümanı doğrudan 1 geçmekle 2. parametre için varsayılan argüman kullanmak arasında bir fark yok:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    list<string> slist;
+
+    rfill(slist, 20, rname); //rname and rfill comes from utility header file
+    print(slist, cout);
+
+    cout << *next(slist.begin(), 1) << '\n';
+
+}
+ile aşağıdaki kod eş değerdir:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    list<string> slist;
+
+    rfill(slist, 20, rname); //rname and rfill comes from utility header file
+    print(slist, cout);
+
+    cout << *next(slist.begin()) << '\n';
+
+}
+özellikle algoritmalar söz konusu olduğunda varsayılan argman kullanmakla 1 değeri vermek arasında fark yok, örneğin copy algoritmasını kullandığımızda örneğin listedeki bazı öğeleri bir vector'e 
+kopyalayalım:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    list<string> slist;
+
+    rfill(slist, 20, rname); //rname and rfill comes from utility header file
+    print(slist, cout);
+    vector<string> svec;
+
+    copy(next(slist.begin(), 5), next(slist.begin(), 9), back_inserter(svec));
+
+    print(svec, cout);
+
+}
