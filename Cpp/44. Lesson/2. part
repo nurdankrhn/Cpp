@@ -1,0 +1,645 @@
+STL algoritmalarının büyük çoğunluğu algorithm başlık dosyasında ancak bir kısmıda numeric başlık dosyasındadır. En çok kullanılan bir diğer algoritma olan sort algoritması 
+ise şöyledir:
+1 tane template parametresi vardır, ismi de RandIt bu bize random_access iterator'ü çağrıştırıyor çünkü bu algortima randoö_acccess iterator kategorisine göre yaızlmıştır.
+Dolayısıyla sadece random_access iterator kategorisine ilişkin aralıkları sıralayabilirsiniz. ÖRnneğin:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+    rfill(ivec, 100, rand); //comes from utility header file
+
+    sort(ivec.begin, ivec.end());
+    //print(ivec, cout);  //comes from utility header file
+    for(auto i : ivec)
+        cout << i << " ";
+}
+
+container'ımız vector değilde list olsa:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    ilist<int> ivec;
+    rfill(ilist, 100, rand); //comes from utility header file
+
+    sort(ilist.begin, iliat.end()); //syntax error
+
+}
+ilist'i sort'a argüman olarak gönderdiğimde sentaks hatası oldu; çünkü minimal olarak random_access iterator kategorisindeki iterator bekliyor oysa sort'a argüman olarak 
+gönderdiğim iteratorler bidirectional iterator kategorisinde. Sentaks hatası şundan dolayı oluyor; çünkü bu fonksiyon şablonu içinde kullanılan işlemler belki += operator'ü gibi
+onlar bidirectional operator kategorisinde olmayan işlemler. 
+
+Bir diğer sık kullanılan STL algoritması ise find algoritmasıdır:
+find linear search yapıyor yani doğrusal arama; her STL algoritmasının karmaşıklığı standart tarafından belirlenmiş. Örneğin bu linear search algoritması O(n) karmaşıklığında bir algoritma,
+sort algoritması O(nlongn) karmaşıklığında bir algoritma. Burada hem fing algoritmasını beraber yazacağız hem de arama algoritmalarına ilişkin çok temel bir konvensiyonu göreceğiz. C'deki pointer
+parametreli arama fonksiyonları(strchr, strstr, strrchr, strpbrk, vb.) hepsi adres döndürüyor. Bulursa bulduğu nesnenin adresini döndürüyor bulamazsa null pointer döndürüyor. string sınıfının arama 
+fonksiyonları aranan karakteri bulursa index, bulamazsa string'in npos'u static constexpr sabitini döndürüyor. Fakat STL algoritmaları arama algoritmaları iterator döndürüyor. Bulursa bulduğu konuma 
+ilişkin iterator döndürüyor, bulamazsa fonksiyona geçtiğimiz range'in end iterator'ünü döndürüyor. Bunları anlamak için find algoritmasını kendimiz yazalım:
+soru: find algoritmasında beklenen minimal iterator kategorisi input kategorisidir!
+template <typename InIter, typename Key>
+InIter Find(InIter beg, InIter end, const Key& key)
+{
+    while( beg != end ) {
+        if(*beg == key ) 
+            return beg;
+        ++beg;
+    }
+
+    return end;
+}
+şeklinde implemente edebiliriz! find algortimasındaki iterator kategorisinin neden input iterator kategorisi olduğu açık !='lik karşılaştırması yaptım input iterator kategorisinde var, okuma amaçlı
+içerik operator'ünü kullandım input iterator kategorisinde var, ++ operator'ünün operandı yaptım input iterator kategorisinde var. Artık ben burada herhangi bir container'da herhangi bir değeri 
+arayabilirim:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+
+template <typename InIter, typename Key>
+InIter Find(InIter beg, InIter end, const Key& key)
+{
+    while( beg != end ) {
+        if(*beg == key ) 
+            return beg;
+        ++beg;
+    }
+
+    return end;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 20, rtown);
+    print(svec, cout);
+
+    string town;
+
+    std::cout << "aranan ili giriniz: ";
+    cin >> town;
+    
+    auto iter = Find(begin(svec), end(svec), town);
+    if(iter != svec.end()) {
+        std::cout << "bulundu: " << *iter << " " << iter->length() << '\n';
+        cout << "index = " << iter - svec.begin() << '\n';
+    }
+    else {
+        std::cout << "bulunamadi\n";
+    }
+}
+Burada dikkat edniz modern C++ olmasaydı auto iter yerine şunu yazmak zorundaydık: vector<string>::iterator iter şeklinde olmalıydı. type deduction'ının ne kadar faydalı kod okuma/yazmayı ne kadar 
+kolaylaştırdığını gösteren bir örnek!!! Dikkat!!! bu örnek scope leakage'ın en tipik örneği; scope leakage bir isim kullanmak istediğim kod alanı dışında halen bilinir durumda ise kod kalitesi düşüyor.
+O sebeple ismi sadece kullandığım alanda bilinir kılmak istiyorum. Eğer C++17 standart'ı ile dile eklenen if-with initializer deyimi olmasaydı scope leakage'ı engellemenin yine bir yolu vardı: suni bir
+blok oluştururduk:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+
+template <typename InIter, typename Key>
+InIter Find(InIter beg, InIter end, const Key& key)
+{
+    while( beg != end ) {
+        if(*beg == key ) 
+            return beg;
+        ++beg;
+    }
+
+    return end;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 20, rtown);
+    print(svec, cout);
+
+    string town;
+
+    std::cout << "aranan ili giriniz: ";
+    cin >> town;
+    //suni blok
+    {
+        auto iter = Find(begin(svec), end(svec), town);
+        if(iter != svec.end()) {
+            std::cout << "bulundu: " << *iter << " " << iter->length() << '\n';
+            cout << "index = " << iter - svec.begin() << '\n';
+        }
+        else {
+            std::cout << "bulunamadi\n";
+        }
+    }
+}
+bunun yerine if-with initializer kullanalım:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+
+template <typename InIter, typename Key>
+InIter Find(InIter beg, InIter end, const Key& key)
+{
+    while( beg != end ) {
+        if(*beg == key ) 
+            return beg;
+        ++beg;
+    }
+
+    return end;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 20, rtown);
+    print(svec, cout);
+
+    string town;
+
+    std::cout << "aranan ili giriniz: ";
+    cin >> town;
+
+    if( auto iter = Find(begin(svec), end(svec), town); iter != svec.end()) {
+        std::cout << "bulundu: " << *iter << " " << iter->length() << '\n';
+        cout << "index = " << iter - svec.begin() << '\n';
+    }
+    else {
+        std::cout << "bulunamadi\n";
+        }
+    
+}
+=============================================================================================================================================================================================
+HATIRLATMA:
+C++17 ile dile eklenen CTAD(Class Template Argument Deduction) sayesinde template argümanı silebiliyoruz yani argüman olmadan template'a gödnerilen elemanlardan type deduction yaparak, template
+parametresi için tür çıkarımı yapabiliyoruz. Örneğin:
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> x{1, 4, 7, 2, 3, 2, 1};
+} 
+yerine şöyle diyebiliyoruz:
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector x{1, 4, 7, 2, 3, 2, 1}; //CTAD (C++17)
+} 
+iteratorler ile ilgili bazı adaptörler var, bunlara iterator adaptörleri deniliyor. iterator adaptörleri aslında bir iterator'ü alıp bir şekilde sarmalıyıp o iterator'e yeni özellikler kazandıran 
+yeni bir sınıf türü oluşturuyorlar. Çok tipik bir problem var; copy algoritmasına geri gidelim:
+#include <vector>
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    vector x{1, 4, 7, 2, 3, 2, 1}; //CTAD (C++17)
+    vector<int> y;
+
+    copy(x.begin(), x.end(), y.begin()); //ub
+} 
+burada ub var çünkü yazma amaçlı kullandığım iterator konumunda nesne yok!! Konuyu anlamak için kendi yazdığımız Copy algoritma koduna dönelim:
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+acaba ben bu algoritmanın template kodunu değiştirmeden bu algoritmayı kullanarak ben *destbeg++ = *beg++; işlemini bir container'a sondan ekleme işlemine dönüşütürebilirim. Yani öyle bir yöntem 
+uygulayacağım ki copy algoritmasını kullanacağım ama boş olan bir container'a push_back yapmasını sağlayacağım:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+template <typename C>
+class BackInsertIterator {
+public:
+    BackInsertIterator(C &c) : mc(c) {}
+    BackInsertIterator& operator*()
+    {
+        return *this;
+    }
+    BackInsertIterator& operator++()
+    {
+        return *this;
+    }
+    BackInsertIterator& operator++(int)
+    {
+        return *this;
+    }
+    BackInsertIterator& operator=(const typename C::value_type& val)
+    {
+        mc.push_back(val);
+        return *this;
+    }
+private:
+    C& mc;
+};
+//amacım şu: eğer fonksiyon şablonunun OutIter parametresine karşılık gelen template parametresi BackInsertIterator sınıf şablonunun bir specialization'ı ise fonksiyon şablonu içindeki *destbeg++ = *beg++
+//yazma işlemi bir container'ın push_back fonksiyonuna yapılan çağrıya dönüştürülecek işte adaptörden kastımız bu!!! Peki bunu nasıl yapabiliriz? Fonksiyon şablonunun 3. parametresi olan destbeg içerik 
+//operator'ünün operandı olmuş, ++ operator'ünün operandı olmuş ve bir de atama yapılmış. Aslında BackInsertIterator bir container'ı sarmalayacak, template parametresine karşılık gelen argüman o container'ın
+//türü olacak. BackInsertIterator sınıfının public bölümünde bulunan ctor'ı şu anlama gelir: BackInsertIterator'e ctor'ına bir container verirsem BackInsertIterator sınıfının ctor'ı veri elemanı o comtainer'a
+//bağlıyor. Fonksiyon şablonunda *destbeg++'da eğer destbeg tanımlanan template class olan BackInsertIterator türünden ise ++ operator'ünün operandı olduğunda ben yine destbeg'in kendisini elde edeceğim,
+içerik operator'ünün operandı olduğunda yine destbeg'in kendisini elde edeceğim. O halde fonksiyon şablonundaki işlem şuna dönüşecek; aslında BackInsertIterator sınıfının atama operator  fonksiyonu varsa
+o çağırılacak: atama operator fonksiyonuna parametre olarak vector'de tutulan yani sınıf template parametre elemanı olan C'nin container'da tutulan öğenin türü, o da STL konvensiyonlarına göre bir 
+nested type ile ifade edilebiliyordu. Yani C'nin value_type'ı türünden. Çünkü eğer C bir container türü ise container'ların value_type nested type'ı container'da tutulan öğenin türüdür. class template 
+için yazılan atama operator fonksiyonu içinde; ( ctor ile referansımızı container'a bağlamştık ) val'i mc'nin push_back fonksiyonunu çağırırak ona argüman olarak geçtiğimizde o zaman bu fonksiyon 
+yani atama operator foksiyonu çağırıldığında sarmaladığı referansın push_back fonksiyonu çağırılacak.
+int main()
+{
+    using namespace std;
+
+    vector x{1, 4, 7, 2, 3, 2, 1}; //CTAD (C++17)
+    vector<int> y;
+
+    BackInsertIterator<vector<int>> iter{ y };
+    Copy(x.begin(), x.end(), y.begin(), iter); 
+    print(y, cout); //comes from utility header file
+} 
+Burada şimdi artık bir tanımsız davranış olmayacak, aslında yazdığımız copy algoritmasından oluşturulan kod x vector'ündeki öğeleri y'ye push_back yapacak! Kod gayet güzel fakat kullanışlı değil;
+her defasında uzun uzadıya nesne oluşturmak kullanışlı değil!!! Aslında şu şekilde de yapabilirdik; bu nesneyi oluştumak yerine bir geçici nesne oluşturma ifadesini fonksiyonun . parametresine  argüman 
+olarak geçebilirdim:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+template <typename C>
+class BackInsertIterator {
+public:
+    BackInsertIterator(C &c) : mc(c) {}
+    BackInsertIterator& operator*()
+    {
+        return *this;
+    }
+    BackInsertIterator& operator++()
+    {
+        return *this;
+    }
+    BackInsertIterator& operator++(int)
+    {
+        return *this;
+    }
+    BackInsertIterator& operator=(const typename C::value_type& val)
+    {
+        mc.push_back(val);
+        return *this;
+    }
+private:
+    C& mc;
+};
+
+int main()
+{
+    using namespace std;
+
+    vector x{1, 4, 7, 2, 3, 2, 1}; //CTAD (C++17)
+    vector<int> y;
+
+    
+    Copy(x.begin(), x.end(), y.begin(),BackInsertIterator<int>> ( y)  ); 
+    print(y, cout); //comes from utility header file
+} 
+ancak şimdi daha da güzeli var:
+ben BackInsertIterator sınıfı türünden nesneyi bu şekilde oluşturmak yerine bir fonksiyon şablonu yazsam:
+olarak geçebilirdim:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+
+//copy algorithm
+template <typename InIter, typename OutIter>
+OutIter Copy(InIter beg, InIter end, OutIter destbeg)
+{
+    while( beg != end) {
+        *destbeg++ = *beg++;
+    }
+
+    return destbeg;
+}
+
+template <typename C>
+class BackInsertIterator {
+public:
+    BackInsertIterator(C &c) : mc(c) {}
+    BackInsertIterator& operator*()
+    {
+        return *this;
+    }
+    BackInsertIterator& operator++()
+    {
+        return *this;
+    }
+    BackInsertIterator& operator++(int)
+    {
+        return *this;
+    }
+    BackInsertIterator& operator=(const typename C::value_type& val)
+    {
+        mc.push_back(val);
+        return *this;
+    }
+private:
+    C& mc;
+};
+
+template <typename C>
+BackInerstIterator<C> BackInserter<C>(c)
+{
+    return BackInsertIterator<C>(c);
+}
+
+int main()
+{
+    using namespace std;
+
+    vector x{1, 4, 7, 2, 3, 2, 1}; //CTAD (C++17)
+    vector<int> y;
+
+    
+    Copy(x.begin(), x.end(), y.begin(),BackInserter( y)  ); 
+    print(y, cout); //comes from utility header file
+} 
+Bu fonksiyonları bizim yazmamız gerekmiyor; işte gerçektende STL'de bu amaç için back_insert_iterator iterator sınıfı   ve ismi back_inserter olan fonksiyon var:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector x{1, 4, 7, 2, 3, 2, 1};
+    vector<int> y;
+
+    copy(x.begin(), x.end(), bac_inserter(y));
+    print(y, cout);
+}
+
+Bu şu anlama gelir: yazma algoritmalarını(copy bunlardan sadece bir tanesi) back_insert_iterator iterator adaptörünü kullanarak doğrudan iterator verirsem aslında var olan bir konuma yazacak 
+şekilde kullanabilirim; ancak bu tür fonksiyonların yazma iterator parametresini back_insert sınıfı türünden bir nesne verirsem ilgili container'a sondan ekleme yapmaya dönüştürecek. STL'de çok sık 
+kullanılıyor. Sadece copy algoritmasında değil birçok yazma algoritmasında kullanılıyor. O halde bu yöntemin aynısını container'a sondan ekleme yapmak yerine container'a baştan eklemeye de dönüştürebilirim:
+O zaman tek yapmam gereken sondan eklemede yaptığım benzer bütün kodları yazacağım ve push_back değilde push_pop fonksiyonu çağırılacak öte yandan sınfın ismi örneğn BackInsertIterator değilde 
+FrontInsertIterator olucak ve BackInserter yerine fonksiyonun ismi FrontInserter olucak. Hadi ona da bir örnek verelim:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<string> x{"ferhat", "berkin", "rukiye", "murat"};
+    list<string> y;
+
+    copy(x.begin(), x.end(), front_inserter(y)); //murat rukiye berkin ferhat
+    print(y, cout);
+}
+
+dikkat!! back_inserter iterator başlık dosyasında yani iterator başlık dosyasının bir şekilde include edildiğinden emin olmamız gerekiyor. Böylece STL yazma algoritmalarının önemli bir özelliğini 
+gördük ister var olan konuma yazdırabiliyoruz ister back_inserter_iterator, front_inserter_iterator ya da insert_iterator, yazma işlemini bir container'ın pussh_back fonksiyonuna yapılan çağrıya 
+dönüştürmek istiyorsak back_inserter fonksiyonunu kullanıyoruz push_front fonksiyonuna yapılan çağrıya dönüştürmek istiyorsak front_inserter fonksiyonunu kullanıyoruz ama herhangi bir konuma insert etme 
+işlemine dönüştürmek istiyorsak onun ismi de sadece inserter. Yani  container'ın herhangi bir konumuna da insert etmeye dönüştürebilirdim. 
+
+iteratorlerin önemli bir özelliği var ve C++'ı yeni öğrenenlerin başlangıçta çok takıldığı bir kısma gelelim:
+iterator değilde pointer olsaydı bir pointer'ın gösterdiği nesneyi  değiştirmeye yönelik olup olmadığını şuradan anlıyorum:  tabii ki fonksiyon parametresi olduğunda:
+void func(int *p); //mutator
+void func(const int *); //accesser
+Fakat iterator'lerde durum farklı:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{3, 6, 9, 7, 2, 6};
+
+    vector<int>::iterator iter = ivec.begin();
+}
+soru: ben vector<int>::iterator iter = ivec.begin() ifadesinin başına const anahtar sözcüğünü koyarsam bu pointerlarda olduğu gibi o konumdaki nesneyi salt okuma amaçlı kullanabileceğimiz bir iterator 
+olur mu olmaz mı? cevap: olmaz!!! vector<int>::iterator iter bir sınıf nesnesi ben böyle yazarak sınıf nesnesini cont yaptım bu top-level constness:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{3, 6, 9, 7, 2, 6};
+
+    const vector<int>::iterator iter = ivec.begin();
+    *iter = 57; //legal çünkü const bir nesne için cont olan üye fonk. çağırabilirim, ancak bunun onunla alakası yok ben bu iterator konumundaki nesneye atama yapıyorum, iterator'e atama yapsam sentaks
+                //hatası olurdu, iterator'ün ++, -- operator fonk. çağırsam sentaks hatası olurdu ancak şimdi atamayı iterator'e değil onun gösterdiği nesneye yapıyorum!
+    ++iter; //syntax error
+}
+Dolayısıyla iter'i arttırmak sentaks hatası olur!! Çünkü ++ operator'ü non-const bir üye fonksiyonu, const bir sınıf nesnesi için sınıfın const olmayan üye fonksiyonunu çağıramam!!
+O halde low-level const pointer benzerini/soyutlamasını/interface'ini iteratorler ile nasıl elde edicem?
+Bu işlem için yine bir iterator adaptör var; bu iterator adaptörüne const iterator deniliyor bu ayrı bir tür. const iterator içerik operator fonksiyonu geri dönüş değeri olarak const referans döndürüyor!
+Ama ++, -- operator'lerini yine kullanabiliyoruz. O hakde sizin iterator nesnesi bu sefer bir nested type olarak iterator türünü değil const iterator türünü kullanıyorsunuz. Yani şöyle bir kod yazmanız
+gerekiyor:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{3, 6, 9, 7, 2, 6};
+
+    vector<int>::const_iterator iter = ivec.begin(); //artık iter ayrı bir türden bu tür tıpkı low-level const pointer gibi. 
+    ++iter;
+    cout << *iter << '\n'; //okuma amaçlı erişimde sentaks hatası yok
+    *iter= 456; //syntax error!! (değiştirmeye çalıştığımda sentaks hatası olur)
+}
+nasıl container'ların begin ve end fonksiyonları container'ın iterator'ü türünden değerler döndürüyorsa container'ların bir de ismi c ile başlayan begin ve end fonksiyonları var. cbegin ve cend, onlarda 
+const iterator döndürüyor:
+yani auto type deduction'dan faydalanmak istiyorsak:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{3, 6, 9, 7, 2, 6};
+
+    //auto iter = ivec.begin(); //vector<int>::iterator iter
+    auto iter = ivec.cbegin(); //vector<int>::const_iterator iter
+
+}
+aynı şekilde bir de cend fonksiyonu var:
+bu da şu demek; diyelim siz bir raw loop oluşturdunuz(rwa loop, fonksiyon içinde gizlenmemiş doğrudan açıkça yazılan bölüm); örnekte container'ın range'ini salt okuma amaçlı dolaşacağım, bu durumda güvenli
+olsun diye begin ve end fonksiyonlarını çağırmak yerine cbegin ve cend fonksiyonlarını çağırmak daha uygun:
+#include <iostream>
+#include <forward_list>
+#include <list>
+#include <vector>
+#include <set>
+#include <iterator>
+#include <type_traits>
+#include "nutility.h"
+#include <string>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{3, 6, 9, 7, 2, 6};
+    for(auto iter = ivec.cbegin; iter != ivec.cend(); ++iter) {
+
+    }
+
+}
+döngüyü böyle oluşturduğunuz zaman 2 tane avantajınız var:
+1) kodu okuyan begin ve end fonksşyonları yerine cbegin ve cend fonk. çağırıldığı için hemen kodun bu range'i salt okuma amaçlı dolaştığını anlar!!
+2) ben bu döngüyü okuma amaçlı yazmdım ama yanlışlıkla ++*iter; şeklinde bir kod yazarsam sentaks hatası olur çünkü cont nesneyi değiştiremeyiz!! ama biz const iterator yerine normal iterator kullansaydık 
+lojik hata olarak kalırdı, sentaks hatası olmazdı! Böylece her container'ın begin fonksiyonu olduğu gibi cbegin fonksiyonu olduğunu da öğrenmiş oluyoruz, end fonksiyonu olduğu gibi cend fonksiyonu da var.
+İsmi begin ve end olan fonksiyonlar container'ın nested type'ı olan iterator türünden değer döndürürken ismi cbegin ve cend olan fonksiyonlar ise const iterator döndürüyorlar. Böylece bu const iterator 
+adaptörü ile adete pointerlardaki low-level const pointer interface'inide sağlamış oluyoruz.
