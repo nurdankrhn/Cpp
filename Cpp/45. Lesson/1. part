@@ -1,0 +1,610 @@
+5 Mayıs - 2023 Cuma
+
+#include "nutility.h"
+#include <vector>
+#include <list>
+
+int main()
+{
+    using namespace std;
+
+    list<int> x{ 1, 5, 7, 9, 12, 45, 76, 2, 5 };
+    print(x.begin(), x.end(), cout); //comes from utility header file 1 5 7 9 12 45 76 2 5
+    print(next(x.begin()), prev(x.end()), cout); //comes from utility header file  5 7 9 12 45 76 2 
+}
+prev'in de 2. parametresi default değer olarak 1 değerini alır. next ve prev modern C++ ile eklenmiş olmalarına rağmen kısa sürede benimsendiler ve son derece fayda sağlıyorlar.  Bir de bu fonksiyonların 
+dışında algorithm başlık dosyasında bulunan ve STL algoritmalarının implementasyonunda sıklıkla kullanılan iter_swap fonksiyonu var. iter_swap fonksiyonu 2 iterator'ü swap etmiyor, yani iki iterator'ü
+swap etmek istesek zaten STL'in swap algoritması var. iter_swap iterator konumundaki nesneleri swap ediyor. iter_swap fonksiyonunun 2 tane template parametresi var. dolayısıyla iter_swap'a gönderdiğimiz
+iteratorlerin aynı türden olması gerekmiyor!!! Sadece o iterator konumundaki nesnelerin türünün aynı olması gerekiyor. Örneğin:
+#include "nutility.h"
+#include <vector>
+#include <list>
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    list<int> x{ 1, 5, 7, 9, 12, 45, 76, 2, 5 };
+    vector<int> y{ 4, 8, 34, 89 };
+
+    iter_swap(x.begin(), next(y.begin()));
+    print(x, cout); //8 5 7 9 12 45 76 2 5
+    print(y, cout); //4 1 34 89
+}
+
+soru: bir container'ın açılımı başka bir container türü olabilir mi? cevap: Kesinlikle!!! Genel olarak bir template'ın argümanı bir başka template'den elde edilen bir specialization olabilir!!
+Bu hiçbir şekilde bir problem değil. Bunu sadece container'lar için düşünmeyin bu template'lare ilişkin çok genel bir durum. Örneğin:
+#include <iostream>
+
+template <typename T>
+class Nec {
+
+};
+
+template <typename T>
+class Erg {
+
+};
+
+int main()
+{
+    using namespace std;
+
+    Erg<Nec<int>> x;
+
+    cout << typeid(x).name() << '\n'; //class Erg<class Nec<int> >
+}
+Dikkat: modern C++'tan önce Erg<Nec<int>> x; kodunda bulunan Erg<Nec<int>> ifadesinde 2 tane kapanan açısal parantezin(>>) yan yana bulunması maximal-munch'a neden oluyordu ve bitsel sağa kaydırma
+operator'ü olarak alır deniliyordu o sebeple kapanan açısal parantez arasına boşluk bırakın: Erg<Nec<int> > x; deniliyordu. Ancak modern C++ ile kural değişti!!! Soruda sorulan container'larda sınıf
+şablonu olmasında hiçbir sakınca yok; örneğin elemanları int bağlı listeleri olan bir dinamik dizi oluşturmak için:
+#include <vector>
+#include <list>
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<list<int>> lvec;
+}
+bu durumda vector'de tutulacak öğeler list'in int specialization'ını türünden nesneler olucak. Hatta hatta şu şekilde de olabilir:
+#include <vector>
+#include <list>
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<vector<int>> lvec;
+}
+veya hatta şu şekilde de olabilir:
+#include <vector>
+#include <list>
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<vector<vector<int>>> lvec;
+}
+bunlar üretimde kullanılan kodlar. Sadece üretimde böyle kodlar kullanırken bir tür eş bildirimi yapmanızı tavsiye edebilirim. 
+
+
+soru: iter_swap'ın değiştireceği nesnelerin türü aynı değilse convertable olmak zorunda mı? iter_swap'ın kodu incelediğimizde iter_swap'ın kodu gayet açık. Örneğin:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    int ai[] = {3, 6, 7};
+    double di[] = {4.5, 7.8};
+
+    iter_swap(begin(ai), begin(di)); //syntax error
+}
+sentaks hatası çünkü iter_swap fonksiyonunun içinde referans semantiği kullanılıyor; dolayısıyla siz bir referansı farklı türden bir nesneye bağlamış oluyorsunuz. Yani bahssettiğimiz durum derleme 
+zamanına yönelik bir hata!!! Ama bunun nedeni de iter_swap'ın kodunu zaten açık olarak görürseniz hatanın nedenini anlayabilirsiniz:
+template <typename T>
+void Swap(T& t1, T& t2)
+{
+    T temp{ std::move(t1) };
+    t1 = std::move(t2);
+    t2 = std::move(temp);
+}
+
+template <typename IterX, typename IterY>
+void IterSwap(IterX x, IterY y)
+{
+    Swap(*x, *y);
+}
+Bu durumda *x'in türü ile *y'nin türü farklı olduğunda sentaks hatası olacak!!!!
+
+
+
+reverse iterator
+==========================
+
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+template <typename Iter>
+void display_range(Iter beg, Iter end )
+{
+    while (beg != end ) {
+        std::cout << *beg++ << "  ";
+    }
+    std::cout << '\n';
+}
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 3, 6, 9, 12, 15, 18 }; //C++17 ile dile eklenen CTAD'dan faydalanarak vectoru bu şekilde tanımlayıp template argümanının int olması çıkarımını derleyiciye yaptırabileceğimizide hatırlayalım
+    display_range(ivec.begin(), ivec.end()); //3  6  9  12  15  18
+}
+koda şöyle bir ekleme yapalım:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+template <typename Iter>
+void display_range(Iter beg, Iter end )
+{
+    while (beg != end ) {
+        std::cout << *beg++ << "  ";
+    }
+    std::cout << '\n';
+}
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 3, 6, 9, 12, 15, 18 }; //C++17 ile dile eklenen CTAD'dan faydalanarak vectoru bu şekilde tanımlayıp template argümanının int olması çıkarımını derleyiciye yaptırabileceğimizide hatırlayalım
+    display_range(ivec.begin(), ivec.end()); //3  6  9  12  15  18
+    display_range(ivec.rbegin(), ivec.rend()); //18  15  12  9  6  3
+}
+Nasıl olursa yukarıda yazılan basit template'ı ben display_range(ivec.rbegin(), ivec.rend()); şwklinde bir fonksiyon çağrısı yaptığımda bu kez aynı range üstünde değil, range'in tersi üstünde işlem yaptı??
+Bu C++'ın adeta sihirli araçlarıdan biri!!! Yani bir başka iterator adaptörü reverse iterator, reverse iterator en az bidirectional iterator olan iterator'ler için geçerlidir!! reverse iterator öyle bir 
+iterator ki ++iter dediğimizde aslında tam tersi iterator'ü 1 eksiltiyor!! Yani ++iter eğer ki iter normal iterator ise iterator'ü 1 arttırırken reverse iterator ise iterator'ü 1 eksiltiyor!!!
+Bunun nasıl yapıldığını inceleyelim:
+sınıfların begin ve end fonksiyonları normal iterator döndürürken rbegin ve rend fonksiyonları reverse iterator döndürüyor. Yani ben ivec.begin() yerine ivec.rbegin() çağrısı yaparsam bu fonksiyonun 
+geri dönüş değeri reverse iterator. Dolayısıyla auto iter = ivec.rbegin(); dediğimde benim elde ettiğim iterator bir reverse iterator. reverse iterator bir adaptör. Yani aslında reverse iterator'de 
+template argümanı olarak normal iterator kullanılıyor diyebiliriz. rbegin fonksiyonundan aldığım reverse iterator'ü dereference ettiğimde tem tersi vector'deki son öğeye erişiyorum!!!:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{3, 6, 9, 12, 15, 18};
+
+    auto iter  = ivec.rbegin();
+    cout << *iter << '\n'; //18
+    ++iter;
+    cout << *iter << '\n'; //15
+
+}
+rend fonksiyonuda yine bana sentinel olarak kullanılıcak iterator konumunu veriyor.Dolayısıyla ben herhangi bir range'i tersten navigate etmek istersem şöyle bir döngü yazabiliyorum:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{3, 6, 9, 12, 15, 18};
+
+    for(auto iter = ivec.rbegin(); iter != ivec.rend(); ++iter ) {
+        cout << *iter << '\n';
+    }
+
+}
+böylece range'i tersten dolaşmış oluyorum. Bizim algoritmamıza geri dönecek olursak:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+template <typename Iter>
+void display_range(Iter beg, Iter end )
+{
+    while (beg != end ) {
+        std::cout << *beg++ << "  ";
+    }
+    std::cout << '\n';
+}
+işte buradaki Iter reverse itertor ise bir üstteki yazdığımız döngüye dönüşecek!!! Yalnız burada yapılan şöyle bir hile var:
+aslında reverse iterator bir sarmalayıcı, aslında reverse iterator normal bir iterator'ü sarmalıyor!! Yani reverse iterator aslında eleman olarak ya da taban sınıf olarak(öyle de implemente edilebilir)
+normal bir iterator'ü alıyor. Fakat biz reverse iterator'ü dereference ettiğimizde bize o sarmaladığı iterator konumunu değil ondan bir önceki konumu dereference ediyor. Yani örneğin biz rbegin() 
+fonksiyonunu çağırdığımızda rbegin fonksiyonu bize öyle bir reverse iterator döndürüyor ki o reverse iterator'ün sarmaladığı iterator aslında end konumunda ama biliyorsunuz end konumunu derefence etmek
+ub!!! Fakat reverse iterator'ün içerik operator fonksiyonu öyle yazılmış ki içerik operator fonksiyonu sarmalanan iterator'ü dereference etmek yerine ondan bir önceki iterator konumunu dereference ediyor. 
+Dolayısıyla örneğin biz vector'deki ilk öğeye reverse iterator ile erişirsek aslında reverse iterator'ün sarmaladığı konum 2. öğenin konumu iken onu dereference ettiğimizde ilk öğeye erişiyoruz. Yapının 
+böyle kurgulanmasının birden fazla faydası var:
+1) 1. si bir zorunluluk; örneğin dizileri düşünün 1 3 5 7 dizinin bittiği yerin adresini yani orada bir öğe yok ama geçerli bir pointer olarak karşılaştırma işlemlerinde kullanabilirsiniz!! Fakat şöyle 
+bir karşılaştırma yapamazsınız: dizinin ilk elemanından önceki olmayan öğenin konumunu kullanmak tanımsız davranış!! Dolayısıyla reverse iterator'ün yaptığı hile aslında içinde bir şekilde normal 
+iterator tutuyor tipik olarak taban sınıf nesnesi olarak; dereference operator fonksiyonu öyle bir şekilde yazımış ki o konumdan bir önceki konumu dereference ediyor!! 
+
+Şimdi birkaç tane mülakat sorusu örneği ele alacağız, programcıları çok zorlayan; reverse iterator'lerin arka planda nasıl çalıştığını anlamanızıda sorguluyor bu sorular:
+reverse iterator'ünün sarmaladığı iterator'e erişmek için bir fonksiyon var bu fonksiyonun ismi base:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 3, 6, 9, 12, 15, 18 };
+    auto riter = ivec.begin();
+
+    auto iter = riter.base();
+
+    
+    cout << boolalpha;
+    cout << (iter == ivec.end()) << '\n'; //true
+}
+soru: iter'i dereference edersem ub olur mu? Kesinlikle tanımsız davranış olur!! çünkü base fonksiyonu reverse iterator'ün sarmaladığı iterator değerini döndürüyor. Dolayısıyla reverse iterator
+aslında son öğenin konumunu döndürdü rbegin fonksiyonu, dolayısıyla riter dereference edersem bana 18 değerine sahip öğe'yi verecek ama onun base'i aslında vector'ün end konumunu tutuyor. 
+
+reverse iterator'ünün bu şekilde implemente edilmesinin ilginç faydaları var; şimdi size şöyle bir soru sorsam: diyelimki elimde bir reverse iterator range'i var:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+template <typename Iter>
+void display_range(Iter beg, Iter end )
+{
+    while (beg != end ) {
+        std::cout << *beg++ << "  ";
+    }
+    std::cout << '\n';
+}
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 3, 6, 9, 12, 15, 18 };
+
+    auto riter_beg = ivec.rbegin();
+    auto riter_end = ivec.rend();
+    display_range(riter_beg, riter_end);    
+}
+bu örnekte ivec'te bulunan öğeler baştan sona yazıldı; peki ki bana display_range fonksiyonuna bir çağrı yapacaksınız ve riter_beg ve riter_end fonksiyonlarını 
+kullancaksınız fakat display_range baştan sona doğru yazdıracak:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+template <typename Iter>
+void display_range(Iter beg, Iter end )
+{
+    while (beg != end ) {
+        std::cout << *beg++ << "  ";
+    }
+    std::cout << '\n';
+}
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 3, 6, 9, 12, 15, 18 };
+
+    auto riter_beg = ivec.rbegin();
+    auto riter_end = ivec.rend();
+    display_range(riter_beg, riter_end); // 3 6 9 12 15 18 
+    display_range(riter_end.base(), riter_beg.base()); //18 15 12 9 6 3 
+}
+riter_end.base()'i aslında gerçek sarmalanan iterator'ü veriyor aslında end sarmaladığı iterator ilk öeğenin konumu ancak riter_beg'inde sarmaladığı iterator sentinel olan sondan bir sonraki öğenin konumu.
+Dolayısıyla ben end konumu olarak: riter_beg.base() range'ini verirsem aslında sentinal konumunu vermiş oluyorum!!
+
+Şimdi mülakatların meşhur sorusunu ele alalım:
+her ne kadar soru henüz ele almadığımız bazı öğeleri içeriyorda olsa çok önemli bir soru ve üretimde de gerekiyor!!!!
+soru: aşağıda verilen örnekte verilen vector'den  son iki değerine sahip öğeyi silmenizi istiyorlar. Tabii bunu STL algoritmaları ve vector'ün üye fonksiyonu ile yapacaksınız!!!
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 1, 2, 3, 2, 4, 2, 7, 8, 2, 6, 2, 9 };
+    int val = 2;
+
+    if (auto iter = find(ivec.rbegin(), ivec.rend(), val); riter != ivec.rend()) {
+        *riter = -1;
+    }
+    else {
+        std::cout << "bulunamadi\n";
+
+    }
+    print(ivec, cout); //1, 2, 3, 2, 4, 2, 7, 8, 2, 6, -1, 9 (comes from nutility header file)
+
+}
+
+
+normalde bunun cevabı şu: find algoritması bize aranan değerin konumunu veriyor. Ancak ben find algoritmasını normal iterator'ler ile kullanırsam o zaman bana vector'deki ilk 2 değerini verir; ancak 
+find algoritmasını reverse iterator'ler ile kullanırssam bu durumda bana son 2'nin konumunu verir. ivec'i print ile yazdırdığımızda en son 2'nin bulunduğu yerin değerinin -1 olduğunu görürüz!!
+Ancak şöyle bir problem var: soru listedeki son 2'nin silinmesiydi! o zaman ben if'in doğru kısmına öyle bir kod yazmalıyım ki o kod vector'den az önce değerini -1 yaptığım öğeyi silecek:
+container sınıfların bir istisna hariç hepsinin iterator parametreli bir erase fonksiyonu var, std::string'de de görmüştük bunu. Yani bir container'ın üye fonksiyonu olan erase'i çağırırsanız 
+ona container'daki geçerli bir iterator konumunu argüman olarak verirseniz o iterator konumundaki öğeyi siliyor. Programcı ilk denemeyi şu şekilde yapıyor:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 1, 2, 3, 2, 4, 2, 7, 8, 2, 6, 2, 9 };
+    int val = 2;
+
+    if (auto iter = find(ivec.rbegin(), ivec.rend(), val); riter != ivec.rend()) {
+        ivec.erase(riter); //syntax error
+    }
+    else {
+        std::cout << "bulunamadi\n";
+
+    }
+    print(ivec, cout); //1, 2, 3, 2, 4, 2, 7, 8, 2, 6, 2, 9 (comes from nutility header file)
+
+}
+sentaks hatası çünkü sınıfların erase fonksiyonlarının parametresi olan iterator reverse iterator değil normal iterator!!! Programcı bu hatasını gördüğünde bu sefer riter'in base'ini 
+gönderiyor fonksiyona:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 1, 2, 3, 2, 4, 2, 7, 8, 2, 6, 2, 9 };
+    int val = 2;
+
+    if (auto iter = find(ivec.rbegin(), ivec.rend(), val); riter != ivec.rend()) {
+        ivec.erase(riter.base()); 
+    else {
+        std::cout << "bulunamadi\n";
+
+    }
+    print(ivec, cout); //1, 2, 3, 2, 4, 2, 7, 8, 2, 6, 2  (comes from nutility header file)
+
+}
+riter'in base'ini gönderdiğinde 2 değil 9 silinecek!! Bu durumda fonksiyona 2'nin silinmesi için riter'in base'inden bir önceki konumu vermem gerekirdi!!! Hatta bu vector'ün iterator'ü olduğu için
+doğrudan - operator'ünü kullanıp -1 yazabiliriz:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 1, 2, 3, 2, 4, 2, 7, 8, 2, 6, 2, 9 };
+    int val = 2;
+
+    if (auto iter = find(ivec.rbegin(), ivec.rend(), val); riter != ivec.rend()) {
+        ivec.erase(riter.base() - 1); 
+    else {
+        std::cout << "bulunamadi\n";
+
+    }
+    print(ivec, cout); //1, 2, 3, 2, 4, 2, 7, 8, 2, 6, 9 (comes from nutility header file)
+
+}
+ancak - operator'ünü kullanmak yerine daha genel çözüm olarak bir önceki konumu elde etmek için std::prev'i çağırabiliriz:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    vector ivec{ 1, 2, 3, 2, 4, 2, 7, 8, 2, 6, 2, 9 };
+    int val = 2;
+
+    if (auto iter = find(ivec.rbegin(), ivec.rend(), val); riter != ivec.rend()) {
+        ivec.erase(prev(riter.base())); 
+    else {
+        std::cout << "bulunamadi\n";
+
+    }
+    print(ivec, cout); //1, 2, 3, 2, 4, 2, 7, 8, 2, 6, 9 (comes from nutility header file)
+
+}
+======================================================================================================================================================================================================
+biraz algoritma incelemesi yapalım:
+
+count algoritması
+===================
+count algoritması bir container'da belirli bir değer sahip öğelerin sayısını döndürüyor. Basitleştirmiş olarak şöyle bir algoritma olduğunu düşünün:
+bir iterator türü'ne sahip, bir de sayılacak öğenin türü var. Bu fonksiyonun 3 tane parametresi var: 1. ve 2. parametre iterator 3. parametre ise sayılacak değer. Basitce şöyle yazabiliriz:
+geri dönüş değerinde normalde bir nested type kullanılıyor orjinalinde ancak biz int olarak yaptık:
+template <typename InIter, typename T>
+int count(Inter beg, Inter end, const T& val)
+{
+    int cnt{};
+    while(beg != end ) {
+        if (*beg == val)
+            ++cnt;
+        ++beg;
+    }
+
+    return cnt;
+}
+böylece belirli bir range'deki belirli bir değerin kaç tane olduğunu sayabiliyorum. 
+not: iterator'lerin fonksiyona referans semantiği ile alınmamasının nedeni, iterator'ler light-weight object'ler yani iterator'ler 4 byte, 8 byte sizeof değerinde olan nesneler. Dolayısıyla referans
+semantiği ile alınmasıyla kopyalama semantiği ile alınması arasında ciddiye alınacak bir fark yok!! Kaldı ki referans semantiği ile almanında bir yolu var, henüz görmedik eğer çok istersek
+reference_wrapper isimli sınıfı kullanarak aslında referans parametreli olmayan bir sınıf şablonunun fonksiyon parametresini referans olarak kullanabiliyoruz ancak o konuyu ilerde ele alacağız.
+
+count algoritması için bir örnek verelim:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    list<string> slist;
+    rfill(slist, 20000, rname); //comes from nutility.h header file
+
+    string name;
+    cout << "sayilacak isim: ";
+    cin >> name;
+
+    cout << count(slit.begin(), slist.end(), name);
+
+}
+
+
+STL algoritmaları bazı konvensiyonları izliyor, geçen derstede söylemiştik örneğin yazma algoritmaları geri dönüş değerinin en son yazılan konumdan sonraki konum olması gibi. Örneğin hem okuma hem 
+yazma parametresini iterator olarak alan fonksiyonlarda okuma range'inin başta, yazma range'i başlangıcının daha sonraki parametre olması gibi. Örneğin arama algoritmalarında aranan değer bulunamadığı 
+zaman fonksiyonun, fonksiyona gönderilen range'in end konumunu döndürmesi gibi. string'in bir container olduğunu ve STL algoritmaları ile kullanılabildiğini söylemiştik. Örneğin:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    string line;
+
+    cout << "bir yazi girin:
+    getline(cin, line);
+
+    cout << "[" << line << "]\n";
+
+}
+böylece boşluk karakterleri dahil standart input'tan gelen yazıyı ismi line olan string'i almış olduk. Örneğin bize diyorlar ki bu yazıda bir karakteri sayacaksınız: aşağıda verilen kodda c'nin
+değeri olan kaç tane a karakteri var onu bulunuz:
+yine count algoritmasını kullanacağız çünkü string'de bir container:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    string line;
+
+    cout << "bir yazi girin:"
+    getline(cin, line);
+
+    cout << "[" << line << "]\n";
+    char c = 'a';
+    cout << count(line.begin(), line.end(), c) << '\n';
+
+}
+
+STL'in en temel ilkelerinden biri özellikle junior programcılar bu hatayı çok yapıyorlar ham dögülerden mümkün olduğunca kaçının. Yani bir algoritmaya yaptırabileceğinz bir iş varsa bırakın döngü 
+o algoritmanın içnde gizli kalsın yani döngüler adeta bizim ayıbımız gibi onları saklıyoruz döngüleri doğrudan kullanmak yerine döngüleri sarmalayan algoritmaları kullanıyoruz; onları gizliyoruz örtüyoruz.
+
+
+Bir STL konvensiyonuna daha baklım: STL algoritmalarını detaylı olarak incelediğimizde bazı algoritmaların isimlerinin sonunda if göreceksiniz; örneğin count var birde count_if var, copy var bir de copy_if
+var, remove var bir de remove_if var. Sonunda if olan algoritmalar bir predicate istiyorlar; predicate geri dönüş değeri bool olan callable'lar, STL predicate diyor. Hatta biraz daha nitelemek gerekirse
+eğer callable'ın tek parametresi var ve bool döndürüyorsa bunlara "unary predicate", ancak iki parametresi varsa ve bool döndürüyorsa onlarada binary predicate deniliyor. Bazı STL algoritmaları 
+özellikle sonu _if ile biten algoritmalar copy copy_if'te olduğu gibi bizden bir unary  predicate istiyorlar ve unary predicate true değer verirse range'i dolaşırken onu işleme tabii tutuyoarlar.   
+En tipik örnek olan count_if'ten başlayalım:
+count bir range'deki belirli bir değere sahip öğelerin sayısını buluyordu, count_if ise bir range'de belirli bir koşulu sağlayan öğelerin sayısını buluyor! Çok faydalı böyle algoritmalar; örneğin 
+soru şöyle olsaydı: elimde int'lerin listesi var ve ben değeri 7 olan kaç tane int var onu saymak istiyorum doğrudan count ama ben 5'e tam bölünen kaç tane öğe var onu bulmak istiyorsam ya da asıl 
+sayı olan kaç tane öğe var onu bulmak istiyorsam ancak çok daha karmaşık bir senaryo olabilir örneğin içinde Date tutan container'ın range'inde içinde kaç tane ocak ayı olan tarih var bunu saymak
+istersem, ya da bir oyun programında Fighter'ları bir vector'de tutuyoruz ve bizim oyunun stratejisine göre kaç tane makineli tüfeği olan Fighter var onların sayısını bulmak istiyoruz. İşte böyle 
+durumlarda count yerine count_if'i kullanabiliriz. count_if'in de şöyle olduğunu düşünün:
+template <typename InIter, typename UnPred>
+int Count_if(InIter beg, InIter end, UnPred f) //orjinalinde geri dönüş değeri int değil
+{
+    int cnt{};
+
+    while(beg != end) {
+        if(f(*beg)) {
+            ++cnt;
+        }
+        ++beg;
+    }
+    return cnt;
+}
+
+count_if'i yazdığımız gibi find_if'de yazalım:
+find belirli bir değere sahip, ilk öğenin konumunu buluyordu; find_if ise belirli koşulu sağlayan ilk öğenin konumunu bulacak:
+template <typename InIter, typename UnPred>
+InIter Find_if(InIter beg, InIter end, UnPred f) //orjinalinde geri dönüş değeri int değil
+{
+ 
+
+    while(beg != end) {
+        if(f(*beg)) {
+            return beg;
+        }
+        ++beg;
+    }
+    return end;
+}
+
+find_if'i yazdığımız gibi copy_if'ide yazalım:
+copy algortiması bir range'deki öğeyi bir yere kopyalıyordu, copy_if ise:
+template <typename InIter, typename OutIter, typename UnPred>
+OutIter Copy_if(InIter beg, InIter end, OutIter destbeg, UnPred f) //geri dönüş değeri OutIter çünkü yazma algoritmaları her zaman en son yazdığı konumdan sonraki konumu döndürür
+{
+    while( beg != end ) {
+        if(f(*beg)) {
+            *destbeg++ = *beg;
+        }
+        ++beg;
+    }
+    return destbeg;
+} 
