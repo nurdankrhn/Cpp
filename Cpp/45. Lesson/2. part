@@ -1,0 +1,329 @@
+Önceki derste sonu if ile biten algoritmanın implementasyonunu yaptık:
+
+count_if'in de şöyle olduğunu düşünün:
+template <typename InIter, typename UnPred>
+int Count_if(InIter beg, InIter end, UnPred f) //orjinalinde geri dönüş değeri int değil
+{
+    int cnt{};
+
+    while(beg != end) {
+        if(f(*beg)) {
+            ++cnt;
+        }
+        ++beg;
+    }
+    return cnt;
+}
+
+count_if'i yazdığımız gibi find_if'de yazalım:
+find belirli bir değere sahip, ilk öğenin konumunu buluyordu; find_if ise belirli koşulu sağlayan ilk öğenin konumunu bulacak:
+template <typename InIter, typename UnPred>
+InIter Find_if(InIter beg, InIter end, UnPred f) //orjinalinde geri dönüş değeri int değil
+{
+ 
+
+    while(beg != end) {
+        if(f(*beg)) {
+            return beg;
+        }
+        ++beg;
+    }
+    return end;
+}
+
+find_if'i yazdığımız gibi copy_if'ide yazalım:
+copy algortiması bir range'deki öğeyi bir yere kopyalıyordu, copy_if ise:
+template <typename InIter, typename OutIter, typename UnPred>
+OutIter Copy_if(InIter beg, InIter end, OutIter destbeg, UnPred f) //geri dönüş değeri OutIter çünkü yazma algoritmaları her zaman en son yazdığı konumdan sonraki konumu döndürür
+{
+    while( beg != end ) {
+        if(f(*beg)) {
+            *destbeg++ = *beg;
+        }
+        ++beg;
+    }
+    return destbeg;
+} 
+
+Burada templater'ler konusunda anlattığımız çok önemli bir araç devreye giriyor, böyle parametrelere callable parametre deniyor. Bu algoritmalarda geçerli bir kodun üretilebilmesi için f ismini 
+verdiğimiz parametre değişkeninin bir fonksiyon çağrı operator'ünün operandı olabilmesi gerekiyor. Bu durumda f bir function pointer'da olabilir veya function object olabilir. Yani f bir sınıf 
+türünden nesne olabilir ve bu sınıfın fonksiyon çağrı operator'ü overload edilmiş olabilir. 
+
+Algoritmalarda çok kullanılan callable parametre üstünde çalışacağımız örnekler oluşturalım:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+using namespace std;
+
+
+is even(int x)
+{
+    return x % 2 == 0;
+}
+
+int main()
+{
+    vector<int> ivec;
+    rfill(ivec, 100'000, Rand{0, 10'000});  //comes from nutility.h header file
+    cout << count_if(ivec.begin(), ivec.end(), iseven) << '\n';
+}
+burada functor'ların faydasını ve daha sonrada hayatımıza ilk defa girecek lambda ifadeleri ile tanışıcağız. Eğer ben  2'ye tam bölünenlerin değilde 3'e tam bölünenlerin sayısını bulmak isteseydim o zaman 
+onun içinde ayrı bir fonksiyon yazmalıydım ancak bu yapıyı çok daha esnek bir hale getirebiliriz:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+
+using namespace std;
+
+
+class DİvPred {
+public:
+    DivPred(int val) : mval{val} {}
+    bool operator()(int x)const
+    {
+        return x % mval == 0;
+    
+private:
+    int mval;
+}
+
+int main()
+{
+    vector<int> ivec;
+    rfill(ivec, 100'000, Rand{0, 10'000}); //comes from nutility.h header file
+    int x;
+    std::cout << "kaca tam bolunenleri saymak istiyorsunuz: ";
+    cin >> x;
+
+    cout << count_if(ivec.begin(), ivec.end(), DivPred{x}) << '\n';
+}
+Şimdi DivPred türünden bir nesne fonksiyon çağrı operator'ünün operandı olduğunda ve bu fonksiyona bir int argüman olarak gönderildiğinde fonksiyonun geri dönüş değeri gelen argümanın mavl'e modunun 
+0'a eşit olup olmadığı olacak. Örneğin ben DivPred nesnesini 2 değeri ile initialize etmişsem oeprator() fonksiyonu gelen tam sayısının 2 ile tam bölünüp bölünmediğini, DivPred nesnesini 5 ile initialize
+etmişsem bool() fonksiyon kendisine gelen argümanın 5 ile tam bölünüp bölünmediğini test edecek. Şimdi fonksiyonu çok daha esnek hale getirmiş olduk!! Burada arka planda şunlar gerçekleşti: count_if 
+algortimasının kodunu yazmıştık hatırlayınız; derleyicimiz compile-time'da count_if'in 3. parametresine gönderilen argümanın türünün compile-time'da DivPred sınıfı olduğunu anlıyor. Böylece derleyicimizin
+yazdığı specialization count_if algoritmasından aslında son parametre değişkeni DivPred türünden. Dolayısıyla count_if'in 3. parametresi olan unary-predicate nesnemiz fonksiyon çağrı operator'ün ün 
+operandı olduğunda operator() fonksiyonu çağırılacak; bu fonksiyon da ctor'da initialize edilmiş mval'e tam olarak bölünüp bölünmediğini test etmiş olacak. 
+
+Hadi buradaki mantığı bir başka örnekte daha pekiştirelim:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+#include <string>
+
+using namespace std;
+
+
+class LenPred {
+public:
+    LendPred(std::size_t len) : mlen{len} {}
+    bool operator()(const std::string &s)const
+    {
+        return s.length() == mlen;
+    }
+private:
+    std::size_t mlen;
+}
+
+int main()
+{
+    vector<string> svec;
+    rfill(ivec, 100'000, rname); //comes from nutility.h header file
+
+    for(size_t i{ 3 }; i < 14; ++i ){
+        cout << i << " " << count_if(svec.begin(), svec.end(), LendPred{len}) << '\n';
+    }
+
+}
+örneği biraz değiştirelim ve fonksiyonun 3. parametresine lambda ifadesi diye isimlendirilen özel bir ifade yazıyorum:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+#include <string>
+
+using namespace std;
+
+
+int main()
+{
+    vector<string> svec;
+    rfill(ivec, 100'000, rname); //comes from nutility.h header file
+
+    for(size_t i{ 3 }; i < 14; ++i ){
+        cout << i << " " << count_if(svec.begin(), svec.end(), 
+        [i](const string &s) {return s.length == i; } ) << '\n';
+    }
+
+}
+kodu derleyip çalıştırdığımızda bir önecki örnekte oldyuğu gibi doğru çalıştığını görüyoruz! Peki nasıl oldu da [i](const string &s) {return s.length == i; } şeklinde bir ifade yazdığımda aynu sonucu aldım?
+İşte böyle ifadelere lambda ifadeleri deniyor, modern C++ ile gelen en önemli araçlardan biri lambda ifadesi şudur:
+lambda expression
+=============================
+öyle bir ifade ki derleyici bu ifade karşılığında bir sınıf oluşturuyor!!!, bir sınıf tanımlıyor ve ifadenin kendisinide tanımladığı sınıf türünden bir geçici nesneye dönüştürüyor. Yani bir lambda ifadesi
+derleyicinin oluşturduğu bir sınıf türünden bir geçici nesne aslında. Yani az önceki örnekte biz derleyiciye adeta bizim ondan bir önceki yazdığımız LendPred sınıfı gibi bir sınıfın kodunu yazdırdık.
+Ve dahası [i](const string &s) {return s.length == i; } ifadesi karşılığı derleyici bu ifadeyi o oluşturduğu sınıf türünden bir geçici nesneye dönüştürdü. Dolayısıyla derleyici count_if algoritmasında 
+3. parametreye geçilen lambda ifadesinden bir type deduction yaptı; fonksiyonumuzun 3. parametresini derleyicinin oluşturduğu sınıf türü olarak ele aldı ve burda çağırılanda aslında derleyicinin
+yazdığı sınıfın fonksiyon çağrı operator fonksiyonu oldu. 
+
+işte lambda ifadeleri karşılığı  derleyicinin yazdığı sınıflara ingilizce de closure type deniliyor. Ve derleyicinin oluşturduğu geçici nesneye ise closure object deniliyor. Yani aslında ben bir algoritmaya
+bir lambda ifadesini argüman olarak gönderdiğimde geçici bir nesneyi argüman olarak göndermiş oluyorum. İşte o geçici nesneye de closure object deniliyor. 
+
+lambda ifadelerinin genel sentaksı şöyle:
+başta bir tane köşeli parantez var: [] buna lambda introducer deniliyor. Derleyici bir lambda ifadesi ile karşılaştığını bu lambda introducer'dan anlıyor. Bunun içine duruma göre bazı ifadeler yazabiliyoruz
+o ifadelere catcher closure deniliyor. Yukarıdaki örnekte oraya örneğin döngü değişkeni i yazmıştık. Ondan sonra [](), yani () var, fonsiyonel bazı durumlarda olmayabilir. Bu parantez aslında derleyiciye 
+yazdırdığınız sınıfın  fonksiyon çağrı operator'ünün parametre parantezi. Yani örneğin şue şekilde [](int x) dersek, aslında bu x derleyiciye yazdırdığımız sınıfın fonksiyon çağrı operator'ünün parametre 
+değişkeni. Burada küme parantezi de: [](){} derleyiciye yazdırdığınız sınıfın fonksiyon çağrı operator'ünün gövdesi: [](int x){return x * 5; } buda derleyicinin yazacağı fonksiyon çağrı operator 
+fonksiyonunun kodu.  [](int x){return x * 5; } ifadesi ise bir sınıf nesnesi, bir PR val. expr. Dolayısıyla  [](int x){return x * 5; } bir sınıf nesnesi olduğu için örneğin doğrudan fonksiyon çağrı 
+operator'ünün operandı olabilir:  [](int x){return x * 5; }() böylece aslında ben sınıf nesnesini yani closure object'i fonksiyon çağrı operator'ünün operandı yaptım:  [](int x){return x * 5; }(10)
+o halde  [](int x){return x * 5; }(10) değeri 50'dir. 
+
+class ztr_yuq {
+public:
+    auto operator()(int x)const{
+        return x * 5;
+    }
+};
+
+/*Derleyici  [](int x){return x * 5; }(10) ifadesi karşılığı şunu yapıyor:
+derleyici bu sınıfın kodunu yazıyor; bu compiler-generated bir class, ardından derleyici bu sınıfa bir fonksiyon çağrı operator fonksiyonu yazıyor. Eğer parametre değişkeni olmasaydı içi boş olacaktı
+ama bizde dolu olduğu için parametre değişkeni olur, ve bizim yazdığımız return ifadesi bu yazılan fonksiyonun return deyimini oluşturuyor. Fonksiyonumuz default olarak sınıfın const üye fonksiyonu.
+Geri dönüş değeri type deduction ile belirleniyor. Yani örneğin bu örnekte x * 5 ifadesinin türü ne ise fonksiyonumuzun geri dönüş değeri türü o. */
+
+int main()
+{
+    [](int x){return x* 5; }
+    //derleyicinin gözünden yukarıdaki ifade: ztr_yuq{} yani ztr_yuq türünden bir nesne
+}
+ve bu geçici nesneyi bir fonksiyon şablonuna argüman olarak gönderebilirim, bunu bir değişken olarak tutabilirim. İşte bu lambda ifadesi ile çok farklı işler gerçekleştirebilirim. lambda ifadesi kısaca 
+derleyicinin oluşturduğu bir sınıf türünden bir PR value expr. Ayrıca madem  [](int x){return x* 5; } ifadesi maden derleyicinin gözünde ztr_yuq{} demek o halde fonksiyon çsğrı operator'ünün operandı 
+yaptığımda ztr_yuq{}(10) bu ifadenin değeri ne diye sorsak derdik ki, ztr_yuq{} sınıf türünden nesne fonksiyon çağrı operator'ünün operandı olmuş o zaman bu fonksiyon çağırılacak bu fonksiyonun geri
+dönüş değeri de 50 derdik. Ancak lambda ifadelerinin gücü özellikle algoritmalara argüman olarak gönderdiğimizde her şey type deduction ile belirleniyor. Sizin ayrı bir functor class yazmanız yerine 
+doğrudan ihtiyaç duyduğunuz yerde onu bir ifade olarak belirtiyorsunuz geri kalan kısmını derleyiciye bırakmış oluyorsunuz. 
+
+find_if algoritmasında lambda expression kullanalım:
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+#include "nutility.h"
+#include <string>
+
+using namespace std;
+
+
+int main()
+{
+    vector<string> svec;
+    rfill(svec, 200'000, []{return rname() + ' ' + rfname(); }); //comes from nutility header file //burada lambda ifadesinde parametre parantezi yok çünkü fonksiyonun parametre değişkeni yoksa 
+                                                                 //ve bazı şartlarda sağlanmışsa parametre parantezini hiç yazmayabiliyorsunuz. 
+
+    string key;
+    std::cout << "aranan yaziyi girin: ";
+    cin >> key;
+
+    if(auto iter = find_if(svec.begin(), svec.end(), [key](const string &s) 
+    {return s.find(key) != string::npos; }), iter != svec.end()) {
+        cout << "bulundu " << *iter << '\n';
+    }
+    else {
+        std::cout << "bulunamadi\n";
+    }
+
+}
+arka planda derleyici şöyle bir kod yazar: [key] yani köşeli parantez içine yazdığımız değerde onun türünden sınıfa bir veri elemanı koymuş oluyorsunuz sınıfın veri elamanını da bu değerle initialize 
+etmiş oluyorsunuz. Yani aslında biz lambda ifadesine artık key'i kullandığımız zaman derleyicinin yazdığı sınıfın non-static data member'ını kullanmış oluyoruz. lmabda ifadeleri modern C++'ın en önemli 
+aracıdır!!! lambda ifadeleri C++11 ile dile eklendi ancak her yeni C++ standart'ı lambda ifadelerine eklemler/yenilikler yapıldı. 
+
+=============================================================================================================================================================================================================
+
+Yine çok sık kullanılan bir iki algoritmaya daha değinelim:
+
+en çok kullanlan algortimalardan biri transform:
+
+transform
+============
+transform algoritmasının 2 tane overload'u var. transform algortiması bir range'deki öğeleri bir unary function'a argüman olarka gönderiyor ama fonksiyonun geri dönüş değerini de bir başka range'e yazıyor.
+Elimde bir range var, o range'deki öğeleri döngüsel biir yapı ile bir fonksiyona/callable'a gönderiyorum ama o çağırdığım callable'ın geri dönüş değerinide bir range'e yazıyorum. transform algoritmasının 
+kendisini implemente edelim:
+1. parametre(InIter) : okuma range'i template parametresi yani kaynak olarak kullanılan range'in iterator türü
+2. parametre(OutIter) : yazma range'i
+3. parametre(Ufunc) : dikkat ederseniz burada ben artık predicate ismini kullanmadım çünkü buradaki callable'ın geri dönüş değeri bool olan bir callable olması gerekmiyor herhangi bir tür olabilir.
+template <typename InIter, typename OutIter, typename Ufunc>
+OutIter Transform(InIter beg, InIter end, OutIter destbeg,  Ufunc f)
+{
+    while(beg != end) {
+        *destbeg++ = f(*beg);
+    }
+
+    return destbeg;
+}
+while döngüsü içerisnde verieln range'i dolaşıyoruz. range'teki her bir öğeyi; fonksiyonun son parametresi olan callable'a argüman olarak gönderiyor ve bu fonksiyonun geri dönüş değerini yazma range'ine 
+yazıyor. Bunu bir örnek ile alalım:
+soru: svec'te bulunan isimlerin uzunluklarını aynı indekste öğeleri size_t olan bir vector'de tutmanız isteniyor yani svec'te isimler olacak bizim yapacağımız ekleme ile de diğer vector'de uzunlukları olmalı:
+
+#include <algorithm>
+#include <vector>
+#include <string>
+#include  "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 10, []{return rname() + ' ' + rfname() });
+    print(svec, cout, "\n");
+    vector<size_t> lenvec(svec.size());
+
+    transform(svec.begin(), svec.end(), lenvec.begin(), [](const string &s){return s.length(); });
+    print(lenvec, cout);
+}
+soru: lenvec default construct edilmiş olsaydı:
+#include <algorithm>
+#include <vector>
+#include <string>
+#include  "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 10, []{return rname() + ' ' + rfname() });
+    print(svec, cout, "\n");
+    vector<size_t> lenvec;
+
+    transform(svec.begin(), svec.end(), lenvec.begin(), [](const string &s){return s.length(); }); //ub
+    print(lenvec, cout);
+}
+tanımsız davranış olurdu!!! bu kodun ub olmaması benim beklediğim gibi çalışması için fonksiyonun 3. parametresine lenvec.begin yerine ne göndermem gerekir:
+#include <algorithm>
+#include <vector>
+#include <string>
+#include  "nutility.h"
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 10, []{return rname() + ' ' + rfname() });
+    print(svec, cout, "\n");
+    vector<size_t> lenvec;
+
+    transform(svec.begin(), svec.end(), back_inserter(lenvec), [](const string &s){return s.length(); }); 
+    print(lenvec, cout);
+}
+
+transform algoritmasının çok güzel bir özelliği daha var: transform algoritmasını aynı range üstünde de çalıştıırabilirsiniz yani okuma range'i ile yazma range'inin aynı olmasında bir sakınca yok!!!
