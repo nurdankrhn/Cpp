@@ -1,0 +1,298 @@
+transform algoritmasını bir range'in üstünde veya range'in kendisinde de değişiklik de kullanabiliriz. transform algoritmaısna string'i ters çevirecek bir örnek verelim:
+#include <algorithm>
+#include <vector>
+#include <string>
+#include  "nutility.h"
+
+
+std::string Reverse(std::string s)
+{
+    std::reverse(s.begin(), s.end());
+    return s;
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 10, rname);
+    print(svec, cout);
+    transform(svec.begin(), svec.end(), svec.begin(), Reverse);
+    print(svec, cout);
+
+}
+transform'un ilginç bir overload'u daha var, bu örnekte ele aldığımız transform bir range'deki öğeleri bir callable'a gönderiyor, callable'ın geri dönüş değerinide başka bir
+range'e yazıyor. Ama buradaki callable tek parametreli. Şimdi şöyle olduğunu düşünün bu kez 2 ayrı okuma range'i var, bir range'ten bir öğeyi diğer range'ten diğer 
+öğeyi alacak bunları 2 parametreli bir fonksiyona argüman olarak gönderecek, 2 parametreli fonksiyonun geri dönüş değerini başka bir range'e yazacak. Yani iki parametreli
+bir callable'ı farklı range'deki öğelerle karşılıklı çağıracak geri dönüş değerini bir yere yazacak. 
+
+Daha iyi anlamak için transform'un bu overload'unun kodunu yazalım: 
+1. ve 2. parametre okuma iteratorleri(range'leri)
+3. template parametresi yazma iterator'ü
+4. parametrede çağıralacak 2 parametreye sahip callable'ın türü olacak, geri dönüş değeri ise yine OutIter:
+template <typename InIter1, typename InIter2, typename OutIter, typename BiFunc>
+OutIter Transform(InIter1 beg1, InIter1 end, InIter2 beg2, OutIter destbeg, BiFunc f)
+{
+    while(beg1 != end ) {
+        *destbeg++ = f(*beg1++, *beg2++);
+    }
+
+    return destbeg;
+}
+şeklinde implemente edebiliriz. Bunlar farklı iterator'ler olabilir yani örneğin iterator'lerden biri vector'ün iterator'ü diğeri başka bir container'ın iterator'ü
+olabilir. Hatta tabii ki bir C diziside olabilir. tranform'un bu overload'unu daha iyi anlamak için orjinal olanı ile bir örnek yapalım:
+aşağıda verilen örnekte vector'de verilen öğeler ile dizideki öğelerin karşılıklı olarak karelerinin toplamanı list bağlı listesine yazmak isteyelim:
+#include <algorithm>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <list>
+
+
+int sum_square(int a, int b)
+{
+    return a * a + b * b;
+}
+
+int main()
+{
+    using namespace std;
+
+    int a[] = {1, 3, 5, 7, 12, 67, 20, 56, 90};
+    vector<<int> ivec{ 11, 23, 85, 17, 112, 637, 240, 546, 190 };
+
+    list<int> mylist;
+
+    transform(begin(a), end(a), ivec.begin(), back_inserter(mylist), sum_square); //dikkat: bağlı liste boş olduğu için back_inserter kullandığıma dikkat ediniz, front_inserter'da kullanabilirdim.
+    print(mylist, cout);
+}
+yukarıda transform algoritmasına argüman olarak gönderdiğim sum_square fonksiyonu yerine lambda ifadesi ile yapsaydık:
+#include <algorithm>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <list>
+
+
+int sum_square(int a, int b)
+{
+    return a * a + b * b;
+}
+
+int main()
+{
+    using namespace std;
+
+    int a[] = {1, 3, 5, 7, 12, 67, 20, 56, 90};
+    vector<<int> ivec{ 11, 23, 85, 17, 112, 637, 240, 546, 190 };
+
+    list<int> mylist;
+
+    transform(begin(a), end(a), ivec.begin(), back_inserter(mylist), 
+    [](int a, int b){return a * a + b * b; }); //dikkat: bağlı liste boş olduğu için back_inserter kullandığıma dikkat ediniz, front_inserter'da kullanabilirdim.
+    print(mylist, cout);
+}
+dikkat: bu durumda 2. okunan dizinin öğe sayısı en az 1.'si kadar olmalı!!! STL'de böyle durumlarda öğe sayısının yeteri kadar olmasından tamamen çağıran sorumlu!!!
+Örneğin yukarıdaki örnekte verilen dizideki eleman sayısı ile vector'deki öğe sayısı eşit. Örneğin vector'deki son öğeyi silersem:
+Öezellikle tanımsız davranışları gözleme şasınızı arttırmak istiyorsanız debug sürümünde derleyin, tipik olarak orada daha net göreceksiniz:
+#include <algorithm>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <list>
+
+
+int sum_square(int a, int b)
+{
+    return a * a + b * b;
+}
+
+int main()
+{
+    using namespace std;
+
+    int a[] = {1, 3, 5, 7, 12, 67, 20, 56, 90};
+    vector<<int> ivec{ 11, 23, 85, 17, 112, 637, 240, 546 };
+
+    list<int> mylist;
+
+    transform(begin(a), end(a), ivec.begin(), back_inserter(mylist), 
+    [](int a, int b){return a * a + b * b; }); //ub!!!!
+    print(mylist, cout);
+}
+
+
+Java, C# gibi dillerde  ismi olan bir döngü deyimi var for_each, birçok programlama dilinde var. Bizde ise for_each  bir STL algoritması, son derece basit bir algoritma:
+yalnız burada çok ilginç bir durum var, for_each'in geri dönüş değeri callable yani geri dönüş değeri Ufunc türünden:
+Ufunc for_each(Iter beg, Iter end, Ufunc f)
+{
+    while( beg != end ) {
+        f(*beg++);
+    }
+    return f;
+}
+başlangıçta programcılar for_each algoritması ile tanıştıklarında biraz tuhaf geliyor: neden callable'ı döndürüyor? for_each'teki öğeleri callable'a gönderdiğinizde
+callable herhangi bir sınıf olabilir, buradan edindiği bilgileri kümülatif olarak bir şekilde kullanabilir. Belki de o sınıfın bir üye fonksiyonunu çağırarak daha 
+fazla bilgi alabilirsiniz; yani bundan faydalanmaya yönelik kodlar yazabilirsiniz. for_each'in enteresan özelliği çağırdığımız callable'ın range'deki öğeleri salt 
+okuma amaçlı ya da yazma(mutator) amaçlı alabilmesi. Yani bu unary function referans parametreye sahip olabilir ya da olmayabilir. 
+
+Örneğin basit bir örnek yapalım: 
+#include <algorithm>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <list>
+
+
+using namespace std;
+
+void increment(int& x)
+{
+    ++x;
+}
+
+int main()
+{
+    using namespace std;
+
+    int a[] = { 1, 4, 7, 2, 3, 9, 8, 12, 54, 22, 33 };
+    for_each(begin(a),, end(a), increment);
+
+    for(auto i : a) {
+        std::cout << i << " ";
+    }
+}
+
+for_each'i biraz daha farklı şekilde  kullanalım:
+bu fonksiyonun parametresine gelen string'in ilk karakteri (tabii bu durumda boş olmaması gerekiyor); eğer sınıfın private veri elemanı m_c ise bu durumda onu büyük 
+harfe çaviriyor:
+#include <algorithm>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <list>
+
+
+using namespace std;
+
+class Functor {
+public:
+    Functor(char c) : m_c{c} {}
+    void operator()(std::string& s)
+    {
+        if(s[0] == m_c )
+            s[0] = std::toupper(s[0]);
+    }
+private:
+    char m_c;
+};
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+
+    rfill(svec, 100, [] {return rname() + ' ' + rfname(); });
+    char c;
+    cout << "harf girin: ";
+    cin >> c;
+
+    for_each(sve.begin(), svec.end(), Functor());
+    print(svec, cout);
+}
+geri dönüş değerinin callable olmasından nasıl bir fayda elde edebiliriz, ona yönelik bir örnek oluşturalım:
+#include <algorithm>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <list>
+
+
+using namespace std;
+
+class Functor {
+public:
+    Functor(char c) : m_c{c} {}
+    void operator()(std::string& s)
+    {
+        if(s[0] == m_c ) {
+            s[0] = std::toupper(s[0]);
+            ++m_cnt;
+        }
+    }
+    int get_count()const
+    {
+        return m_count;
+    }
+private:
+    char m_c;
+    int m_cnt{};
+};
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+
+    rfill(svec, 100, [] {return rname() + ' ' + rfname(); });
+    char c;
+    cout << "harf girin: ";
+    cin >> c;
+
+    auto f = for_each(sve.begin(), svec.end(), Functor());
+    cout << "toplam " << f.get_count() << "sayida oge degistirildi\n";
+    print(svec, cout);
+}
+çoğunlukla geri dönüş değerini kullanmıyoruz ama böyle temalarda geri dönüş değerini kullanmakta isteyebiliriz. 
+
+any_of
+none_of
+all_of
+3'ününde ortak özelliği fonksiyonların geri dönüş değerlerinin boolean olması, 3'ününde ortak özelliği bizden iterator range'i alıp bir de unary predicate alması
+any_of range'teki öğelerin en az bir tanesinin koşulu sağlayıp sağlamadığını sınıyor. Mesela biz şu soruya cevap vermek istersek: 
+bu vector'de en az bir çift sayı var mı? o zaman any_of'u çağırıcaz:
+#include <algorithm>
+#include <vector>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    vector<int> ivac{2, 4, 70, 90, 10, 6, 30};
+    cout << boolalpha;
+
+    cout << any_of(ivec.begin(), ivec.end(), [](int x) {return x % 2 != 0; }) << '\n';
+}
+
+all_of tam tersi eğer hepsi bu predicate sağlıyorsa o zaman true döndürücek:
+#include <algorithm>
+#include <vector>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    vector<int> ivac{2, 4, 70, 90, 10, 6, 30};
+    cout << boolalpha;
+
+    cout << all_of(ivec.begin(), ivec.end(), [](int x) {return x % 2 == 0; }) << '\n';
+}
+none_of ise hiçbiri bu koşulu sağlamıyorsa  true döndürecek:
+#include <algorithm>
+#include <vector>
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    vector<int> ivac{2, 4, 70, 90, 10, 6, 30};
+    cout << boolalpha;
+
+    cout << all_of(ivec.begin(), ivec.end(), [](int x) {return x % 2 != 0; }) << '\n';
+}
