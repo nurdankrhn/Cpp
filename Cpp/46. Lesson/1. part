@@ -1,0 +1,478 @@
+8 Mayıs 2023 - Pazartesi
+lambda ifadesi öyle bir ifade ki modern C++ ile dile eklenen bu ifade karşılığı derleyici bir sınıf tanımlıyor ve ifadenin kendisinide tanımladığı sınıf türünden bir geçici
+nesneye temprorary object'e dönüştürüyor. Yani lambda ifadesi kullandığımız yerde biz aslında bir sınıf nesnesi kullanmış oluyoruz. Sağ taraf değeri olan/PR value expr.
+olan bir sınıf nesnesi ve lambda ifadeleri aslında bir yerde bazı programlama dillerinde fonksiyon içinde fonksiyon tanımlayabiliyorsunuz yani onlarda nested function ya da
+nested method denilen bir sentaks var. Ancak C++ vw C'de fonksiyon içinde fonksiyon tanımlayamıyoruz!! İşte onu aslında dolaylı olarak sağlayan bir yapı, ondan çok daha 
+güçlü ama bir fonksiyona doğrudan ihtiyaç duyduğumuz yerde doğrudan bir lambda ifadesi ile derleyiciye bir sınıfın kodunu yazdırıyoruz ama işte o sınıfın kodunu yazarken 
+derleyicinin o sınıf için oluşturacağı fonksiyon çağrı operator fonksiyonunun kodunu da biz derleyiicye veriyoruz. Böylece aslında bir nevi local function yapısı 
+oluşturulmuş oluyor.
+
+STL'de algorithm kütüphanesindeki fonksiyonlarımızdan şu 3 algoritmayı ele alarak başlayalım:
+max_element bir range'deki en büyük öğeyi, min_element bir range'deki en küçük öğeyei, min_max element ise bir range'deki hem en büyük hem en küçük öğeyi bulmak 
+için kullandığımız algoritmalardır. Burada şunu hatırlatmakta fayda var örneğin max_element bulunurken de < operator'ü kullanılarak algoritma implemente edilmiş. 
+min_element'te de < operator'ü algoritmayı implemente etmek için kullanılmış. Yani sınıfların < operator'ünün operandı olması çok özel bir durum STL'de!!!! Özellikle
+eski STL'de (C++20 öncesi) her şey küçüktür ile başlıyor. STL algoritmaları olan max_element ve min_element en büyük ve en küçük öğenin konumunu döndürüyor yani bunlar 
+iterator döndüren fonksiyonlar. min_element ve max_element'in 1. oveload'ları her zaman range alıyor ve bu büyüklük ve küçüklük karşılaştırması için < operator'ünü
+kullanıyor. Aslında burada < operator'ünü kullanma yoluda aslında bir function object kullanıyordu o function object'in ismi:std::less, std::less'de < operator'ünü
+kullanıyor. İlk etapta basit implementasyonu ile başlayalım:
+#include <algorithm>
+#include <vector>
+#include "nutility.h"
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+
+    rfill(svec, 20, rname);
+    print(svec, cout);
+    auto iter = max_element(svec.begin(), svec.end());
+    cout << "max = " << *iter << "max idx = " << distance(svec.begin(), iter) << '\n';
+}
+indeksi bulurken iter - svec.begin()'de diyebilirdik ancak böyle yazmaktansa özellikle generic kodlarda daha okunabilir std::distance'yi kullanalım.  Zaten dikkat 
+edilirse eğer svec random_access_iterator kategorisinde bir iterator olmasaydı o zaman iter - svec.begin() çıkarma işlemini yapamayacaktım yani orada distance'yi 
+kullanmaya mecbur olacaktım !!
+
+mülakatlarda çok sık sorulan birkaç soru:
+#include <algorithm>
+#include <vector>
+#include "nutility.h"
+#include <string>
+
+int main()
+{
+
+    std::vector<std::string> svec;
+
+    rfill(svec, 20, rname);
+    print(svec, std::cout);
+    auto iter = max_element(begin(svec), end(svec)); //ADL
+   
+}
+dikkat edin max_element'i std namespace'i ile nitelememe rağmen sentaks hatası olmadı ve hatta global begin ve end fonksiyonlarını kullandım, begin ve end global fonksiyonlar std namespace'inde
+nitelememiş olmama rağmen nasıl std::namespace'inde aranıyor çünkü ona gönderdiğim argümanlar std::namespace'indeki bir türe ilişkin olduğu için, max_element'i, begin ve end'i nitelemeden kullanmamın
+nedeni ADL çünkü gönderilen argüman std namespace'inde tanımlanan bir türe ilişkin. max_element'i nitelemeden kullanmama rağmen  ismin aranmasını bulunmasını sağlayan yine ADL çünkü begin ve end 
+fonksiyonlarının geri dönüş değerleri vector'ün string açılımının iterator'ü o da yine std namespace'ine ilişkin olduğu için max_element'tede yine ADL devreye giriyor. 
+
+soru: max_element(begin(svec), end(svec)) ifadesinin türü ne? iterator'dür(vector'ün string açılımının iterator'ü)!!!! 
+soru:  max_element(begin(svec), end(svec))->size() bazen böyle kodları yazmak gerekiyor, programcıda biraz şaşırıyor, eğer ben bu işleme sadece örneğin ismin uzunluğunu kullanmak için bu işlemi 
+yapıyorsam bir değişkende bile saklamak zorunda olmayabilirim örneğin bir fonksiyona argüman olarakta gönderebilirim. Yani operator önceliği açısından max_element'in geri dönüş değeri olan iterator'ü
+doğrudan -> operator'ünün operandı yaptım dolayısıyla o iterator konumundaki nesnenin size fonksiyonunu çağırdım. 
+
+Burada çok güzel örnek teşkil eden bir konu daha var; C++17 standart'ının major bir standart olduğunu ve dile çok ciddi eklemeler yapıldığını söylemiştik!! Bugün artık doğal olarak kullandığımız birçok
+öğe C++17 standartı ile dile eklendi: örneğin if-with initializer, static if gibi. Fakat bunlardan en önemlilerinden biri de structure binding!!! structure binding çok çok önemli bir araç çünkü STL'de
+bazı fonksiyonlar 2 tane değer döndürüyor. 2 tane değeri şu şekilde döndürüyor; std::pair olarak döndürüyor!! örneğin min_max_element bir range alıyor ancak geri dönüş değeri iterator pair'i ve dikkat 
+ederseniz auto type deduction olmasaydı min_max_element'i çağırıyor olsaydım bu şekilde yazmak zorunda kalırdım:
+#include <algorithm>
+#include <vector>
+#include "nutility.h"
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+
+    rfill(svec, 20, rname);
+    print(svec, cout);
+    pair<vector<string>::iterator, vector<string>::iterator> iter = max_element(svec.begin(), svec.end());
+   
+}
+burada eskiden auto type deduction olmadığı için burada tek yol işimizi hafifletmek için tür eş ismi oluşturmak. Ancak modern C++ ile böyle uzun uzun yazmak yerine derleyiciye diyoruz ki sen kendin 
+tür çıkarımını yap:
+#include <algorithm>
+#include <vector>
+#include "nutility.h"
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+
+    rfill(svec, 20, rname);
+    print(svec, cout);
+    auto iter = max_element(svec.begin(), svec.end());
+    cout << *iter.first << " " << *iter.second << '\n';  //iter'in first'ü ve second'ı iterator, iterator'leri dereference ediyorum.
+
+}
+iter'in kendisi bir pair olduğuna göre pair'in first'ü minimum değerdeki konum, pair'in second'ıda maximum'un konumu.
+
+
+özellikle birden fazla değere sahip bileşik nesnelerde ki pair'de böyle en öenmli problemlerden biri eski C++'ta bileşiği öğelerine ayırmak!! Eğer eski C++ olsaydı hatta eski CC+'tan ziyade C++17'den 
+öncesi olsaydı ben pair'i değilde pair'deki öğeleri değişkenlerde tutmak isteseydim önce bir pair değişkeni oluşturacaktım ardından first ve second'a erişicektim:
+#include <algorithm>
+#include <vector>
+#include "nutility.h"
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+
+    rfill(svec, 20, rname);
+    print(svec, cout);
+    auto iter = max_element(svec.begin(), svec.end());
+    auto iter_min = iter.first;
+    auto iter_max = iter.second;
+
+}
+oysa C++17 ile dile eklenen structure binding ile şu şekilde yazabiliyorum:
+#include <algorithm>
+#include <vector>
+#include "nutility.h"
+#include <string>
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+
+    rfill(svec, 20, rname);
+    print(svec, cout);
+    auto [iter_min, iter_max] = max_element(svec.begin(), svec.end());
+
+    cout << "min idx = " << distance(svec.begin(), iter_min) << " " << *iter_min << '\n';
+    cout << "max idx = " << distance(svec.begin(), iter_max) << " " << *iter_max << '\n';
+
+}
+işte burada kullandığım santaks'ada structure binding deniliyor. 
+
+
+
+#include <iostream>
+
+template <typename T>
+struct Less {
+    bool operator()(const T& t1, const T& t2)const
+    {
+        return t1 < t2;
+    }
+};
+
+int main()
+{
+    using namespace std;
+    int x = 20, y = 4;
+    cout << boolalpha;
+    Less<int> myless;
+
+    cout << (x < y) << '\n';
+    cout << myless(x, y) << '\n';
+}
+görüldüğü gibi < operator'ü ile Less isimli sınıf şablonunun sonucu aynıdır. Diyelim ki bizim bir algoritmamız var:
+template <typename Iter, typename Bipred>
+void foo(Iter beg, Iter end, Bipred f)
+{
+    while(beg != end ) {
+        ///
+        f(*beg, *(beg + 1)); 
+    }
+}
+f gibi bir fonksiyo çağırsam, bu iterator konumundaki öğeler int türdense burada aslında parametresi int olan bir fonksiyona çağrı yapmış oluyorum; o halde az önceki Less'in int açılımının Bipred f'e argüman 
+olarak geldiğini düşünürseniz while içinde küçüktür karşılaştırması yapılacak o zaman eğer ben az önceki örnekte olduğu gibi Less gibi sınıf şablonlarından oluşturulan nesneleri doğrudan fonksiyonlara 
+argüman olarak gönderebilirim; işte gerçektende bunlar standart ve böylece algoritmanın davranışını değiştiriyoruz!!! Burada ana amacımız Less gibi standart fonksiyon nesnelerinin STL'de nasıl kullanıldığını
+göstermek!!! Örneğin sort algoritmasına bakalım:
+template <typename RanIt>
+void Sort(RanIt beg, RanIt end)
+{
+    //if(???????????)
+    //  swap
+}
+burada hangi sort algoritmasını implemente ederse etsin fonksiyon kodunda bir karşılaştırma ilişkisine ihtiyacımız var!! çünkü nihayetinde bütün sıralama algoritmaları bir ya da birden fazla yerde
+bir koşula bağlı olarak nihayetinde swap yapıyorlar. Burada if deyiminin parantezi içinde verilen soru işeretleri yerine yani koşul < operator'ü ile oluşturuluyor. Ama < ile oluştururken aslında 
+arka planda da tipik olarak Less'i kullanıyor aynı şey. Diyelim ki bu algortimada bu bundan küçükse swap yapın şeklinde implemente edilmiş olsun. Ancak böyle bütün algoritmaların 2. bir overload'u 
+var; o overload ise şöyle:
+template <typename RanIt, typename BiPred>
+void Sort(RanIt beg, RanIt end, BiPred pre)
+{
+    //if(pred)
+    //  swap
+}
+burada artık karşılaştırma bu fonksiyonun 3. parametresine gönderilen callable ile yapılıyor! Biz işte o callable'a std::less'i geçersek küçüktür karşılaştırması yapılacak. std::gerater'ı geçersek
+büyüktür karşılaştırması yapılacak. Böylece bu tür algoritmaları hiç kendimiz sınıf yazmadan functional başlık dosyasındaki bunlara standard function objects deniliyor, standart fonksiyon nesnelerini
+kullanarak çağrı yapabiliyorum. Artık STL'in çok önemli bir başlık dosyası ile daha tanışmış oluyoruz; bu başlık dosyasının adı functional. functional her C++ programcısınıın en iyi bilmesi gereken 
+standart kütüphanenin başlık dosyalarından biri!!
+
+az önce yazmış olduğumuz Less sınıfına geri dönelim:
+#include <iostream>
+
+template <typename T>
+struct Less {
+    bool operator()(const T& t1, const T& t2)const
+    {
+        return t1 < t2;
+    }
+};
+
+//bunun tam tersi büyüktür işlemine sokan bir sınıf şablonu yazalım:
+template <typename T>
+struct Greater {
+    bool operator()(const T& t1, const T& t2)const
+    {
+        return t1 > t2;
+    }
+};
+
+hatta toplama işlemini de aynı şekilde implemente edebiliriz:
+template <typename T>
+struct Plus {
+    T operator()(const T& t1, const T& t2)const
+    {
+        return t1 + t2;
+    }
+};
+
+veya çarpma işlemini aynı şekilde implemente edebilirim:
+template <typename T>
+struct Multiples {
+    T operator()(const T& t1, const T& t2)const
+    {
+        return t1 * t2;
+    }
+};
+
+her operator'ü böyle bir function object sınıfına yani functor class'a dönüştürebilirim!!
+
+Biz şu anlık functional'da standard function objects ya da standard functor diye geçen öğeleri biraz ele alacağız:
+
+standard function objects 
+============================
+#include <iostream>
+#include <functional>
+
+int main()
+{
+    using namespace std;
+
+    cout << less<int>()(5, 10) << '\n';
+    cout << greater<int>()(5, 10) << '\n';
+    cout << greater_equal<int>()(5, 10) << '\n';
+    cout << plus<int>()(5, 10) << '\n';
+    cout << multiplies<int>()(5, 10) << '\n';
+}
+gördüğünüz gibi bütün operator'ler bu şekilde _GET_FUNCTION_IMPL object haline getirilmiş; bunun faydasını anlamak için basit bir örnekle başlayalım:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 20, [] {return name() + ' ' + rfname()});
+    sort(svec.begin(), svec.end());
+    print(svec, cout, "\n");
+
+}
+dikkat ederseniz sort'un bu overload'u karşılaştırma için benden bir callable istemedi; callable istemiyorsa hemen aklımıza şu gelmeli: karşılaştırmaya yönelik functor her zaman std::less'tir. 
+O halde bu örnekte string'ler küçükten büyüğe sıralanacak. Diğer overload'una bakarsak:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 20, [] {return name() + ' ' + rfname()});
+    sort(svec.begin(), svec.end(), greater<string>{});
+    print(svec, cout, "\n");
+
+}
+şimdi de büyükten küçüğe sıralamış olduk. Üstelik şimdi çok detaylı ele almasakta bunların başka özellikleri var:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 20, [] {return name() + ' ' + rfname()});
+    sort(svec.begin(), svec.end(), greater{});
+    print(svec, cout, "\n");
+
+}
+greater{} ifadesinde kullanılan greater'a tranfer function object deniliyor. greater bir tarnsfer function object olduğu için doğrudan greater{} şeklinde de yazabiliyorsunuz. Derleyici greater'ın string
+açılımı olduğunu/olması gerektiğini kendisi anlıyor. 
+
+
+Bir diğer örnek: 
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+    rfill(ivec, 20, Rand{-1000, 1000});
+    print(ivec, cout);
+    auto iter = max_element(ivec.begin(), ivec.end());
+
+    cout << "max = " << *iter << "index = " << distance(ivec.begin(), iter) << '\n';
+}
+eğer gerçekten max algoritması sadece böyle olsaydı o zaman şöyle bir problem olurdu: her zaman büyüktür de küçüktür de küçüktür de < operator'ü ile yapılmak zorunda olurdu değil mi? Peki benim 
+şöyle bir isteğim olsa: ben şimdi öyle bir en büyük bulmak istiyorum ki mutlak değerleri esas alınsın yani -444'den 221'den büyük kabul edilsin, şimdi bunu nasıl implemente edecek? İşte bunun  için 
+diğer overload'unu kullanıyoruz:
+3. parametre yine binary predicate oluyor, işte bu 3. parametre diyor ki karşılaştırmada bu predicate'ı kullanacağım:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+
+bool myless(int a, int b)
+{
+    return std::abs(a) < std::abs(b);
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+    rfill(ivec, 20, Rand{-1000, 1000});
+    print(ivec, cout);
+    auto iter = max_element(ivec.begin(), ivec.end(), myless);
+
+    cout << "max = " << *iter << "index = " << distance(ivec.begin(), iter) << '\n';
+}
+max değer yazılırken mutlak değer göz önüne alınmaz, sadece max'ta değil sort'ta da predicate overload'a sahip:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+
+bool myless(int a, int b)
+{
+    return std::abs(a) < std::abs(b);
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+    rfill(ivec, 20, Rand{-1000, 1000});
+    //sort(ivec.begin(), ivec.end());
+    //sort(ivec.begin(), ivec.end(), greater{});
+    sort(ivec.begin(), ivec.end(), myless);
+    print(ivec, cout);
+
+}
+STL algoritmalarında bu predicate parametrenin ne kadar önemli olduğunu görüyoruz!! 
+
+Alternatiflere bakalım:
+ben yukarıda myless'i yukarıda olduğu gibi bir fonksiyon olarakta kullanabilirdim ya da bir sınıf olarakta tanımlayabilirdim:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+
+bool myless(int a, int b)
+{
+    return std::abs(a) < std::abs(b);
+}
+
+struct Myless {
+    bool operator()(int a, int b)const
+    {
+        return std::abs(a) < std::abs(b);
+    }
+};
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+    rfill(ivec, 20, Rand{-1000, 1000});
+    //sort(ivec.begin(), ivec.end());
+    //sort(ivec.begin(), ivec.end(), greater{});
+    sort(ivec.begin(), ivec.end(), Myless{});
+    print(ivec, cout);
+
+}
+ancak bunun çok daha pratiği böyle bir sınıf oluşturmaktansa lambda ifadesi  ile amacıma çok daha pratik bir şekilde ifade edebilirim:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+    rfill(ivec, 20, Rand{-1000, 1000});
+    sort(ivec.begin(), ivec.end(), [](int a, int b) {
+        return std::abs(a) < std::abs(b);
+    });
+    print(ivec, cout);
+
+}
+işte yine karşımıza lambda ifadesi çıktı. Eğer function object'lerin tamamını görmek istiyorsanız cppreference.com'dan standart kütüphanemizin functional başlık dosyasını inceleyiniz. 
+Dikkat: parametreler referans olmadığı sürece const parametre kullanmayın. Her ne kadar böyle yazanlar olsada kursun başında anlattığımız gibi bu hoş bir yazım biçimi değil!!! Yani 
+fonksiyonun parametresini özellikle bildirimde const yapmanın bir anlamı yok! Özellikle şu ikisini birbiri ile karıştırmıyoruz:
+void func(const int); bunu yapmayın, bunun void func(int);'ten hiçbir farkı yok! Eğer çok istiyorsanız implementasyon tarafında kullanabilirsiniz; yani buradaki const ingilizcesi ile it doesn't mean any thing!
+size hiçbir fayda sağlamıyor! Yani eğer lambda ifadesinde bana az önceki örnekte const kullanmayınız:
+int main()
+{
+   
+
+     [](const int a, const int b) {
+        return std::abs(a) < std::abs(b);
+    }
+} 
+hocamız const'u burada kullanamayı önermiyor, yani başta örnekte yaptığımız gibi const ile nitelemeden kullanmamızı öneriyor:
+int main()
+{
+   
+
+     [](int a, int b) {
+        return std::abs(a) < std::abs(b);
+    }
+} 
+burada size farklı şekilde bilgi verenler olabilir ancak bunun gerçekten const'un böyle bir kodda bir şey sağladığını hocamız düşünmüyor. Fakat bu fonksiyon daha büyük bir fonksiyon olurdu onun 
+içinde parametre değişkenini değiştirmek istemiyorum ancak yanlışlıkla parametreyi yanlışlıkla değiştirirsem sentaks hatası olsun istiyorsam o zaman yapılabilir ancak parametreyi değiştirip
+değiştirmemenizin burada çokta implementasyon açısından bir farkı yok. Kısacası hocamız bu tür durumlarda const'u kullanmıyor. 
