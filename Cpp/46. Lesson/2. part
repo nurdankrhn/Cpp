@@ -1,0 +1,461 @@
+Aklımıza şöyle bir soru gelebilir; bu standart function objects ile yaptığımız her şeyi lambda ifadeleri ile yapabilir miyiz? Cevap: evet ama kodun kolay anlaşılması açısından her zaman standart öğeleri kullanmak 
+daha iyi bir tecih. 
+
+Başka bir örnek daha verelim: geçen dersimizde ele aldığımız transform algoritmasını düşünün, hadi orada standart function object kullanalım:
+trnsform'un 2 tane overload'u vardı; 1. overload'u bir range'deki öğeyi bir unary fonksiyona gönderiyor geri dönüş değerini başka bir range'e yazıyor. Bir de 2 range parametreli overload'u var; 1 range'den 
+bir öğeyi diğer range'den diğer öğeyi alıyor binary fonksiyona gönderiyor geri dönüş değerini bir yere yazıyor. Bu örnekte de negate function object'e bakalım:
+bu function obejct unary operator olarak görev yapıyor örneğin aşağıda verilen örnketeki vector'de bulunan öğeleri tamamen işaretini değiştirmek isteseydim; burada std::negate'i kullanabilirdim, tabii transform
+algoritması ile birlikte:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{ 2, 4, 5, 6, 7, 9, -10, -7, 1, 90 };
+    print(ivec, cout);
+    transform(ivec.begin(), ivec.end(), ivec.begin(), negate {} );
+    print(ivec, cout);
+}
+normalde şunu yazmam gerekir: negate<int> {} önce burada açısal parantezin içini boş bırakma şansı getirildi deduction ile, daha sonrasında tranparent function object'ler eklendi dolayıla negate {} şeklinde yazabiliyoruz.
+Yani aslında transform'un 4. parametresine negate function object'ini geçtim böylece bu range'deki öğeler negate'in fonksiyon çağrı operator fonksiyonuna argüman olarak gönderildi, geri dönüş değeri de 3. parametre olan
+ivec.begin() range'inden itibaran yazıldı. Böylece hepsi -1 ile çarpılmış oldu.
+
+şimdi transform'un diğer overload'unu kullanalım:
+soru: x ve y'deki karşılıklı öğeleri toplayıp o toplam değerlerini listeye push_back yapacaksınız:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> x{ 2, 4, 5, 6, 7, 9, -10, -7, 1, 90 };
+    vector<int> y{ 1, 2, 7, 16, 17, 19, 110, -97, 31, 490 };
+
+    list<int> mylist;
+
+    
+    transform(x.begin(), x.end(), y.begin(), back_inserter(mylist), plus {} );
+    print(mylist, cout);
+}
+diyelim ki programcı standart fonksiyon nesnelerini bilmiyor(hocamızın tercihi her zaman standart fonksiyon nesneleri) burada lambda ifadesini kullanabilir:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> x{ 2, 4, 5, 6, 7, 9, -10, -7, 1, 90 };
+    vector<int> y{ 1, 2, 7, 16, 17, 19, 110, -97, 31, 490 };
+
+    list<int> mylist;
+
+    
+    transform(x.begin(), x.end(), y.begin(), back_inserter(mylist), [](int a, int b) { return a + b; } );
+    print(mylist, cout);
+}
+yine aynu işi yapmış olacağım. Eğer burada şöyle bir karar verme noktası varsa: standart fonksiyon nesneside kullanabiliyorum, lambda ifadeside o zaman hocamızın tercihi her zaman standart fonksiyon nesnelerinden yana. 
+İlerleyen haftalarda fonksiyon nesnelerini çok daha sık kullanacağız. Özellikle greater'a dikkat!!! çok sık karşımıza çıkacak; örneğin büyükten küçüğe sıralamada. Bu arada büyükten küçüğe/küçükten büyüğe sıralama 
+yapmanın birden fazla yolu var; örneğin:
+//küçükten büyüğe sıralama
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{ 43, 3, -5, 78, 23, -44, -12, 90, 21 };
+    sort(ivec.begin(), ivec.end());
+    print(ivec, cout);
+}
+
+büyükten küçüğe sıralamak istersem tek yapmam gereken less yerine greater göndermek:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{ 43, 3, -5, 78, 23, -44, -12, 90, 21 };
+    sort(ivec.begin(), ivec.end(), greater{});
+    print(ivec, cout);
+}
+ancak büyükten küçüğe sıralama yapmanın bir yolu daha var:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{ 43, 3, -5, 78, 23, -44, -12, 90, 21 };
+    sort(ivec.rbegin(), ivec.rend());
+    print(ivec, cout);
+}
+işte reverse iterator kullanırsak sondan başa doğru küçükten büyüğe sıralaması demek, büyükten küçüğe sıralaması demek. Bazen de böyle yapıyoruz. 
+
+
+Yine STL algoritması olan replace ve replace_if algoritmalarını ele alalım:
+replece bir veri yapısındaki belirli değerdeki öğeleri belirli bir değere sahip öğe ile adı üstünde replace ediyor. 2 tane template parametresi var: iterator'ün türü bir de değiştirilecek değerin türü, 4 tane ise fonksiyon
+parametresi var: 1. ve 2. parametre range, 3. parametre ise hangi değerin yerine, 4. parametre hangi değer gelecek. Örneğin:
+vector'deki öğelerden değeri 3 olanların değerini 9 yapan algortimayı yazalım:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+    rfill(ivec, 100, Rand{0, 5});
+    print(ivec, cout, " ");
+    replace(ivec.begin(), ivec.end(), 3, 9);
+    print(ivec, cout, " ");
+}
+replace_if ise belirli bir koşulu sağlayanları bir değerle eşliyor:
+diyelim ki çift değere sahip olan öğelerin değerine 0 koyacağız:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+    rfill(ivec, 20, Rand{1, 9});
+    print(ivec, cout, " ");
+    replace(ivec.begin(), ivec.end(), ()[int a]{ return a % 2 == 0; }, 0);
+    print(ivec, cout, " ");
+}
+sonuç olarak replace_if replace ile aynı işi yapıyor ama belirli bir koşulu sağlayanı bir değer ile değiştiriyor. Bir replace_if örneği daha yapalım:
+uzunluğu 5 olan stringlerin değerini "noname" ile değiştiren bir algortima yazalım:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(ivec, 20, rname);
+    print(svec, cout);
+    replace(svec.begin(), svec.end(), ()[const string &s]{ return s.length() == 5; }, "noname");
+    print(ivec, cout);
+}
+replace_if yine çok kullanılan algoritmalardan biridir.
+
+
+Bir de öte yandan sonu _copy ile biten algoritmalar var. Örneğin: reverse ve reverse_copy veya partial_sort ve partial_sort_copy gibi. Sonunda copy sözcüğü olmayanlar; işlemi range'in üstünde yapıyor ancak sonunda copy olanlar
+sanki o işlem yapımış gibi başka bir yere kopyalayarak yapıyor işlemi. Bunun en tipik örneği reverse ile reverse copy:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(ivec, 10, rname);
+    print(svec, cout);
+    reverse(svec.begin(), svec.end());
+    print(ivec, cout);
+}
+reverse_copy ise:
+
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 10, rname);
+    print(svec, cout);
+    list<string> slist;
+    reverse_copy(svec.begin(), svec.end(), back_inserter(slist));
+    print(slist, cout);
+}
+
+bir diğer örnek remove ve remove_copy:
+remove_copy bir range'in kendisinden öğe silmeyecekte sanki silinmiş gibi başka bir yere kopyalanacak: aşağıda ki örnekte ivec'ten dest'e kopyalama yaparken 3'ler silinmiş gibi kopyalama yapacağım:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+    rfill(ivec, 100, Rand{ 0, 5 });
+    print(ivec, cout);
+    vector<int> dest;
+
+    remove_copy(ivec.begin(), ivec.end(), back_inserter(dest), 3);
+    print(dest, cout);
+}
+bir de remove_copy_if var bu algoritmayı kullandığımız zaman yapacağı şey şu: belirli bir koşulu sağlayanlar silinmiş gibi kopyalama yapacak, 1. ve 2. parametresi range, 3. parametresi ise hedef range son parametre ise 
+unary predicate yani bu predicate'ın true değer verdiklerini yok sayıp kopyalamayacak!! örneğin:
+içinde a karakteri olanları kopyalamayacağım, a karakteri olmayanları kopyalayacağım:
+3. parametre için yazdığımız lambda ifadesinde find'i da kullanabiliriz:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+#include <fstream>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 10000, [] {return rname() + ' ' + rfname(); });
+    vector<string> dest;
+
+    
+    reverse_copy_if(svec.begin(), svec.end(), back_inserter(dest),
+    [](const string& s){return s.find('a') != string::npos; });
+   std::ofstream ofs{ "out.txt" };
+   if(!ofs) {
+    std::cerr << "out.txt dosyasi olusturulamadi\n";
+    exit(EXIT_FAILURE);
+   }
+   print(dest, ofs, "\n");
+}
+lambda ifadeisnde böyle yazmak yerine C++23 ile dile eklenen contains fonksiyonunu kullanabiliriz:
+
+
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+#include <fstream>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 10000, [] {return rname() + ' ' + rfname(); });
+    vector<string> dest;
+
+    
+    reverse_copy_if(svec.begin(), svec.end(), back_inserter(dest),
+    [](const string& s){return s.contains('a'); });
+    std::ofstream ofs{ "out.txt" };
+   if(!ofs) {
+    std::cerr << "out.txt dosyasi olusturulamadi\n";
+    exit(EXIT_FAILURE);
+   }
+   print(dest, ofs, "\n");
+}
+hatta örneği biraz daha değiştirelim içinde a'da olmasın e'de olmasın:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+#include <fstream>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 10000, [] {return rname() + ' ' + rfname(); });
+    vector<string> dest;
+
+    
+    reverse_copy_if(svec.begin(), svec.end(), back_inserter(dest),
+    [](const string& s){return s.contains('a') || s.contains('e') || s.contains('i'); });
+    std::ofstream ofs{ "out.txt" };
+   if(!ofs) {
+    std::cerr << "out.txt dosyasi olusturulamadi\n";
+    exit(EXIT_FAILURE);
+   }
+   print(dest, ofs, "\n");
+}
+ancak bu tarz durumlarda artık contains kullanmak yerine find_first_of'u kullanmak daha pratik olur:
+#include <iostream>
+#include <functional>
+#include <vector>
+#include <string>
+#include "nutility.h"
+#include <algorithm>
+#include <fstream>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<string> svec;
+    rfill(svec, 10000, [] {return rname() + ' ' + rfname(); });
+    vector<string> dest;
+
+    
+    reverse_copy_if(svec.begin(), svec.end(), back_inserter(dest),
+    [](const string& s){return s.find_first_of("aei") != string::npos; });
+    std::ofstream ofs{ "out.txt" };
+   if(!ofs) {
+    std::cerr << "out.txt dosyasi olusturulamadi\n";
+    exit(EXIT_FAILURE);
+   }
+   print(dest, ofs, "\n");
+}
+back_inserter kullandık çünkü dest boş, eğer dest şöyle olsaydı:   vector<string> dest(10000); 20 tane kopylarsak ilk 20'nin üstüne yazmış olurduk ama örnekte   vector<string> dest; şeklinde olduğundan back_inserter ile 
+bunu push_back'e dönüştürüyoruz.
+
+=================================================================================================================================================================================================================================
+şimdilik STL algoritması incelemesi yeterli, biraz daha container incelemesine devam edelim:
+
+container, standart kütüphanenin temel veri yapılarını implemente eden sınıflarına container deniliyor ve container'lar bazı garantileri sağlıyor. Örneğin kendimiz bir sınıf oluşturup onu da STL container'ı gibi kullanabilirim;
+aynı garantileri benim sınıfım da verse generic kodlarda da kullanmamda hiçbir sakınca yok! Bir derste söylediğimiz gibi boost'ta STL'de olmayan bir sürü container var; onları kullanıyoruz bazı avantajlar sağlasın diye. 
+Ya da kendi container'ını kendin yazabilirsin, bazı avantajlar sağlayacağını düşünüyorsan daha özel container kullanabilirsin. Daha önceden de dediğimiz gibi standart STL container'ları 3 temel kategoriye ayrılıyor:
+sequence  containers
+    std::vector
+    std::deque
+    std::list
+    std::forward_list
+    std::sting
+    std::array
+    std::c arrays
+associative containers
+    std::set
+    std::map
+    std::multiset
+    std::multimap
+unordered associative containers
+    unordered_set
+    unordered_map
+    unordered_multimap
+    unordered_multiset
+
+En çok kullanılan sequence container'ının std::vector olması bir yana en çok kullanılan STL container'ı zaten std::vector çünkü dinamik dizi veri yapısı. İster pascal'da kod yazıyor olun ister fortran'da ister C'de
+ister java'da sonuçta veri yapısı değişmiyor. En çok kullanılan veri yapısı gerçekten dinamik dizi yani default kullanmanız gereken veri yapısı dinamik dizi. Dinamik izi işinizi görüyorsa bir problem çıkarmıyorsa 
+dinamik diziyi her zaman seçelim çünkü gerçekten öğelerin bellekte ardışık(contiguous) tutulması bir sürü avantaj sağlıyor; özellikle caching önbellek mekanizmasında son derece önem taşıyor. Kısaca sequence container'larının 
+ne olduğunu açıklayalım:
+sequence  containers
+========================
+std::vector
+dinamik dizi sınıfı aslında string sınıfında kullandık, string ile vector data structure açısından bakarsak aynı veri yapısı fakat vector genel bir dinamik dizi iken 
+string interface'i tamamen yazı tutma görevi üzerine özelleşmiş. 
+
+std::deque
+ismi double ended que'den geliyordu aslında dinamik dizilerin dizisi. Bu da çok işe yarayan bir veri yapısı, vector'e göre bazı avantajları var.
+
+std::list
+çifte bağlı liste sınıfı(doubly linked-list)
+
+std::forward_list
+C++11 ile dile eklendi, tekli bağlı liste sınıfı(singly-linked-list)
+
+std::sting
+string zaten bildiğimiz bir sınıf, yazı işlemleri için interface'e sahip.
+
+std::array
+bir wrapper, C dizilerini sarmalar ama çokta önemli bir wrapper yani hatta artık modern C++'ta programcılara önerilen çok tipik bir tavsiyedir: C dizisini değil bunu kullan! 
+Yani artık çok görünür bir fayda sağlamıyorsa çok alt seviyeli kodlarda belki olabilir C dizisi kullanmak yerine C++'ın standart kütüphanesinin std::array sınıfını 
+kullanıyoruz. Hiçbir şey kaybetmiyoruz verim açısından diziyi doğrudan kullanmak açısından std::array kullanmak arasında bir fark yok ancak STL uyumlu va bazı başka avantajlar 
+sağlıyor bize.
+
+std::c arrays
+C dizilerini de yine sequence containers olarak bu ardışık kap grubu olarak kullanabiliyoruz. 
+
+sequence containers'da sequence denmesinin birkaç tane nedeni var:
+1) burada her öğenin bir konumu var ve insertation işlemleri ekleme işlemleri istediğim konum ile yapılabiliyor. Bu diğer container'larda böyle değil, onlarda değer ile ekleme söz konusu. Yani istediğim konuma insertation
+yapmak demek şu anlama geliyor: 
+diyelim ki şöyle bir container'ımız olsun 4 6 7 9 1 3 8 soru: ben burada konum belirterek ekleme yapabilir miyim? Tabii, her öğenin bir indeksi var gibi düşünün. Örneğin 9'un bulunduğu yere 2'yi eklesem container'daki düzen:
+4 6 7 2 9 1 3 8 şeklinde olacak yani eklemeyi konum bilgisi ile yapabiliyorum. Veya örneğin 3 ile 8 arasında bir değer eklemek için 8'in bulunduğu konuma 6'yı ekleyebilirim:
+4 6 7 2 9 1 3 6 8 ekleme yapıldığında bu şekilde olacak. Ya da eklemeyi sondan yaptığımda, örneğin sondan 1 ekleyeyim:
+4 6 7 2 9 1 3 6 8 1 eklemeyi baştan yaparsam, başa 2 değerini ekleyeyim:
+2 4 6 7 2 9 1 3 6 8 1 sonuç olarak istediğim konuma istediğim öğeyi ekleyebiliyorum ama associative container'lar böyle değil; onlarda bir içsel düzen var, arka planda ikili arama ağacı kullanııyor. Yani onlara 
+şöyle diyemezsiniz şu konuma şu değeri ekle o diyecek ki hayır nereye ekeleyeceğimi ben bilirim sen bana sadece hangi değerin eklenmesi gerektiğini söyle burada öyle kafana göre istediğin konuma istediğin 
+öğeyi ekleyemezsin diyecek. Sadece şunu unutmamak gerek; sizinde tahmin ettiğiniz gibi std::array'de ve C dizilerinde eklem işlemi zaten yok bunlar fixed array çünkü!! sequence containers grubunun bir başka önemli özelliği
+bazı ortak üye fonksiyonları var, biz bunu daha önce de söylemiştik; STL container'larının 1-2 istisna dışında hepsinde ortak olan fonksiyonlar var:
+container'ların empty fonksiyonu make empty anlamında değildir is empty? anlamındadır, bool döndürür boş ise true boş değilse false döndürür.
+container'ların clear fonksiyonu hepsini siler. 
+container'ların size fonksiyonu adı üstünde container'da tutulan öğe sayısını döndürür. İşte bunlar şunun örneği: her container'da bulunan fonksiyonlar, associative container'larında size'ı, empty'i var ancak bazı 
+fonksiyonlarda container gruplarına özgü:
+örneğin sequence containers'ların front fonksiyonu referans semantiği ile ilk elemanı döndürür. back fonksiyonu ise son elemanı döndürür, resize ise size'ı değiştirir vb. İşte sequence containers'larının da böyle bir ortak 
+arayüzü var.
+
+Örneğin şöyle bir soruyu çok soruyorlar mülakatlarda: kişinin C++'a yatkınlığını ölçmek için diyorlar ki 100 tane öğe tutan/tam sayı tutan bir veri yapısı kullanacağım ama farklı farklı yerlerden sürekli ekleme işlemi yapıyorum.
+Yani konum run time'da belli oluyor, ,5. öğeye ekleme yapıyorum, 7. öğeye ekleme yapıyorum, vb. Bu durumda ne kullanırsın?
+Herkesin başlangıçta teorik cevabı aslında kağıt üstünde de doğru olan bağlı liste kullanmak çünkü bağlı listede konumunu bildiğiniz yerden eklemek constant time ama vector'de konumunu bildiğiniz yerden ekleme sondan değilse
+(sadece sondan ekleme constant time) yani sona ekleme dışında herhangi bir yerden ekleme O(n) karmaşıklığında yani linear contexte. Yani düşünseniz de birinde constant time diğerinde linear context'te ama böyle öğe sayısı çok 
+fazla değilse 100-200 tane gibi ise istediğiniz yerde benchmark yapın kesinlikle vector'ün list'i out-perform ettiğini göreceksiniz!!!!! Çünkü algortimanın karmaşılığı her şey değil ki! Daha neler var neler: caching mekanizması
+gibi örneğin. list cache friendly değil ama vector cache friendly, ayrıca SMIT komutları onlar o kadar değiştiriyor ki yani bellekte ardışık olmasına yönelik yapılan optimizasyonlar donanım tarafında derleyici tarafında o kadar
+fazla ki ama şunu da unutmamak gerekiyor öğe sayısını arttırın arttırın öyle bir değere gelir ki artık hiçbir şeyin önemi kalmaz o zaman algortimanın karmaşılığının her zaman baskın çıkacağı bir n değeri vardır!!
+Yani algoritmanın baskın çıkacağı bir n değeri mutlaka vardır! Yani o n 1 milyon mu olur 100 milyon mu olur ama az önce söylediğimiz gibi öğe sayısını arttırın arttırın belirli bir nokta da artık o vector'ün ardışık olma yani 
+elemanların contiguos bellekte tutulmasının artık oradaki maliyeti kurtarmadığını göreceksiniz yani algoritmanın karmaşıklığının hiçbir önemi yok anlamına gelmiyor ancak bazı pratik faktörler çok çok önemli!!
+
+Örneğin bir başka örnek: diyelim ki bazı avantajlar yüzünden siz vector'ü kullanıyorsunuz ama öyle bir durum olabilir ki bağlı list'tede kullanmak şöyle bir avantaj sağlayabilir yaptığınız işlemde; işlem çok swap gerektiriyor
+eğer bellekte bunları ardışık tutarsanız 2 tane büyük objeyi swap yaparken mevbur bellek kopyalaması olacak. Yani mesala sizeof değeri 400 byte olan nesneler var; ama siz bunu diyelim ki sıralayacaksınız sıralarken/reverse/merge
+vb. ederken swap yapacaksınız. Peki vector'de bunlar tutuluyorsa/dinamik dizide tutuluyorsa büyük öğeleri swap yapmaktan kaçınamnın bir yolu yok ama bağlı listenin burada şöyle bir avantajı var; bağlı liste veri yapısında bunlar 
+düğümlerde tutuluyor; düğüm veri ile diğer düğüm ile  bağğlantıyı kuran pointer'ların birlikte bulunduğu implementasyondaki öğe. Dolayısıyla orada düğümlerin içinde ki 0 400 byte'lık nesneleri takas etmek yerine sadece pointer'ları 
+takas ediyorsunuz. Burada da tam tersi şimdi liste avantaj sağlıyor. Yani maalesef burada her şey o algortimanın karmaşıklığı ile belirlenseydi her şey çok güzel olurdu o yüzden böyle ezbere bilgiler yerine her zaman bu tür 
+durumlarda verim kritik uygulamalarda ben bu container'ı mı yoksa şu container'ımı kullanayım kararında bazen çok bariz oluyor cevap bazen de az önce söylediğimiz gibi şeyleri dikkate aldığımızda çok bariz cevabı olduğunu tahmin 
+ettiğimiz yerlerde ufak bir düzenleme ile birazda tahminlerin dışında ciddi bir verim artışı sağlayabilirsiniz. İşte örneğin swap'larda pointer'ları swap etmek gibi ya da aslında O(n) karmaşıklığında ama constantt time karmaşılığa
+sahip bağlı listeden daha efficient çünkü caching mekanizmasının bağlı liste'de yarattığı maliyet çok daha fazla!!!
