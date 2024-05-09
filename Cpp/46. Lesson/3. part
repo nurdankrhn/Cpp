@@ -1,0 +1,375 @@
+container'larda generic programlama tarafı için ortak olan öğelerde var: nseted type'lar var. Örneğin:
+#include <vector>
+#include <deque> 
+#include <list>
+#include <forward_list>
+#include <set>
+#include <map>
+
+using container = std::vector<int>;
+
+int main()
+{
+    container::size_type x{};
+}
+container'ı değiştirelim:
+
+#include <vector>
+#include <deque> 
+#include <list>
+#include <forward_list>
+#include <set>
+#include <map>
+
+using container = std::list<int>;
+
+int main()
+{
+    container::size_type x{};
+}
+kodun hala geçerli olduğunu görüyoruz, container'ı tekrar değiştirip list yerine set yapalım:
+
+#include <vector>
+#include <deque> 
+#include <list>
+#include <forward_list>
+#include <set>
+#include <map>
+
+using container = std::set<int>;
+
+int main()
+{
+    container::size_type x{};
+}
+kodun hala geçerli olduğunu görüyoruz, demek ki set'inde size_type'ı var. Gerçekten de size_type bir nested-type ve interface'deki bazı fonksiyonların parametreleri ya da geri dönüş değerleri size_type türünden. vector'de böyle,
+set'tede, list'tede diğer container'larda da bu böyle. Hatta string'de de böyle hatta bu size_type'ı string'den hatırlıyorsunuz. Şimdi kodu değiştirelim:
+#include <vector>
+#include <deque> 
+#include <list>
+#include <forward_list>
+#include <set>
+#include <map>
+
+using container = std::vector<int>;
+using vtype = container::value_type;
+int main()
+{
+    vtype x{};
+}
+her container'ın bir valu_type nested type'ı var, tıpkı iterator'lerde olduğu gibi; container'ın value_type container'da tutulan öğenin türüdür. O halde vevtor'ün int açılımının value_type olan x int türündendir. 
+
+Örneğin:
+
+#include <vector>
+#include <deque> 
+#include <list>
+#include <forward_list>
+#include <set>
+#include <map>
+
+
+int main()
+{
+   vector<int>::value_type x{}; //int x{}; ile aynı anlamda
+   list<double>::value_type y{}; //double y{}; ile aynı anlamda
+}
+yani value_type container'da tutulan öğenin türü 
+
+Örneğin:
+
+#include <vector>
+#include <deque> 
+#include <list>
+#include <forward_list>
+#include <set>
+#include <map>
+
+
+int main()
+{
+   set<int>::value_type x{}; //int x{}; ile aynı anlamda
+   map<int, double>::value_type y{}; //std::pair<const int, double> y{}; ile aynı anlamda, map unique key tuttuğu için const int    
+}
+map'te tutulan öğelerin pair olduğunu bir derste söylemiştik!
+
+Örneğin:
+
+#include <vector>
+#include <deque> 
+#include <list>
+#include <forward_list>
+#include <set>
+#include <map>
+
+
+int main()
+{
+   vector<int>::pointer //container'da tutulan öğeyi gösterebilecek pointer türü yani bu örnek için bu int* türü
+}
+
+Örneğin:
+
+#include <vector>
+#include <deque> 
+#include <list>
+#include <forward_list>
+#include <set>
+#include <map>
+
+
+int main()
+{
+   vector<int>::reference //referansın türü, const& const referansın türü
+}
+bu nested type'ları tek tek ezberlemeniz istenmiyor ancak istemesekte ezberleyeceğiz ayrıca gidip vector başlık dosyasındaki kodları okumak isterseniz bunları bilmeniz gerekecek bunları tam olarak bilmeden anlayamazsınız.
+Ancak bunlardan bahsetmemizin bir önemli tarafı daha var; iteratorlar söz konusu olduğunda:
+
+iterator'ler ile ilgili çok önemli bir hileyi göstereceğiz, generic programlamadaki önemli araçlardan biri:
+iterator'lerinde nested-type'ı vardı:
+#include <vector>
+
+using iter = vector<int>::iterator;
+
+int main()
+{
+
+}
+iter'in iterator_category'isi, difference_type'ı, iterator_concept'i value_type'ı vb. hepsi iterator türünün nestetype'ı.
+
+soru: bu soru yine mülakatlarda karşınıza gelebilecek klasik sorulardan biri!!!!!!!!!!:
+#include <vector>
+#include <iostream>
+
+template <typename InIter>
+void func(InIter beg, InIter end)
+{
+
+}
+//ben bu fonksiyona bir vector'de geçebilirim bir dizinin range'inide geçebilirim yani container olarak bir diziyi de kullanabilirim
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec(100);
+    func(ivec.begin(), ivec.end());
+
+    int a[5] = {1, 2, 3, 4, 5};
+
+    func(a, a + 5);
+}
+soru: func algoritmasında şöyle bir şey kullandım; bu iterator konumundaki öğenin türü lazım bana, iterator konumundaki öğenin türü value_type nested type'ıydı:
+#include <vector>
+#include <iostream>
+
+template <typename InIter>
+void func(InIter beg, InIter end)
+{
+    typename InIter::value_type x{};
+}
+//ben bu fonksiyona bir vector'de geçebilirim bir dizinin range'inide geçebilirim yani container olarak bir diziyi de kullanabilirim
+
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec(100);
+    func(ivec.begin(), ivec.end());
+
+    int a[5] = {1, 2, 3, 4, 5};
+
+    func(a, a + 5); //syntax error
+}
+dizi gönderdiğim zaman sentaks hatası olur func algoritması içinde verilen value_type nested type'ı yok C dizisinin; ama bu kodun diziler içinde doğru çalışması gerekiyor!!!!!!! Bu kodun diziler içinde doğru çalışması için
+benim bu kodu farklı şekilde yapılandırmam gerekiyor:
+#include <vector>
+#include <iostream>
+
+template <typename InIter>
+void func(InIter beg, InIter end)
+{
+    typename std::iterator_traits<InIter>::value_type x{};
+
+    std::cout << typeid(x).name() << '\n';
+}
+
+
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec(100);
+    func(ivec.begin(), ivec.end()); //int
+
+
+}
+func algoritmasına int array'ini range olarak geçelim:
+#include <vector>
+#include <iostream>
+
+template <typename InIter>
+void func(InIter beg, InIter end)
+{
+    typename std::iterator_traits<InIter>::value_type x{};
+
+    std::cout << typeid(x).name() << '\n';
+}
+
+
+
+int main()
+{
+    using namespace std;
+
+    int a[5] = {1, 2, 3, 4, 5};
+
+    func(a, a + 5); //int
+}
+Peki bu nasıl yapılıyor?
+yine partial spceialization ile yapılıyor ama partial spceialization doğrudan değil; doğrudan olmaz ki zaten nasıl yapacağız dizi için. Hadi aynı hileyi biz yapalım şimdi:
+template <typename Iter>
+struct IteratorTraits {
+    using value_type = typename Iter::value_type;
+    using pointer = typename Iter::pointer;
+    using reference = typename Iter::reference;
+};
+
+//partial specialization
+template <typename T>
+struct IteratorTraits<T *> {
+    using value_type = T;
+    using pointer = T *;
+}
+tahmin ettiğiniz üzere IteratotTraits bir meta fonksiyon/bir sınıf şablonu ve aslında sınıf şablonunda template argümanı olarak bir iterator türü kullanılacak, beklentim o yönde, örneğin argüman olarak şu şekilde bir 
+argüman gönderilebilir: IteratorTraits<vector<int>::iterator> şeklinde. Dikkat edilirse Iter'in value_type'ı demekle IteratorTraits'in iter açılımının value_type demek arasında bir fark yoktur!! Dolayısıyla doğrudan 
+ıter::valu_type diyebildik. Örneğin vector<int>::iterator::value_type int türündendir ama böyle yazmak yerine IteratorTraits'e argüman olarak gönderecek şekilde yazalım: IteratorTraits<vector<int>::iterator>::value_type
+yine int. Dolayısıyla IteratorTraits meta fonksiyonu içinde Iter'in nested type'ı demekle IteratorTraits'in Iter açılımının nested type'ı demek arasında bir fark yok!! Şimdi bu bana şu olanağı verecek:    pointer türleri
+için specialization yaparsam artık iter türünü doğrudan kullanmak yerine IteratorTraits'in açılımı söz konusu olduğunda pointer açılımı için yukarıda yazdığımız partial specialization kullanılacak. O halde dikkat!!!!!
+yazdığınız algoritmalarda dizilerinde kullanılmasını istiyorsanız doğrudan gidipte Iter'in nested type'ını kullanmayın o zaman dizi geldiğinde halk tabiri ile kod patlar, kodun dizi içinde geçerli olması için doğrudan 
+iterator'ün nested type'ını kullanmak yerine  iterator_traits'in Iter açılımının nested type'ını kullanmamız gerekiyor. O halde en başa dönelim:
+template <typename Iter>
+void func(Iter beg, Iter end)
+{
+    typename std::iterator_traits<Iter>::value_type
+}
+şeklinde kodlarımızı yazmalıyız!!!!
+
+
+Sonuç olarak container'larında nested-type'ı var, iterator'lerinde nested-type'ı var ve generic programlamanın güzel araçlarından biri bu. Yani aslında generic programlama gerçekten eğlenceli ama birtakım kabuller birçok 
+yerde kullanılıyor. Örneğin 
+eğer diyorum bu iterator türü ise ve ben iterator'ün kategorisine göre sentaks hatası oluşturmak istiyorsam kod seçmek istiyorsam iterator kategori nested type'ını kullanıyorum:
+template <typename Iter>
+void func(Iter beg, Iter end)
+{
+    typename Iter::iterator_category
+}
+şimdi bu fonksiyona dizi pointer'ı gelirse Iter::iterator_category ifadesi sentaks hatası olacak, böyle yerlerde eğer dizileride kullanmak gerekiyorsa zaten default öyle olması gerekiyor dizileri hiçbir şekilde yok saymamalısınız
+algoritmalarda o zaman yine Iter'in iterator_category'si demek yerine yine iterator_traits'in Iter açılımının iterator_category'si dememiz gerekir!!!:
+template <typename Iter>
+void func(Iter beg, Iter end)
+{
+    typename std::iterator_traits<Iter>::iterator_category
+}
+böylece tag-dispatch'i ya da if const expr'yi bununla kullanmanızda fayda var!!
+
+
+İşte container'larında nested type'ı var, yani örneğin vector bir container ise size_type'ı, difference_type'ı, value_type'ı, pointer'ı const pointer'ı her şeyi var. Generic kodlar böylece daha kolay daha pratik şekilde yazılıyor.
+Şimdi vector'ün ne olduğunu biraz daha konuşalım vector dinamik dizi veri yapısı, dikkat dinamik dizi veri yapısını avucunuzun içini biliyor gibi bilmeniz gerekir!!! Başta dinamik dizinin ne olduğunu hatırlayalım:
+öğeler bellekte contiguous bir memory'de tutuluyor!!! contiguous bir bellekte tutulması bizi bu veri yapısının en önemli özelliği değil mi? Böylece bize tutulan nesnelerin ardışık olarak tutulması bu veri yapısının temel şu 
+avantajlarını sağlıyor:
+1) herhangi bir indeksteki öğeye constant time'da erişebiliyorum; 1.'nin konumunu bilmem demek pointer aritmetiği ile n. öğenin konumunu bilmek demek. Bu zaten başlı başına en önemli avantajlardan!!! Yani örneğin 100000 tane 
+öğe tututorsa vector'ümüz indeksini kullanarak herhangi bir öğeye hiçbir döngüsel yapı olmadan constant time'da hemen erişiyorum!! Arka planda aslında pointer aritmetiği var.
+2) sondan ekleme işleminin amorte edilmiş sabit zamanda olması, bu tür işlemlere amortised constant time deniliyordu. Aslında bizim sondan ekleme dediğimiz işlem bir pointer'ın bulunduğu yerde bir pointer'ın değeri olan 
+adreste nesneyi hayata getirmek. Bu arada vector sınıfını öğrenirken taşıma semantiği, perfect forwarding onlarında çok güzel bir tekrarını yapacağız!!! Aslında sizin vector nesnenizin içinde tipik olarak 3 tane pointer tutuluyor,
+birinin pointer olması şart ama diğer ikisi tam sayı değişken de olabilir o implementasyona bağlı.  Pointer'lardan biri dinamik bellek bloğunun adresini tutuyor, bir başka pointer bu tam sayı değişkeni de olabilir push_back 
+yapılduğı zaman nereye yapılacak o adresi tutuyor, diğeri de pointer veya tam sayı olabilir kapasiteyi tutuyor! Yani aslında vector'ün minimal bir takım hileler yapmazsanız en basit implementasyonu 3 tane pointer içine: biri 
+allovcate edilmiş bellek bloğunun adresini tutsun, biri sondan ekleme yapılacak yerin adresini tutaun biri de o allocate edilmiş bellek bloğunun sonunu tutsun. 
+
+container'ın size'ı vector'ün size'ı fiilen tutulmakta olan öğe sayısı ama kapasite allocate edilmiş bellek bloğunda tutulabilecek öğe sayısı yani örneğin 6 öğe tututan bir vector'de 4 öğe daha tutacak yer var ise
+bu vector'ün size 6 kapasitesi 10'dur. Bu şu anlama gelir, eğer bir vector'ün örneğin programın çalışma zamanında kapasitesi 840 ise size ise 800 değerinde ise o zaman 40 tane daha insertion'ını reallocation olmadan 
+yapabilirsiniz ancak ne zaman ki size kapasiteye eşit ve bir insertion yapılamsı gerekiyor o zaman reallocation oluyor. Dikkat!! vector'de başınıza ne gelirse deneyimsiz programcının en sık yaptığı hata bazen bu ub 
+olabilir bazen efficiency açısından kötü yazılmış bir kod olabilir ama reallocation'la birçok hatanın ilgisi olabilir. Çünkü reallocation'ının bir maliyeti var yani siz diyelim ki vector'de 10000 tane string nesnesi tutuyorsunuz
+ve reallocation oluyor 10'000 tane öğe tabii sınıfınızın ne olduğuna bağlı olarak önce gidecek diyelim ki 20'000 tane öğe tutulacak yeni bir bellek alanı tahsis edilecek ki bunun ciddi bir maliyeti var. Sonrasında eski bellek 
+alanındaki öeğler ya kopyalanarak ya taşınarak yeni bellek alanına alınacak!! burada kopyalama artık tabii exception garantinin sağlanıp sağlanmadığına göre kopyalama ya da taşıma yapılacak. Dolayısıyla bundna mümkün olduğu 
+kadar kaçınmalısınız! işte string sınıfının reverse fonksiyonu çağırmanız gereken yerlerde çağırmayı ihmal etmeyin!!! Örneğin bazı kişiler yazdığı kodlarda döngüsel bir yapı içinde vector'ü önce default initialize etmiş, sonra 
+100'000 kez dönen bir döngüde sürekli sürekli eklemeler yapıyor. Soınuç olarakta oradan oraya sürekli aslında sen o vector'ü taşıyorsun/sürekli reallocation yapılıyor. Baştan o döngünün neticesinde 100'000'nin çıkacağını 
+biliyorsan size'ın baştan kapasiteyi reserve edebilirsin. Hadi bu performans ya da verimle ilgili bir hata bir de daha tehlikelisi ub'ler!! Örneğin gidiyor vector'deki öğelere pointer ya da referans alıyor sonra vector 
+reallocation olduğunda artık eski öğeler onları gösteren pointer'lar invalid pointer oluyor ya da iteratorler invalid hale geliyor ama durumun farkında olmayan programcı onların halen geçerli olduğunu düşünerek onları 
+kullanıyor.
+
+Dolayısıyla vector'ün en önemli  davranışı indeks ve constant time'da(O(1)) herhangi bir öğeye erişebilmektir. Sondan ekleme amortised constant time. Burada sondan eklemenin amortised constant time olması ne demek diye 
+sorabilirler; tabii ki eğer kapasite yeterli ise doğrudan son öğeden sonraki adreste bir nesneyi hayata getirmek demek ama kapasite'nin sonuna ekleme yapılacaksa bu durumda reallocation maliyeti var; ama reallocation
+maliyetide düzenli değil ki olur ya da olmaz ya da öngürülebilir ya da öngörülmez. Ya da kaçınılabilir ya da kaçınılmaz işte o da genel maliyet içinde eriyor gidiyor, dolayısıyla reallocation söz konusu olduğunda ilave 
+bir maliyet çıkacak ama aksi halde aslında sondan ekleme işlemi belirli bir konumda belirli bir adreste bir nesneye hayata getirmekten herhangi bir şekilde farklı değil. 
+
+vector'ün başka avantajları var; sadece vector'de değil bu ardışık öğeler söz konusu olduğu zaman C dizileri içinde böyle caching mekanizması açısından son derece avantajlı bir yapı oluşuyor. Bunun tabii birçok nedeni var;
+siz ardışık birbirine yakın öğeler üstünde sık işlem yaptığınız için orada caching mekanizması daha etkin olabilir ya da bellekte bunlar birbirine yakın olduğu için yine caching açısından bir avantaj sağlayabilir. Bir de 
+dezavantaj olarak bakarsak örneğin 20'000 tane öğeyi konumlandırmak için öyle ya da böyle size 20'000 * sizeof(T) kadar bir bellek bloğu gerekiyor. Özellikle bellek fragmente olmuşsa o zaman evet vector/dinamik dizi bizim 
+avantaj ama uyarı alamadıktan sonra yapabileceğiniz bir şey yok. Dolayısıyla vector'ün olası dezavantajlarından biri fragmente olmuş bellekte büyük çok sayıda öğeye sahip bir vector'ü oluşturmak mümkün olmayabilir. Bir başka 
+dezavantajı bazı algortimalar swap yapıyor daha doğrusu kullanıyor. Örneğin reverse algortiması bütün sırlama algortimaları, merge algoritmaları şimdi vector'de öğenin kendisini swap etmekten kaçınmanın bir yolu yok! Diyelim 
+ki reverse algortimasını düşünün ilk öğe ile son öğeyi swap ediyoruz, sonra döngünün 2. turunda baştan ikinci öğe ile sondan 2. öğeyi, şimdi bu dinamik dizide tutulan öğeler 500 byte'lık nesneler ise evet bu algortimanın 
+karmaşıklığı ile ilgili değil ama pratikte maliyet! Ama bunlar node'larda tutulsaydı böyle bir maliyet çıkmayacaktı node'un içindeki pointer'ları takas edecektik. Burada çok önemli bir sorunun da aslında cevabını almış 
+oluyoruz; mülakatlarda çok sık sorulan bir soru; örneğin bize sorulsa: neden std::lsit'in reverse fonksiyonu var ama vector'ü yok? Neden sdt::list'in sort member function'u var ama vector'ün yok? 
+Cevap: Nedeni son derece basit eğer algoritma olsaydı algortima düğümler erişebilir miydi? Hayır; düğümlere erişip düğümlerin içindeki pointer'ları swap etme şansı olur mu algortimanın Hayır!! Ama neden onları member function 
+yapmışlar çünkü gerçekten swap gerektiren bütün temel operasyonlar list sınıfına geldiğimizde göreceğiz list'in member function'ı işte örneğin list'in reverse'i list'in merge'ü list'in unique fonksiyonu, list'in sort fonksiyonu
+gibi. İşte bu yüzden varsa container'da member function olanı tercih etmek tavsiye edilir!!! 
+Yine C++'ta bir kişinin seviyesini ölçmek için mülakatlarda sorulan sorulardan biri de bu: aynı işi STL algoritmasıylada yapabiliyorsunuz sınıfın üye fonksiyonuyla da yapabiliyorsunuz hangisini kullanırsınız? 
+Cevap: Kesinlikle üye fonksiyonunu çağırmak olmalı çünkü algortima container'ın iç düzeneğine erişemez!! Algoritmalar contaier'daki öğelere onların konumları ile erişiyor; container'ın iç düzeneğine erişme şansı yok. 
+Örneğin bir algoritma bir range'den silme işlemi yapabilir mi? Hayır!, bir algortima range'e ekleme işlemi de yapamaz yanlış anlaşılmasın adaptör vs kullanılarak değil!! 
+
+Yani şöyle bir şey yapılabilir mi? (bunlar hep çok önemli ve klasik sorular)
+bir vector'ünü var, bir tane algoritmaya çağrı yapıyorsunuz:
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec(19);
+    //foo(ivec.begin(), ivec.end());
+
+}
+soru: bu foo çağrısından sonra vector'ün boyutu artmış olabilir mi? yani vecto'ün size'ı artmış olabilir mi? Asla asla size'ı değişmemiştir çünkü iterator alarak vector'den ne ekleme yapabilirsiniz ne de silme işlemi 
+yapabilirsiniz; bu şuna benziyor:
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{1, 5, 7, 9, 3 };
+    
+    auto iter = ivec.begin();
+
+    iter
+   
+
+}
+burada sadece iter'i kullanarak vector'e ne öğe ekleyebilirim ne de silebilirim!! iterator ile şunu yapabirsiniz:
+bir iterator konumundaki öğenin değerini değiştirebilirsiniz:
+#include <vector>
+
+template <typename Iter>
+void algo(Iter beg, Iter end)
+{
+    *beg = //*beg'e atama yapabilirsiniz
+}
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec{1, 5, 7, 9, 3 };
+    
+    auto iter = ivec.begin();
+
+    iter
+   
+
+}
+vector'deki öğelerin değerlerini değiştirebilirsiniz; yani aynı değer korunur ama konumlarını değiştirebilirsiniz. Aslında C++ standart'ıda burada biraz değişik bir tterminoloji kullanıyor. Şu iki terimi aslında farklı 
+anlamda kullanıyor: mutate(hatta o tür algortimalara mutating algorithms deniliyor) fakat diğeri de modify. Yani aslında bizim açımızdan ikisi çok farklı değil iterator konumundaki öğeye yeni bir değer atamak başka 
+o range'deki öğelerin değerlerini koruyup konumlarını değiştirmek başka!
