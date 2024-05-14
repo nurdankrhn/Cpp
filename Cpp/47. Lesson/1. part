@@ -1,0 +1,717 @@
+10 Mayıs 2023 - Çarşamba
+vector'ün bir sınıf şablonu olduğunu söyledik, 2 tane template parametresi var. Aslında şöyle bir sınıf şablonundan bahsediyoruz:
+template <typename T, typename A = std::allocator<T>>
+burada yer alan allocator; buradaki temel amaç container'ların genel algoritmik yapısından/implementasyonundan dinamik bellek yönetimini izole etmek. Böylece farklı farklı sistemler için dinamik bellek ihtiyacı,
+o bellek alanının edinilmesi ve orada nesnelerin oluşturulmasına yönelik işlemler ayrı bağımsız bir sınıf tarafından yapılabilsin böylece özelleştirebilsin. Örneğin bir oyun programının söz konusu olduğunu 
+düşünelim, sık sık çok küçük boyutta çok fazla nesne dinamik olarak oluşturulsa o zaman genel işletim sisteminin bize sunduğu genel bir allocator işimize gelmeyebilir. Bambaşka algortimalar  var dinamik bellek 
+yönetiminde örnğeğin small object alocater dediğimiz özel bir allocater kategorisi var ya da duruma göre arena allocator ayrı bir allocator kategorisi.  Veya gömülü sistem üzerinde çalıştığımızı düşünelim,
+orada klasik anlamda bir heap bellek alanı olmayabilir ama biz oradada static bir bellek alanını dinamik ömrülü nesnelerin oluşturulmasında storage olarak kullanabiliriz. Ancak container'ları anlattığımız 
+dersler boyunca 2. template parametresine karşılık her zaman default template argümanını kullanacağız. Dolayısıyla sınıf şöyle: 
+template <typename T, typename A = std::allocator<T>>
+class Vecor{
+
+};
+Dolayısıyla ben örneğin Vector<int> dediğimde aslında bu diğer container'lar içinde geçerli std::array hariç çünkü o C dizilerini sarmalıyor; dinamik bellek alanı ihtiyacı duyan tüm container'lar için bu 
+allocator parametre var! Ve default argüman olarak std::allocator sınıf şablonunun container'da tutulacak öğenin türü ne ise o açılımı o specialization'ını kullanıyor. Yani vector<int> demek:
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> // demek aslında vector<int, std::alocator<int>> demektir
+    
+}
+uzun uzun vector<int, std::alocator<int>> yazmak yerine 2. template argümanı olarak default template argümanını kullanıyoruz. 
+
+container'ların hepsinin bir default ctor'ı var. container'ların önce bir ctor grubuna bakalım:
+default ctor
+=============
+container'ların default ctor'ları boş bir container nesnesi oluşturuyor. Yani container nesnesini default initalize ederseniz örneğin bir vector'ü ya da value initialize ederseniz default ctor çağırılacak;
+default ctor'ın çağırılması demek henüz öğe tutmayan bir kap/container nesnesi demek:
+//default initialize
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> x;
+}
+
+//value initialize
+#include <vector>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> x{};
+}
+o halde bu şekilde oluşturduğum nesne için sınıfın size fonksiyonunu çağırırsam 0 değerini döndürür, empty fonksiyonu ise true değer döndürecek. empty fonksiyonu bool değer döndürüyor, bütün container'ların 
+empty fonksiyonu var; geri dönüş değeri boolean boi ise true döndürüyor. Yani is empty? anlamında:
+#include <vector>
+#include <iostream>
+
+
+int main()
+{
+    using namespace std;
+
+    vector<int> x;
+
+    cout << "x.size() = " << x.size() << '\n'; //0
+    cout << "x.empty() = " << x.empty() << '\n'; //1
+}
+
+Biz bir yandan vector sınıfını anlatacağız bir yandan da vector sınıfını bir örnek olarak kullanıp genel container semantiğinide anlatacağız!
+
+ara not: boolalpha ne yapıyor:
+formatlama dediğimiz bir konu var,boolean değerlerin formatlanmasında 2 tane formatlama özelliği var: biri boolean değerlerin yazı olarak mı yazılacağı(yani true false olarak mı yazılacağı) yoksa 1 0 olarak mı yazılacağı.
+Bizim standart çıkış akımımız söz konusu olduğunda ya da C++'ın standart kütüphanesinin ostream sınıfı söz konusu olduğunda bir ostream nesnesi default formatlama özelliği boolean değerler için 0/1 olarak yazdıracak şekilde.
+Her stream nesnesinin bir format state'i var, yani cout bir stream nesnesi değil mi o halde cout nesnesinin ingilizcesi ile bir format state'i var. Yani cout nesnesi hangi veriyi ne şekilde formatlayacağını kendi veri 
+elemanlarında tuttuğu için bu bilgiye sahip. Yani burada nesne yönelimli bir programlama yaklaşımı var. Bazı formatlama özellikleri hatta birçok çoğunluğu default değerde, örneğin boolean değerlerin yazdırılmasında default
+durum 0 ya da 1 olarak yazdırılması. Örneğin boolean bir  veriyi yazdıralım:
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    cout << (10 > 5 ) << '\n'; //1
+}
+10 > 5 ifadesi boolean bir değer; bildiğiniz gibi C++'ta karşılaştırma operator'lerinin ürettiği değer boolean. 10 > 5'i standart output'a yazdırıırken 1 ya da 0 olarak yazacak çünkü default format state böyle. Bunların hepsi
+ilerde çok detaylı ele alacağımız konular o sebeple şu an için kısaca bahsediyoruz. E peki biz bir stream nesnesinin format stream'ini nasıl değiştireceğiz? Bir stream nesnesinin format state'ini değiştirmek için birden fazla 
+yol var: biri doğrudan sınıfın bu işi yapan member fonksiyonlarından birini çağırmak:
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    cout << (10 > 5 ) << '\n'; //1
+    cout.setf(ios::boolaplha);
+    cout << (10 > 5 ) << '\n'; //true
+}
+setf fonksiyonu adı üstünde set format, sınıf nesnesinin format state'ini değiştirdi; bu fonksiyon çağrısından sonra ben artık cout nesnesi ile boolean bir değeri yazdırdığımda true/false olarak yazdıracak. İşte format 
+state'ini değiştirmekten kastım bu. Eski durumuna geri döndürmek için bu seferde ismi unsetf olan sınıfın üye fonksiyonunu çağırıyorum:
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    cout << (10 > 5 ) << '\n'; //1
+    cout.setf(ios::boolaplha);
+    cout << (10 > 5 ) << '\n'; //true
+    cout.unsetf(ios::boolaplha);
+    cout << (10 > 5 ) << '\n'; //1
+}
+fakat bu işleri yapmanın bir başka yolu daha var onlarada ostream manipülator'ü deniliyor. Uzun uzun bu şekilde setf fonksiyonunu çağırmak yerine şöyle de yazabiliyoruz:
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    cout << boolalpha;
+}
+aslında boolalpha bir fonksiyonun ismi, cout << boolalpha ifadesiyle aslında ben bu fonksiyonu sınıfın operator left-shift fonksiyonuna fonksiyonun adresini argüman olarak gönderiyorum. Yani az önceki setf çağrısı 
+yerine cout << boolalpha; şeklinde bir statement'da yazabilirim. Eğer boolapha ne diye soracak olursanız; 2 ayrı boolalpha var 1: boolalpha global bir fonksiyonun ismi, örneğin boolalpha fonksiyonunu böyle çağırabilirim:
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    boolalpha(cout);
+}
+2: bir de bir constexpr static veri elemanı olan boolalpha var:
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    ios::boolalpha
+}
+2 boolalpha birbirinden farklı aynı isimli bir sınıfın constexpr static veri elemanı var, bir de global bir fonksiyon olan boolalpha var. 
+ 
+İlk olarak container'larla ilgili şunu çok iyi anlamamız gerekiyor normalde modern C++'tan önce container'lar kopyalama semantiği ile çalışıyor. Eski C++'tan modern C++'a geçişte container semantiğinde çok ciddi eklemeler ve 
+değişiklikler yapıldı. Bir kabın vector olsun list olsun set olsun en önemli özelliği kabımıza dinamik olarak öğeler ekleyebiliyoruz ya da kabımızdan öğeleri silebiliyoruz. Örneğin bir vector nesnesi programın çalışma zamanında 
+bir t1 time point'inde 20 tane öğe tutarken 25 tane öğe tutuyor hale gelebilir yapılan ekleme işlemleri ile. Ya da 30 tane öğe tutarken yapılan 1 ya da birden fazla silme işlemi ile  daha az sayıda öğe tutuyor hale gelebilir.
+Yani container'ların bir tanesi hariç o dizilerini sarmalıyor:std::array, en önemli özelliği eleman ekleyebiliyoruz eleman silebiliyoruz! Eleman ekleme ve silme işlemini sınıfın üye fonksiyonları ile. Örneğin vector sınfını
+düşünün:
+#include <vector>
+
+int main()
+{
+    vector<int> ivec;
+
+    ivec.push_back(10);
+    ivec.emplace_back(10);
+    ivec.insert(ivec.begin(), 5);
+}
+demek ki bazı üye fonksiyonlar container'a ekleme işlemi yapıyorlar. Bazı üye fonksiyonlarda container'daki öğeleri siliyorlar yani container'ın size'ını düşürüyorlar:
+#include <vector>
+
+int main()
+{
+    vector<int> ivec;
+    //...
+    ivec.pop_back()//vector'deki son öğeyi siliyor
+    ivec.erase() //erase üye fonksiyonu belirli bir konumdaki öğeyi siliyor
+}
+
+
+Şimdi vector kabını kafamızda biraz canlandırmaya çalışalım:
+bizim vector'ümüz dinamik bir bellek alanını kontorl ediyor; aslında vector nesnemizin içinde bazı veri elemanları var; onlardan bir tanesi kesinlikle pointer.
+O dinamik bellek alanının adresini tutuyor, ama bir tam sayı değişken ya da bir pointer'da sondan eklemenin yapılacağı adresi tutuyor. O da
+vector nesnesinin içinde. Diyelim ki bu vector bir oyun programında kullanılan Fighter isimli sınıf türünden nesneler tutuyor. Yani vector'ün 
+Fighter specializatin'ını. Örneğin push_back ile ekleme yapıldığında benim Fighter nesnem sondan eklemenin yapılacağı yerin adresini tutan
+pointer/tam sayı'nın gösterdiği yerden itibaren hayat gelecek, burada construct edilecek. Bir Fihghter nesnesini burada construct etmenin tam
+3 tane yolu var; bu yollardan bazıları eski C++'ta yoktu. 
+1) burada sınıfın copy ctor'ının çağırılması ile elemanın eklenmesi: 
+yani ben vetor'ün ekleme yapan fonksiyonlarından birine bir nesneyi argüman olarak göndereceğim; ama vector'e koyulacak o nesnenin kendisi değil
+ekleme fonksiyonu arka planda o bellek alanında onun bir kopyasını oluşturacak. Örneğin bu durumda biz sınıfın copy ctor'ının çağırıldığını 
+göreceğiz. 
+
+2) 2. ihtimal aynı insert fonksiyonu ile fonksiyona L value expr. geçmek yerine R value expr. olan bir sınıf nesnesi geçerek o bellek 
+alanında nesneyi sınıfın copy ctor'ına çağrı yaparak değil move ctor'ına çağrı yaparak oluşturucak.     
+
+3) 3. ihtimal ise şu; programcıların anlamakta biraz güçlük çektiği yöntem bu 3. yöntemdir; perfect forwarding mekanizmasından faydalanarak 
+ben vector'de tutulacak öğenin ctor'ına gönderilecek argümanları eklemeyi yapacak fonksiyona göndereceğim o argümanları sınıfın örneğin 
+parametreli ctor'ına perfectly forward edecek. Ne kopyalama çalışacak ne de taşıma çalışacak. Burada doğrudan nesneyi construct edeceğiz. 
+İşte bu olanak eski C++'ta YOKTU! Zaten eski C++'ta taşıma semantiğide yoktu. O yüzden eski C++ kitaplarını okuduğunuz zaman o kitaplarda 
+şöyle yazdığını göreceksiniz: vector'de bir öğeyi tutabilmek için o sınıfın copy constructable olması gerekir. Ancak bu günümüz şartlarında
+bu doğru değildir; örneğin copt ctor'ı delete edilmiş ama move ctor'ı olan bir sınıf türünden nesneleri vector'de tutabilirim. Hatta ne 
+copy ctor'ı var ne de move ctor'ı var her ikiside delete edilen türden öğeleri yine de bir vector'de tutabilirim çünkü 3. yöntem olan nesneyi
+doğrudan construct etme yönetimini kullanabiliriz. Bu sebepten eski kitapların bir çoğu iyi kitaplar ancak malesef   güncellenmemiş durumdalar 
+yani oradaki bilgiler doğru değil! İşte o içinde emplace sözcüğü geçen fonksiyonlar perfect-forwarding mekanizamsı ile aldıkları argümanları 
+sınıfın ctor'ına pass ederek container'ın sağladığı bellek alanında nesnenin construct edilmesini sağlıyorlar. Bu anlatılanlar sadece vector 
+sınıfı için değil bütün container sınıflar için geçerli, bütün ekleme işlemleri için geçerli.
+
+container'daki ekleme semantiğini daha net görmek için bir örnek yapalım:
+dikkat: bu örnekte anlatılanlar hem üretimde çok önemli hem de C++ ile ilgili bir mülakata girdiğinizde size en fazla sorulacak sorular arasında!
+#include <vector>
+#include <iostream>
+
+class Myclass {
+public:
+    Myclass() = default;
+    Myclass(int, int, int)
+    {
+        std::cout << "Myclass(int, int, int)\n";
+    }
+    Myclass(const Myclass&)
+    {
+        std::cout << "copy ctor\n";
+    }
+    Myclass(Myclass&&)
+    {
+        std::cout << "move ctor\n";
+    }
+};
+
+//reallocation yapılmasın diye reserve fonksiyonunu çağırdık çünkü eğer reverse fonksiyonunu çağırmazsam reallocation ile ilgili kodlar 
+//kafa karıştıtıcı olabilir
+
+int main()
+{
+    using namespace std;
+
+    vector<Myclass> vec;
+
+    vec.reverse(100);
+
+    Myclass m;
+    vec.push_back(m);
+
+}
+ekranda copy ctor yazısı yazar yani copy ctor çağırılır çünkü L value expr gönderdim; L value expr. gönderdiğimde  aslında 2 tane push_back 
+fonksiyonu var: biri && parametreli diğeri const & parametreli yani bu örnekte Myclass&& diğeri de const Myclass& olan. Örnekte de L value
+expr. gönderdiğimiz için çağırılan const Myclass& parametreli, bunu alıyor sınıfın copy ctor'ını çağırıyor. Ama ben eğer bir R value expr. 
+gönderirsem o zaman sınıfın move ctor'ı çağırlırdı:
+#include <vector>
+#include <iostream>
+
+class Myclass {
+public:
+    Myclass() = default;
+    Myclass(int, int, int)
+    {
+        std::cout << "Myclass(int, int, int)\n";
+    }
+    Myclass(const Myclass&)
+    {
+        std::cout << "copy ctor\n";
+    }
+    Myclass(Myclass&&)
+    {
+        std::cout << "move ctor\n";
+    }
+};
+
+
+int main()
+{
+    using namespace std;
+
+    vector<Myclass> vec;
+
+    vec.reverse(100);
+
+    vec.push_back(Myclass{});
+
+}
+ya da isimlendirilmiş nesnemi fakat push_back'e argüman olarak gönderirken bunu R value expr. haline getirseydim:
+#include <vector>
+#include <iostream>
+
+class Myclass {
+public:
+    Myclass() = default;
+    Myclass(int, int, int)
+    {
+        std::cout << "Myclass(int, int, int)\n";
+    }
+    Myclass(const Myclass&)
+    {
+        std::cout << "copy ctor\n";
+    }
+    Myclass(Myclass&&)
+    {
+        std::cout << "move ctor\n";
+    }
+};
+
+
+int main()
+{
+    using namespace std;
+
+    vector<Myclass> vec;
+
+    vec.reverse(100);
+
+    Myclass m;
+    vec.push_back(std::move(m));
+
+}
+yine move ctor çağırıldı.
+Sonuç olarak:(en kritik bilgiler bunlar)
+1) container'ların isminden bağımsız olarak isminde push_back, push_front, insert geçen fonksiyonlar bunlar ekleme fonksiyonları ve hepsi
+move semantics overload'u overload edilmiş. move semantics overload derken ben artık kısaca şunu kastediyorum: yani 2 tane fonksiyon yazarsın,
+birinin parametresi const T& olur diğerinin parametreside T&& olur, nasıl yapıldığını da kursun başında anlatmıştık. 
+
+soru: eğer vector'de tutucağım öğeler copy constructable olmasaydı, mesala sadece move ctor olsaydı ki yakında böyle sınıflar göreceğiz. Böyle 
+türlere "move-only type" denildiğini söylemiştik. İşte eskiden böyle türler olmadığı gibi container'lara bunları bu şekilde ekleyemiyorduk.
+Ama şimdi move-only type olsa dahi vector'e koyabilirim; çünkü vector'de o nesneyi tutmak için sınıfın move ctor'ını çağırtabilirim. Örneğin 
+bize biri şöyle sorsa: bir vector'de unique_ptr nesneleri tutabilir miyim? Evet; ama unique_ptr sınıfının copy ctor'ı deleted sadece move 
+ctor'ı var. copy ctor'ının deleted olması o türden nesne tutmaya engel değildir; az önce bahsettiğimiz nedenlerden dolayı. 
+
+
+sınıfın emplace_back fonksiyonuda var; emplace_back fonksiyonunun aslında yaptığı iş perfect-forwarding; bu bütün emplace fonksiyonları için 
+geçerlidir. emplace_back diyor ki örnekteki vector için söylüyoruz; bana diyor Myclass nesnesini argüman olarak göndermeyeceksin bana Myclass
+nesnesini construct etmek için kullanılacak argümanları göndereceksin. Dolayısıyla örneğin Myclass'ın 3 parametreli olan int, int, int 
+parametreli ctor'ına emplace_back(2, 6, 9); şeklinde argümanlar ile çağrı yapsam emplace_back ne copy ctor'ı ne de move ctor'ı çağıracak 
+vector'ün sağladığı bellek alanında doğrudan sınıfın 3 parametreli ctor'ını çağıracak! Dolayısıy emplace_back fonksiyonun parametresine 
+gönderdiğim argüman aslında emplace_back tarafından sınıfın 3 parametreli ctor'ına perfect forward ediliyor:
+#include <vector>
+#include <iostream>
+
+class Myclass {
+public:
+    Myclass() = default;
+    Myclass(int, int, int)
+    {
+        std::cout << "Myclass(int, int, int)\n";
+    }
+    Myclass(const Myclass&)
+    {
+        std::cout << "copy ctor\n";
+    }
+    Myclass(Myclass&&)
+    {
+        std::cout << "move ctor\n";
+    }
+};
+
+
+int main()
+{
+    using namespace std;
+
+    vector<Myclass> vec;
+
+    vec.reverse(100);
+
+    vec.emplace_back(2, 6, 9);
+
+}
+sonuç olarak push_back ve emplace_back arasında ne fark var onu anladık; emplace_back ya da isminde emplace geçen fonksiyonlar perfect-forwarding mekanizmazı ile aldığı
+argümanları sınıfın ctor'ına forward ediyor işte adı üstünde!
+
+Diyelim ki vector sınfını biz yazıyor olsaydık(allocayot parametreyi es geçin):
+template <typename T>
+class Vector {
+
+public:
+    void push_back(const T&);
+    void push_back(T&&);
+};
+Dikkat!!! bu soruya mülakatta bir çok kişi yanlış cevap veriyor:  void push_back(T&&); bildiriminde bulunan T&& fonksiyon parametresi universal reference midir?
+Cevap: kesinlikle DEĞİLDİR!! 
+Soru: sınıfın emplace_back fonksiyonunun bildirimini yapın:
+template <typename T>
+class Vector {
+
+public:
+    void push_back(const T&);
+    void push_back(T&&);
+    template <typename ...Args>
+    void emplace_back(Args && ...args);
+};
+soru: emplace_back'in parametresi universal reference mı? cevap: KESİNLİKLE çünkü bunda deduction var oysa push_back'te deduction yoktu! siz vector'ün int açılımının 
+specialization'ını aldığınızda  push_back fonksiyonu çağırıldığında fonksiyon parametresi için bir deduction yapılamayacak; bu fonksiyonun parametresi de int&& olacak.
+soru: diyelim ki emplace_back fonksiyonunun implementasyonunu yapıyoruz; implementasyonu nasıl olur?
+emplace_back fonksiyonunun implementasyonunu anlayabilmek için aslında bir eksiğimiz var: aslında ben sınıfın ctor'ına çağrı yapmam gerekiyor. Sınıfın ctor'ına çağrı 
+yaparken bir bellek adresi gerekiyor; benim istediğim bir bellek alanında bir sınıf nesnesini construct edebilmenin bir yolu var mı? Var, işte onu gerçekleştiren araçta
+placement_new dediğimiz bir ifade. Yani elimizde bir adres var örneğin ismi ptr olsun aslında şöyle bir şey yapılıyor: new(ptr) T bu şu anlama geliyor; ptr adresinde 
+dinamik ömürlü bir nesne oluştur demek. Yani dinamik bellek allocation'ını ayrıca yapmayacak ptr adresinde T nesnesini oluşturacak. Bu konuyu new ifadelerini mercek 
+altına aldığımız zaman ele alacağız! Daha sonrasında soru işareti olan yere: new(ptr) T(???), ctor'a gönderilen argümanları yazmam gerekir; işte burada ctor'a gönderilen 
+argümanlar içinde perfect-forward etmem lazım. forward etmek için şu şekilde yazmam gerekir:
+template <typename T>
+class Vector {
+
+public:
+    void push_back(const T&);
+    void push_back(T&&);
+    template <typename ...Args>
+    void emplace_back(Args && ...args)
+    {
+        //ptr
+        //new(ptr) T(forward<Args>(args)...)
+    }
+};
+push_back fonksiyon yapısı sadece push_back fonksiyonu için geçerli değil, bütün ekleme fonksiyonlarının hepsi bu yapıda. 2 tane ekleme overload'u var biri const L value referans
+alıyor container'a sınıfın copy ctor'ını çağırarak container'ın sağladığı bellek alanında nesneyi oluşturuyor. Diğeri R value referans parametreli bu da sınıfın move ctor'ını 
+çağırıyor. Ama içinde emplace geçenler bunlar variadic parametre paketine sahip; varidaic parametre paketine sahip olması argümanların birden fazla değişken sayıda olabilme 
+imkanını getiriyor. Bunlarda perfect-forwarding mekanizmasından faydalanarak aldığı argümanları sınıfın aslında ctor'ına perfect forward ediyor. Bütün ekleme fonksiyonları 
+böyle: ister puch_back olsun, ister push_front olsun ister insert olsun push_back yapısı gibi olucak ama ister emplace_back ister emplace, ister emplace_front olsun onlarda 
+emplace_back gibi bir implementasyona sahip olacak. 
+
+soru: Args'a 2 adet int parametre gelse, bu iki parametreyi iki kere tek parametreli ctor'a gönderebilir miyiz?
+Hayır, o zaman sentaks hatası olur! Burada da function overload resolution kullanılıyor:                 
+#include <vector>
+#include <iostream>
+
+class Myclass {
+public:
+    Myclass() = default;
+    Myclass(int, int, int)
+    {
+        std::cout << "Myclass(int, int, int)\n";
+    }
+    Myclass(int)
+    {
+        std::cout << "Myclass(int)\n";
+    }
+    Myclass(double, double)
+    {
+        std::cout << "Myclass(double, double)\n";
+    }
+
+    Myclass(const Myclass&)
+    {
+        std::cout << "copy ctor\n";
+    }
+    Myclass(Myclass&&)
+    {
+        std::cout << "move ctor\n";
+    }
+};
+
+
+int main()
+{
+    using namespace std;
+
+    vector<Myclass> vec;
+    vec.reverse(1000);
+    vec.emplace_back(2, 6, 9);
+    vec.emplace_back(2, 6);
+
+}
+2 int parametreli için double, double parametreye sahip ctor'ın çağırıldığını görüyoruz; eğer bu ctor olmasaydı sentaks hatası olurdu! Yani aynı emplace_back fonksiyonu 
+çağırılıyor ama perfect-forwarding compile-time'a yönelik bir mekanizma yani hangi fonksiyonun çağırıldığı compile-time'da anlaşılacak. 
+
+
+Bakalım hangi üye fonksiyonlar var:
+assign
+at
+back
+begin
+capacity
+cbegin
+cend
+clear 
+crbegin
+crend
+data 
+emplace 
+emplace_back
+empty
+end
+erase 
+front
+get_allocator 
+insert
+max_size 
+operator= 
+operator[]
+pop_back 
+push_back
+rbegin
+rend 
+reserve
+resize
+shrink_to_fit
+size 
+swap 
+
+Öncelikle iterator veren fonksiyonları bir çırpıda geçebiliriz. iterator'leri ve iterator adaptor'lerini zaten öğrendik:
+1) normal iterator'ümüz var
+2) reverse iterator'ümüz var
+3) const iterator'müz var
+4) const reverse iterator'ümüz var
+Yani set amaçlı dolaşacaksam iterator'ü, salt okuma amaçlı dolaşacaksam const iterator'ü sondan başa doğru dolaşacaksam reverse iterator'ü, sondan başa okuma semantiği ile 
+dolaşacaksam const reverse iterator'ü kullanıyorum. İşte en az bidirectional iterator kategorisinde olan container'ların:
+.begin fonksiyonu normal iterator veriyor,
+.rbegin fonksiyonu reverse iterator veriyor, 
+.cbegin fonksiyonu const iterator veriyor,
+.crbegin fonksiyonu const reverse iterator veriyor, hepsininde geri dönüş değeri ilk öğenin konumu. Tabii reverse iterator olması durumunda sondan başa yönünde oluyor. 
+Burada genel yapı şu değil mi:
+vec, vector<int> olmak üzere:
+auto iter = vec.begin();   iter'in türü: vector'ün int açılımının iterator'ü
+auto iter = vec.rbegin(); iter'in türü: vector'ün int açılımının const iterator türü
+auto iter = vec.cbegin(); iter'in türü: vector'ün int açılımının reverse iterator türü
+auto iter = vec.crbegin(); iter'in türü: vector'ün int açılımının const reverse iterator türü
+
+Şu ikisi aynı anlamdadır:
+#include <vector>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    vector<int>::reverse_iterator
+    reverse_iterator<vector<int>::iterator>
+
+}
+bizi burada ilgilendiren şu; siz sınıfın rbegin() fonksiyonunu çağırdığınızda bu fonksiyon size reverse iterator veriyor. Yani örneğin crbegin fonksiyonun geri dönüş değerini
+auto type deduction kullanmadan şöyle yazarız:
+#include <vector>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+
+    vector<int>::const_reverse_iterator iter = vec.crbegin();
+
+}
+auto type deduction ile çok daha pratik yazabiliyorum:
+#include <vector>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+
+    auto iter = vec.crbegin();
+
+}
+bu fonksiyonların aynısının hepsinin bir de end'leri var; cbegin için cend rbegin için rend, crbegin için crend. Ve bunların yine modern C++ ile birlikte global karşılıklarıda 
+var:
+#include <vector>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    vector<int> ivec;
+
+    crbegin(ivec); 
+    //ivec.crbegin();
+
+}
+crbegin global fonksiyonuna ivec'i göndermekle ivec'in crbegin fonksiyonunu çağırmak arasında bir fark yok! Ama global olanları diziler içinde kullanabildiğimizi konuşmuştuk.
+Yani şöylede yazabilirim:
+#include <vector>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+
+    int a[] {3, 6, 7, 9, 12};
+
+    begin(a);
+    //veya
+    crbegin(a);
+
+}
+
+Bunlardan sonra önce consturctor grubuna bakmakla devam edelim; en önemli grup şüphesiz ctor grubu:
+1) bırakın vector'ü zaten bütün container'ların default ctor'ı var!! default ctor içinde henüz öğe tutmayan boş bir container nesnesi oluşturuyor; list içinde böyle deque 
+içinde böyle, set içinde böyle. Dolayısıyla a) bir container nesnesini örnekte olduğu gibi default initialize ederseniz, b) value initialize ederseniz her ikiside 
+vector sınıfının default ctor'ını çağırır! :
+
+#include <vector>
+#include <iostream>
+
+int main()
+{
+    using namespace std;
+    vector<int> v1; //default initialize
+    vector<int> v2{}; //value initialize
+
+    vector<int> v3(); //most-vexing parse(function declaration)
+}
+soru: vector<int> v3(); şeklinde yazarsam yine default ctor çağırılır doğru mu?
+cevap: Hayı yanlış!! most-vexing parse olur ismi v3 olan bir fonksiyon bildirmiş oluyorsunuz!!! Geri dönüşü vector'ün int açılımı olan ismi v3 olan bir fonksiyon bildirmiş 
+olursunuz!
+
+Tabii ki sınıfın move ctor'ı ve copy ctor'ıda var; yani:
+#include <vector>
+#include <iostream>
+#include <string>
+
+
+int main()
+{
+    using namespace std;
+    
+    vector<string> svec;
+
+    auto myvec = svec;
+    // auto myvec{ svec };
+    // auto myvec( svec );
+}
+her 3 deyim'de de myvec için copy ctor çağırılacak! Tabii copy ctor deep copy yapıyor!! 
+
+Peki şu durumda ne olurdu:
+#include <vector>
+#include <iostream>
+#include <string>
+
+
+int main()
+{
+    using namespace std;
+    
+    vector<string> svec;
+
+    auto myvec = std::move(svec);
+
+}
+bu durumda vector sınıfının move ctor'ı çağırılacaktı. vector sınıfının move ctor'ı aslında diğer nesnenin kaynağını çalacak. Dikkat burada string nesnelerinin move ctor'ı
+çağırılmaz; sadece pointer'ları alıyoruz. Bir diğer deyişle string nesneleri bellekte aynı yerde aslında move yaptığımızda diğer nesnenin içindeki pointer'ların değerini
+alıyor. Nesneler olduğu yerde duruyor dolayısıyla diğer container'ın size'ı 0'a düşüyor:
+#include <vector>
+#include <iostream>
+#include <string>
+
+
+int main()
+{
+    using namespace std;
+    
+    vector<string> x{ "aysegul", "muhittin", "seyfullah", "Tacettin", "kerim" };
+    
+    auto y = std::move(x);
+    //x
+}
+soru 1:  y nesnesi için hangi fonksiyon çağırıldı, y nesnesini hayata hangi fonksiyon getirdi?
+cevap:  vector sınıfının move ctor'ı dikkat vector'un move ctor'ı bunun string sınıfı ile bir alakası yok, string sınıfı türünden bir nesne oluşturmuyorum ki. auto y 
+yazmak ile vector<string> y yazmak arasında bir fark yok.
+
+soru 2: yorum satırı ile x yazılan yerde  x halen hayatta; işte x'in o satırdaki konumuna ne diyoruz?
+cevap: moved-from state
+
+soru 3: peki x nesnesi için dtor çağırıldığında tanımısz davranış oluşur mu?
+cevap: hayır, moved-from state'deki bir nesne problemsiz destructable durumda olması lazım. Burada çok tipik yanlış anlaşılmalardan biri auto y = move(x); böyle bir nesne 
+oluşturduğumda tam bu noktada x'in dtor'ının çağırıldığını düşünmek. x'in dtor'ı niye çağırılsın, x'in dtor'ı otomatik ömürlü bir nesne olduğu için skobunun sonunda 
+çağırılacak. 
+
+soru 4: x moved-from state'e girdikten sonra x'in kendisine atama yapabilir miyim?
+#include <vector>
+#include <iostream>
+#include <string>
+
+
+int main()
+{
+    using namespace std;
+    
+    vector<string> x{ "aysegul", "muhittin", "seyfullah", "Tacettin", "kerim" };
+    
+    auto y = std::move(x);
+    //x
+    x = {"murat", "hakan"};
+}
+cevap: evet, atama yapmamda herhangi bir sakınca yok ve hatta bu verilen garantilerden biri standart kütüphanemizin bütün öğeleri moved-from state'de iken tekrar kullanılabilir
+bir durumda.
+
+soru: burada kritik soru şu: ben burada örneğin x moved-from state'de iken x'in size'ını  kullandığım zaman x'in size'ı 0 olmak zorunda mı?
+#include <vector>
+#include <iostream>
+#include <string>
+
+
+int main()
+{
+    using namespace std;
+    
+    vector<string> x{ "aysegul", "muhittin", "seyfullah", "Tacettin", "kerim" };
+    
+    auto y = std::move(x);
+    //x
+    cout << x.size() << '\n'; //0
+}
+cevap: standart bunu açıkça söylemesede  pratik olarak böyle bir garantinin olduğunu söyleyebiliriz. Sonuç olarak STL container'ları pratik olarak bu garantiyi veriyor.
+moved-from state'deki bir container adeta default initialize edilmiş gibi. Standarta bakarsanız böyle bir garanti yok. 
+
+Kaynağı çalınmış container nesneleri STL'de standart bunu açıkça söylemesede yani moved-from state'deki bir nesneler size'ı 0. Her ne kadar standart bunu söylemesede 
+bütün container nesneleri için buna güvenebilirsiniz. Çünkü bunu yapmak çok daha kolay, aslında genel verilen minimal garanti şu: nesnemiz yine valid state'de olacak ama 
+değerinin ne olduğu konusunda bir güvence yok ve  destructable olacak yani destruction'ınında bir problem olmayacak. Ve kendisine yeniden atama yaparak kullanılabilicek 
+durumda olacak; bu çok önemli. Çünkü zaten standart kütüphanenin öğeleri bu garantiyi veriyor; haliyle conatainer'lar da bu garantiyi veriyor. Ama kendi sınıfınızı 
+yazarkende bu şartları sağlaması gerekir. Özellikle move ctor yazarken çok dikkatli olun, kaynağı çalmakla işiniz bitmiyor; kaynağını çaldığınız nesneyi destroyable bir 
+durumda bırakmanız gerekir.
+
+moved-from state'ki bir nesnenin kapasitesine bakalım:
+#include <vector>
+#include <iostream>
+#include <string>
+
+
+int main()
+{
+    using namespace std;
+    
+    vector<string> x{ "aysegul", "muhittin", "seyfullah", "Tacettin", "kerim" };
+    
+    std::cout << "x.capacity() = " << x.capacity() << '\n'; //5
+
+    auto y = std::move(x);
+    //x
+    std::cout << "x.capacity() = " << x.capacity() << '\n'; //0
+}
+dikkat ederseniz x'in kapasitesi moved-from state'de iken 0 yani kapasiteyide yine default initialize edilmiş duruma getirdi!  
