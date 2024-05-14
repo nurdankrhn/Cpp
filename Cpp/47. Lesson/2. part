@@ -1,0 +1,677 @@
+vector sınıfının implementasyonunun söyle olduğunu düşünün; vector sınıf nesnesi kendi içinde öğleri tutmuyor; kendi içinde sadece  dinamik olarak allocate edilmiş bir bellek 
+bloğunun adresini tutuyor. Ama aynı zamanda kapasite değerine ihtiyacı var; bunu bilmek zorunda;  aynı zamanda size değerine ihtiyacı var. Bütün o işlemleri yapabilmesi için 
+bu bilgilere sahip olmak zorunda. İşte vector nesnesinin şöyle olduğunu düşünün; en basit implementasyonu ile böyle; böyle olmak zorunda değil: içinde 3 tane non-static data 
+member var. Bu veri elemanlarından biri dinamik olarak allocate edilen bellek bloğunun adresini tutacak, diğeri size değerini tutacak size değerini tutması demek aynı zamanda 
+sondan yapılan eklemenin nesneyi nerede construct edeceği bilgisini/adresini tutması demek. Ama bunun implementasyonunu bir pointer olarakta tutabilirsiniz bir tam sayı 
+olarakta tutabilirsiniz ne de olsa pointer'dan boyuta ya da boyuttan adrese erişebilirsiniz bu pointer aritmetiği ile ilgili. Öte yandan bir de kapasite bilgisini tutması 
+gerekiyor; kapasite bilgisini yine bir tam sayı değişkende tutacak ya da bunu bir pointer olarak tutacak. Yani en basit bir vector implementasyonunda sizin 3 tane değişkene 
+ihtiyacınız var; vector'ün tuttuğu nesneler örneğin string'ler vector nesnesinin içinde değil, dinamik olarak tahsis edilen bellek bloğunda. Ama o string'lerin tuttuğu 
+yazılarda onlarda küçük yazılar değilse onlarda dinamik bellek alanında yani heap'te tutuluyor. İşte string nesneside benzer şekilde kendi içinde pointer tutuyor; o 
+srting nesnesinin tuttuğu yazıda yine tipik olarak eğer small string optimization yapılmadıysa o da dinamik bellek alanında.
+
+moved-from state önemli çünkü en sık hocamızın yapıldığını gördüğü hatalardan biri de programcı kendisi bir sınıf oluşturduğunda o sınıfa move ctor'ı taşıma semantiğini 
+implemnte ettiğinde moved-from state'in vermesi gereken garantileri vermemiş olabiliyor. Bu garantiler her zaman söylediğimiz gibi: nesne geçerli bir durumda olmalı fakat 
+bilinmeyen bir değerde olabilir, tekrar kullanılabilir olmalı kendisine atama yapılarak, dtor'ı sağlıklı bir şekilde çalışabilir. İdeal olanı ise moved-from state'deki 
+nesneyi default construct edilmiş duruma getirmek. Hem en kolayı bu hem de en fazla işe yarayanı  bu. Standart container sınıflarının moved-from state'ide böyle!
+
+container'ların special member olmayan function'ları
+==========================================================
+yine container sınıfları özellikle sequence container'larda ortak:
+1) size_type parametreli ki vector'de bu size_t türüdür; bir ctor'ımız var. vector'ü o kadar adet öğe ile başlatıyor. Yani örneğin:
+
+burada çağırılan ctor fill ctor'dır, şu anda vector'ün size'ı 100'dür. Bu vector'deki öğeler default ctor ile hayata geldi. Yalnız burada dikkat etmemiz gereken bir şey var:
+daha kursun başında sınıfları incelerken söylemiştik her sınıfın default ctor'ı olmak zorunda değil. Kaldı ki STL'in bazı sınıflarının default ctor'ı olmadığını göstermiştik.
+Onların parametreli ctor'ları vardı ancak demiştik ki bir sınfın default ctor'ı yoksa o sınıf türünden nesneleri belirli senaryolarda kullanamıyoruz. Örneğin çok tipik bir
+örnek: 
+#include <vector>
+
+class A {
+public:
+  A(int);
+};
+
+int main()
+{
+  using namespace std;
+
+  vector<A> avec(100); //synax error
+}
+sentaks hatası çünkü buradaki vector'ün size_t parametreli ctor'ı A'nın default ctor'ı çağırıyor; A'nın default ctor'ı olmadığı için sentaks hatası! Demek ki bu diğer sequence 
+container'ları içinde geçerli eğer bu size_t parametreli ctor'ın çağırılabilmesi için A sınıfın default constructable olması gerekiyor. Yoksa sentaks hatası meydana gelir.
+
+Örnek:
+//default ctor edilmiş vector 
+#include <vector>
+include <string>
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec(10); 
+  cout << "svec.size() = " << svec.size() << '\n';
+
+  for(const auto& s : svec)
+    cout << s.size() << '\n';
+
+}
+svec'in size'ı 10 ve öğelerin hepsi default contruct edilmiş. Öğeler default ctor edildiği için for döngüsü 10 kere 0 yazdırır. 
+Bir şöyle bir ctor var:
+#include <vector>
+#include <string>
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec(10, "muratyilmaz"); 
+  cout << "svec.size() = " << svec.size() << '\n';
+
+  for(const auto& s : svec)
+    cout << s.size() << '\n'; //11
+}
+tabii ayse yerine doğrudan bir string nesnesi de olabilirdi; bu sefer vector'ün size'ı yine 10 olacak fakat bir önceki örnekte bütün öğeler default construct edilmiş olacaktı 
+bu örnekte bütün öğeler muratyilmaz değeri ile hayata gelecek. 
+Yalnız burada string sınıfında da ele almıştık çok dikkatli olmanız gereken önemli bir nokta var!!! Sınıfların container sınıfların initializer_list parametreli ctor'ı!!!
+Ben bu örnekte () yerine {} parantezi kullandığım zaman:
+#include <vector>
+#include <string>
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{10, "muratyilmaz"}; 
+  cout << "svec.size() = " << svec.size() << '\n';
+
+  for(const auto& s : svec)
+    cout << s.size() << '\n'; //11
+}
+problem olmayacak çünkü burada bunun initializer constructor olma ihtimali yok! Ancak örneğin bu vector vector'ün int açılımı olsaydı:
+#include <vector>
+#include <string>
+
+int main()
+{
+  using namespace std;
+
+  vector<int> x(19);
+  std::cout << "x.size() = " << x.size() << '\n';
+  for(auto i : x )
+    cout << i;
+  
+  cout << '\n';
+
+  vector<int> y{ 19 };
+  std::cout << "y.size() = " << y.size() << '\n';
+  for(auto i : y )
+    cout << i;
+}
+bu ikisi aynı ctor değil! parantez ile küme parantezinin fark yarattığı senaryolardan biri olduğunu söylemiştik: ilk değer verirken küme parantezini kullanırsanız buradaki 
+ctor initializer_list ctor; dolayısıyla burada y'nin size'ı 1 ama x'in size'ı 19'dur. Bu size_t parametreli ctor vector'de tutulacak öğeleri value initialize ettiği için
+x'teki öğelerin hepsi 0 değerinde; kodu çalıştırdığımızda x'in size'ı 19 değerleri 0, y'nin size'ı 1 değeri 19. Bu da mülakatların yine en fazla sorulan sorularından biri!
+initializer_list parametreli ctor'lar bütün sequence container'larda var ancak fill ctor ile arasındaki farkı göz önünde bulundurun!! Özellikle 2 tane argüman gönderdiğinizde
+de dikkat ediniz:
+#include <vector>
+#include <string>
+
+int main()
+{
+  using namespace std;
+  vector<int> x(10, 5);
+
+  for(auto val : x )
+    cout << val;
+}
+bu yine fill ctor 10 tane 5 değerinde öğesi var.  Ama normal parantez yerine küme parantezi kullanırsam:
+#include <vector>
+#include <string>
+
+int main()
+{
+  using namespace std;
+  vector<int> x{10, 5};
+
+  for(auto val : x )
+    cout << val << " ";
+}
+Şimdi 2 tane öğe var birinin değeri 10 diğerinin değeri 5!
+Burada bir diğer önemli şey C++17 ile beraber CTAD geldi dolayısıyla initializer_list parametreli ctor söz konusu olduğunda artık CTAD'dan faydalanabiliyorum:
+#include <vector>
+#include <string>
+
+int main()
+{
+  using namespace std;
+
+  vector x{ 1, 4, 5, 7, 9 }; //CTAD
+
+  std::cout << "x.size() = " << x.size() << '\n';
+  cout << typeid(x).name() << '\n';
+}
+
+
+DİKKAT!!!
+Bir vector'ü bir list ile oluşturamazsınız!! Bunlar ayrı sınıf şablonları ve oluşturulan sınıflar ayrı sınıflar, bunlar arasında bir dönüşüm yok!! Atamada yapamazsınız!
+#include <vector>
+#include <string>
+#include <list>
+
+
+int main()
+{
+  using namespace std;
+  list<int> mylist{1, 5, 7, 9, 2, 3, 8 };
+
+  //vector<int> ivec{mylist}; //syntax error
+
+}
+Dolayısıyla içinde tutulan öğeler birbirine atanabilir olsada yukarıdaki gibi bir kod kesinlikle sentaks hatası. Ama bunu yapmanın bir yolu var:
+container sınıfların range parametreli member template bir ctor'ı var ve çok önemli bir ctor; eğer bir container'ı aynı türden olmayan başka bir container'daki 
+öğelerle başlatmak istiyorsanız yapmanız gereken şu:
+#include <vector>
+#include <string>
+#include <list>
+
+
+int main()
+{
+  using namespace std;
+  list<int> mylist{1, 5, 7, 9, 2, 3, 8 };
+
+  vector<int> ivec{mylist.begin(), mylist.end() }; //gloabl end ve begin'de olabilir
+
+}
+Öğelerin aynı türden olması gerekmiyor!
+#include <vector>
+#include <string>
+#include <list>
+
+
+int main()
+{
+  using namespace std;
+  list<int> mylist{1, 5, 7, 9, 2, 3, 8 };
+
+  vector<double> dvec{mylist.begin(), mylist.end() }; //gloabl end ve begin'de olabilir
+
+}
+türler farklı ama hala geçerli çünkü arka plandaki kod iterator konumundaki öğeleri kullanıyor; dolayısıyla double'a int atanabildiği için ya da double'ı int ile initialize
+edebildiğimiz için bir hata yok! 
+
+Örneğin:
+#include <vector>
+#include <string>
+#include <list>
+
+
+int main()
+{
+  using namespace std;
+  list<cont char*> mylist{ "kaya", "mert", "suna", "tunc" };
+
+  vector<string> svec{mylist.begin(), mylist.end() }; //gloabl end ve begin'de olabilir
+
+}
+herhangi bir hata yok çünkü string'ler const char*'la initialize edilebilir. Dolayısıyla en önemli ctor'lardan biri de range ctor!!
+
+
+Eğer bir dizi ile bir container'ı initialize etmek istersem:
+yine range ctor'ı kullanmam gerekir:
+//modern C++ öncesi şu şekilde yazmam gerekirdi
+#include <vector>
+#include <string>
+#include <list>
+
+
+int main()
+{
+  using namespace std;
+
+  int a[]{2, 5, 7, 9, 3, 6, 1 };
+
+  vector<int> ivec(a, a + sizeof(a)/sizeof(*a));
+
+}
+//modern C++ ile diziler için doğrudan global begin ve end fonksiyonlarını kullanabilirim
+#include <vector>
+#include <string>
+#include <list>
+
+
+int main()
+{
+  using namespace std;
+
+  int a[]{2, 5, 7, 9, 3, 6, 1 };
+
+  vector<int> ivec(begin(a), end(a));
+
+}
+en son öğeyi ve ilk öğeyi almak istemesem şu şekilde next ve prev'ide kullanabilirim:
+#include <vector>
+#include <string>
+#include <list>
+
+
+int main()
+{
+  using namespace std;
+
+  int a[]{2, 5, 7, 9, 3, 6, 1 };
+
+  vector<int> ivec(next(begin(a)), prev(end(a)));
+
+}
+
+
+O halde bütün ctor'ları sayarsak(diğer sequence container'larda da böyle):
+special member function olan:
+default ctor
+copy ctor 
+move ctor 
+bunun dışında kalan ctor'lar:
+size_t parametreli fill ctor
+size_t, T parametreli fill ctor
+initializer_list ctor
+range ctor'lar
+
+dikkat: özellikle dikkat programcılar farklı container'ları birbiriyle initialize edebiliceklerini başta bilmiyorlar!!! Daha uzun, verbose maliyetli kod yazabiliyorlar. 
+Ama hiç gerek yok; görüldüğü gibi range ctor ile işimizi kolaylıkla görebiliyoruz.
+===========================================================================================================================================================================
+
+Şimdi gelelim sınıfın hemen ilk etapta öğrenmemiz gereken fonksiyonlarına 
+
+container'ların .size() fonksiyonu container'da tutulan öğe sayısını döndürür.
+
+container'ların .empty() fonksiyonu container boş mu? sorusuna cevap verir yani predicate function'dır. Hatta ve hatta C++17 ile dile eklenen global size ve empty 
+fonksiyonları(fonksiyon şablonu) da var:
+#include <vector>
+#include <string>
+#include <list>
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> ivec;
+
+  cout << size(ivec) << '\n';
+  cout << empty(ivec) << '\n';
+
+}
+dolayısıyla ivec.size() demek ile size(ivec) demek arasında bir fark yok, aynı şey empty fonksiyonu içinde geçerlidir. Hatta vector sınıfı için global data fonksiyonu da var:
+#include <vector>
+#include <string>
+#include <list>
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> ivec(10);
+
+  cout << size(ivec) << '\n';
+  cout << empty(ivec) << '\n';
+  cout << data(ivec) << '\n';
+
+}
+sınıfın data üye fonksiyonu ya da global data fonksiyonu pointer döndürüyor; işte o allocate edilmiş bellek bloğunun adresini döndrüyor ama tabii bu adres int* yani void 
+pointer değil. Burada gloabl size'ı çağırmanız ile üye fonksiyonunu çağırmanız arasında hiçbir fark yok; bunlar compile time'da yapılan dönüşümler! Her zaman üye fonksiyonun 
+seçilmesi gerektiği tavsiyesi algoritmalar için geçerli!! container'lar için değil. 
+
+container'ların .capacity() fonksiyonu bildiğiniz üzere kapasite değerini döndürüyor. Çok dikkat ediniz: kapasite size'a eşit olduğunda bir insertion talebinde bulunursanız
+reallocation yapılacak ve reallocation maliyetli, reallocation zaman alır ve reallocation invalidates pointers and references demiştik! ve iterator'leride invalid hale 
+getiriyor. 
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> ivec(28);
+
+  auto cap = ivec.capacity();
+  int cnt{};
+
+  std::ofstream ofs{ "out.txt" };
+  if(!ofs) {
+    std::cerr << "out.txt dosyasi olusturulmadi\n";
+    exit(EXIT_FAILURE);
+  }
+
+  while(ivec.size() < 10'000'000 ) {
+    ivec.push_back(1);
+    if(ivec.capacity() != cap ) {
+      ofs << ++cnt << "size = " << ivec.size() << "new cap = " << ivec.capacity() << '\n';
+      cap = ivec.capacity();
+    }
+  }
+}
+örneğin out.txt'i dosyasını açtığımızda bu derlemede 33 defa reallocation olduğunu gördük; reallocation ne demek ne kadar tehlikeli çünkü örneğin 22. reallocation'da 
+neredeyse kapasite 100'000 ancak ardından yeniden reallocation olması demek bu 100'000 tane int'in yeni allocate edilmiş bellek bloğuna kopyalanması demek! Bu arada 
+mülakatlarda yine en çok sorulan sorulardan biri yine reverse fonksiyonu ile ilgili ama şimdi ben ivec'in reserve fonksiyonunu çağırırsam:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> ivec(28);
+
+  auto cap = ivec.capacity();
+  int cnt{};
+
+  std::ofstream ofs{ "out.txt" };
+  if(!ofs) {
+    std::cerr << "out.txt dosyasi olusturulmadi\n";
+    exit(EXIT_FAILURE);
+  }
+  ivec.reserve(4'000'000);
+
+  while(ivec.size() < 10'000'000 ) {
+    ivec.push_back(1);
+    if(ivec.capacity() != cap ) {
+      ofs << ++cnt << "size = " << ivec.size() << "new cap = " << ivec.capacity() << '\n';
+      cap = ivec.capacity();
+    }
+  }
+}
+kodu derleyip çalıştırdığımızda durumun tamamen değiştiğini göreceğiz. 4 defa reallocation olduğunu gördük bu örnekte ve ayrıca size 4'000'000'a ulaştığında ilk reallocation'ın
+yapıldığını görüyoruz. 
+DİKKAT!!!  vector sınıfında da string sınfında da kapasite otomatik olarak büzülmez; burada büzülmek fiilini shrink fiilinin karşılığı olarak kullanıyoruz.
+Yani bir vector'ün kapasitesini büyüttünüz büyüttünüz aynı şey string sınıfı içinde geçerli kapasite oldu 10'000'000 sonra siz gittiniz vector'den bütün öğeleri sildiniz 
+kapasite hale 10'000'000; eskiden olsaydı kapasiteyi büzmek için swap trick denilen bir idiomatik hileyi kullamıyorduk; ancak modern C++ ile birlikte swap trick yapmak yerine
+shrink_to_fit'i çağırıyoruz, artık bu iş için bir fonksiyon var. Eski mülakatların çok tipik bir sorusu olan swap trick şöyleydi:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> x(1000'000, 5); 
+
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+  x.resize(10);
+
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+}
+kodu çalıştırıp baktığımızda ilk etapta size'ın da kapasitenin de 1'000'000 olduğunu görüyoruz ancak 2. yazımda size'ın 10 kapasitenin hala 1'000'000 olduğunu görüyoruz;
+9'999'990 tane öğe silmeme rağmen kapasite değişmedi! Peki ben x'in kapasitesini size'e uygun bir değere çekmek isteyeyim bunu modern C++ ile şu şekilde yapabilirim:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> x(1000'000, 5); 
+
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+  x.resize(10);
+
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+  //x'in kapasitesini büzünüz
+  x.shrink_to_fit();
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+
+}
+kodu derleyip çalıştırdığımda artık 2. size ve kapasite değerinin 10 olduğunu görüyoruz. shrink_to_fit yokken meşhur swap trick ile bunu yapıyorduk:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> x(1000'000, 5); 
+
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+  x.resize(10);
+
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+  //x'in kapasitesini büzünüz
+  //x.shrink_to_fit();
+  //shrink_to_fit yokken kullanılan meşhur swap trick:
+  vector<int>(x).swap(x);
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+}
+aslında ben vector<int>(x) derken bir temporary bir object oluşturuyorum; temporary object'i x ile oluşturduğum zaman doğal olarak x'in size'ını alıyor ama kapasite değeri
+tabii ki diğerinin kapasitesi değil;  yani vector<int>(x)'deki geçici nesne size'ı x'in size'ı olan ama kapasiteside bu size'a uygun değerde olan yani 10 olan bir geçici 
+nesne. Bu geçici nesneyide swap ettiğim zaman x ile iki nesnenin o içsel değerlerini swap ediyor yani o öğelerin kendisini swap etmiyor. Bu durumda x'in size'ı yine 10 olarak
+kaldı ama kapasite de 10'a düştü bu hileye swap trick deniliyordu. Ama tekrar söylemekte fayda var; artık bunu yazmaya gerek yok shrinki_to_fit fonksiyonunu çağırıyorsunuz.
+Böylece .capacity() fonksiyonu ne yapıyor onu gördük .reserve() fonksiyonu ne yapıyor onu gördük. DİKKAT!!! reserve fonksiyonunu daha düşük kapasite için çağırırsanız 
+standart şöyle diyorÇ non-biding shrink request yani örneğin:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> x(1000'000, 5); 
+
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+  // !! x.reverse() been burada x'in reverse'ünü çağırsam fakat buraya diyelim ki daha düşük bir kapasite değeri versem 
+  // herhangi bir şekilde kapasiteyi büzme garantisi var mı? Yok, dolayısıyla reserve'ün bu şekiilde çağırılması 
+  // standarta göre non-binding shrink request!!!!!!!!!!!!
+
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+
+  //x'in kapasitesini büzünüz
+  //x.shrink_to_fit();
+  //shrink_to_fit yokken kullanılan meşhur swap trick:
+  vector<int>(x).swap(x);
+  cout << "size = " << x.size() << "cap = " << x.capacity() << '\n';
+
+}
+
+Bir container'ı özelde de vector'ü nasıl dolaşırım?
+Birçok durumda sizin vector'ü dolaşmanız gerekiyor. Birinci ilkemiz şu: neden dolaştığımızı bilmemiz gerekiyor! Eğer dolaşarak yaptığınız işi bir algoritmayla yapıyorsanız 
+ya da yapabiliyorsanız her zaman 1. tercihiniz algoritma olsun; yani row/ham döngülerden kaçınmanız gerekiyor. Ama illa döngüsel bir yapıyla dolaşmak istiyorsanız bunun 3 4
+tane yolu var, duruma göre yollardan birini seçebilirsiniz : 
+1) iterator döngüsünü kendinizin yazması 
+(eğer salt okuma amaçlı dolaşıyorsanız cbegin ve cend'i tercih edin çünkü salt okuma amaçlı dolaştığınızı anlar; çünkü const iterator'ün konumundaki öğeyi zaten set etmek 
+amaçlı kullanamam; örneğin yanlışlıkla *iter konumundaki nesneyi set etmek istersem sentaks hatası olacak aynı şey -> operator'ü içinde geçerli örneğin iter->assing()
+fonksiyonunu çağırsam iter konumundaki nesne const olduğu için onun const olmayan üye fonksiyonunu çağırmam sentaks hatası oluşturacak)
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+  rfill(svec, 20, rname);
+
+  for(auto iter = svec.cbegin(); iter != svec.cend(); ++iter ) {
+    cout << *iter << " " << iter->lenth() << '\n';
+  }
+
+}
+sonuç olarak iterator döngüsü oluşturacaksanız bir kere ne amaçla dolaştığınıza dikkat edin!!! Set amaçlı dolaşıyorsanız normal iterator'leri ama access amaçlı dolaşıyorsanız 
+const iterator kullanın!!! Şüphesiz vector'ün iterator'leri random_access iterator olduğu için sondan başa doğruda dolaşabiliriz! rbegin ve rend ile. range-base for loop
+dediğimiz döngü yapısı aslında derleyiciye yukarıdaki for döngüsü gibi bir  kod oluşturtuyor:
+for(auto iter = svec.cbegin(); iter != svec.cend(); ++iter ) {
+  cout << *iter << " " << iter->lenth() << '\n';
+}
+range base for loop sentaksı şöyle:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+  rfill(svec, 20, rname);
+
+  for (string x : svec ) { //burada auto type deduction'danda yararlanabiliyorum auto x : svec de diyebilirdim
+
+  }
+
+}
+böyle yazma demek aslında derleyiciye şu kodu yazdırmanız demek:
+for(auto iter = svec.begin(), iter != svec.end(); ++iter ) {
+  auto x = *iter;
+
+}
+yani main içinde yazılan range-base for loop'ta x'i kullandığınızda aslında derleyicinin ürettiği kodda *iter'den değerini almış x'i kullanmış oluyorsunuz. Bu da şu anlama 
+gelir eğer böyle bir döngü(range-base for loop) yazarsanız:
+a)vector'de/container'da tutulan öğenin ilişkin olduğu sınıfın copy ctor'ının çağırılabilir durumda olması gerekiyor! çünkü copy ctor çağırılıyor(auto x : svec ifadesinde)
+b)eğer döngü içinde siz bu nesneyi değiştirecek bir kod yazarsanız x = "can"; gibi container'daki öğeyi değil x'i değiştirmiş olacaksınız çünkü derleyicinin yazdığı kodda
+auto x = *iter;'di ancak bu referans olsaydı: auto& x = *iter; o zaman nesnenin kendisini yani container'daki öğeyi değiştirmiş olurdum o da range base for loop'ta şöyle 
+belirtiliyor:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+  rfill(svec, 20, rname);
+
+  for (auto& x : svec ) { //burada auto type deduction yerine türün kendisinide yazabilirsiniz
+
+  }
+
+}
+Eğer şöyle yazarsanız:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+  rfill(svec, 20, rname);
+
+  for (const auto x : svec ) { //burada auto type deduction yerine türün kendisinide yazabilirsiniz
+
+  }
+
+}
+bu şunun karşılığı olur:
+for(auto iter = svec.begin(), iter != svec.end(); ++iter ) {
+  const auto x = *iter;
+
+}
+
+Eğer şöyle yazarsanız:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+  rfill(svec, 20, rname);
+
+  for (const auto& x : svec ) { //burada auto type deduction yerine türün kendisinide yazabilirsiniz
+
+  }
+
+}
+bu şunun karşılığı olur:
+for(auto iter = svec.begin(), iter != svec.end(); ++iter ) {
+  const auto &x = *iter;
+
+}
+DİKKAT: buradada universal reference oluşabilir:
+for(auto iter = svec.begin(), iter != svec.end(); ++iter ) {
+  auto &&x = *iter;
+
+}
+nasıl auto&& nasıl universal reference ise aynı yapı range-base for loop'tada geçerli:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+  rfill(svec, 20, rname);
+
+  for ( auto&& x : svec ) { //buradaki referans universal referans yani R value referans değil!
+
+  }
+
+}
+
+2) o halde 2. olarak range-base for loop'ta dolaşabiliyorum! Ama range-base for loop'la dolaşmakla iterator döngüsünü açık olarak sizin yazmanız arasında bir fark yok!
+Yani range-base for loop ayrı bir şey değil! Sadece döngüyü derleyiciye yazdırmış oluyorsunuz. 
+
+3) vector sınıf nesnesinin tuttuğu öğeleri nasıl erişebilirim? sorusunun cevabını iyi anlamamız gerekir. Çünkü bütün sequence container'lar için bu geçerli!!
