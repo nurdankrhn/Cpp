@@ -1,0 +1,807 @@
+vector'deki öğeleri tıpkı string sınıfında olduğu gibi:
+a)sınıfın [] operator fonksiyonuyla 
+b)sınıfın at isimli fonksiyonu ile erişebilirim; bir yol daha var ama sadece ilk ve son konumdaki öğeye erişmek için: bütün sequence container'larda bu vardı, sınıfın 
+front ve back fonksiyonları; bunlar referans semantiği ile ilk öğeye ve son öğeye eriştiriyorlar.
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  svec[0] += "can"; 
+
+}
+ilk öğeyi ahmet olmaktan çıkarttık ahmetcan yaptık. Burada dikkat! vector'ümüzün kendisi const olsaydı [] operator fonksiyonu, at fonksiyonu, back fonksiyonu hepsinin 
+const overload'u çağırılırdı. Yani aslında bu fonksiyonların her birinden 2 tane var; biri const member function öbürü non-const member function. const olan member function 
+const referans döndürüyor ama non-const olan doğrudan referans döndürüyor yani non-const referans döndürüyor. Dolayısıyla: 
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  const vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  svec[0] //derleyicinin bakış açısıyla bu bir const nesne
+
+}
+yine vactor'ü istersem şöylede dolaşabilirim:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  for(size_t i{}; i < sve.size(); ++i) {
+    cout << svec[i] << " ";
+  }
+
+}
+yine string sınıfında da vector sınıfında da deque sınıfında da  [] ile at fonksiyonu arasında önemli bir fark vardı; örneğin  yukarıdaki kodu şöylede yazabilirim:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  for(size_t i{}; i < sve.size(); ++i) {
+    cout << svec.at(i) << " ";
+  }
+
+}
+aralarındaki fark [] operator fonksiyonu geçersiz indeks aldığı zaman ub'ye düşerken at ise std::out_of_range sınıfı türünden exception throw ediyor:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  try {
+    auto x = svec[49]; //ub
+  }
+  catch (const std::exception& ex) {
+    std::cout << "exception caught: " << ex.what() << '\n'; 
+  }
+
+}
+burada exception gönderilmeyecek ub olacak!!! Ama at ile yaparsak:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  try {
+    auto x = svec.at(49); 
+  }
+  catch (const std::exception& ex) {
+    std::cout << "exception caught: " << ex.what() << '\n'; 
+  }
+
+}
+şimdi std::out_of_range türünden exception throw edecek; bu out_of_range kalıtım yoluyla logic_error sınıfından elde edilmiştir. logic_error sınıfı da exception sınıfından 
+dolayısıyla burada gönderilen exception'ının std::exception& ile yakalayabildiğim gibi logic_error ile yakalayabilirim:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  try {
+    auto x = svec.at(49); 
+  }
+  catch (const std::logic_error& ex) {
+    std::cout << "exception caught: " << ex.what() << '\n'; 
+  }
+
+}
+ya da doğrudan out_of_range ile yakalayabilirim:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  try {
+    auto x = svec.at(49); 
+  }
+  catch (const std::out_of_range& ex) {
+    std::cout << "exception caught: " << ex.what() << '\n'; 
+  }
+
+}
+at ile [] operator fonksiyonu arasında olan fark string sınıfında da yine deque sınıfında da geçerli. 
+
+Yine aynı şekilde sınıfın front ve back fonksiyonları il öğeye ve son öğeye referans döndürüyor. Dikkat!! boş bir vector için front'u ya da back'i çağırmak tanımsız davranış!!!
+Bir exception throw etmez!!
+
+Hem mülakatlarda sorulan hem de üretimde önemli olan container'arla ilgili birkaç noktaya daha değinelim:
+soru 1
+========
+container boş olsa; aşağıda verilen kodda ub var mı yok mu?
+include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+
+  auto beg = svec.begin();
+  auto end = svec.end();
+
+}
+cevap: hayır hiçbir şekilde ub yok!! ne modern C++ öncesinde ne de sonrasında; bu her zaman geçerli. Yani boş bir vector için begin ve end'i çağırmanızda hiçbir engel yok.
+Daha önce'de söylemiştik end'di dereference etmek yani end iterator'ünü dereference etmek her zaman tanımsız davranış! conatiner boş ise begin'inide dereference etmekte 
+tanımsız davranış! 
+
+Boş bir range'i kullanmanızda hiçbir sakınca yok ama tabii ki container boş ise onun begin ve end'in geri dönüş değerleri aynı değerdeki iteratorler; yani eşitlik 
+karşılaştırmasında true olacak, bu garanti altında:
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+
+  auto beg = svec.begin();
+  auto end = svec.end();
+  cout << boolalpha;
+
+  cout << (beg == end ) << '\n';
+
+}
+yukarıdaki kodların hiçbirinde bir ub, sentaks hatası veya lojik hata veya başka bir şey söz konusu değil! distance, beg end distance bu durumda 0 olmak zorunda bu da yine 
+dilin garantisi altındadır:
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+
+  auto beg = svec.begin();
+  auto end = svec.end();
+  cout << boolalpha;
+
+  cout << (beg == end ) << '\n';
+
+  distance(beg, end);
+
+}
+
+soru: 
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> ivec;
+  vector<int> x;
+
+  copy(ivec.begin(), ivec.end(), back_inserter(x));
+}
+burada herhangi bir şekilde ub! yok; boş bir range'i bir algoritmaya göndermenin hiçbir sakıncası yok çünkü copy'nin kodunu düşündüğümüzde iterator'ler eşit ise zaten 
+döngüye girmez:
+template <typename Iter>
+void func(Iter beg, Iter end)
+{
+  while(beg != end) {
+    ++beg;
+  }
+}   
+sonuç olarak boş bir range kullanılamaz değil; ama boş bir range'e ilişkin iteratorleri konumunu dereference etmemem gerekir. Yoksa range'in boş olmasının herhangi bir şekilde
+bir sakıncası yok. 
+
+
+front ve back fonksiyonları ile vector'deki ya da bir sequence container'daki genel olarak öğelere erişebilirsiniz:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  svec.front() += "can";
+  svec.back() += "naz";
+
+}
+ilk öğe ahmetcan, son öğe de rukiyenaz oldu ama tabii vector boş olsaydı bu işlemler ub olurdu. Özellikle back fonksiyonunun programcılar kullanma alışkanlığı edinmemiş 
+oluyorlar! front fonksiyonu generic kod dışında illa kullanılması gerekli değil ancak son öğeye erişmek istiyorsanız çok daha okunabilir bir kod yazmış oluyorsunuz back 
+ile; yoksa şu şekilde de son öğeye erişebilirsiniz:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "ahmet", "yelda", "furkan", "murat", "uygar", "rukiye" };
+
+  svec[svec.size()- 1]; //svec.back();
+}
+
+vector'de vector'ün size'ını değiştiren fonksiyonları inceleyelim:
+her ne kadar vector özelinde konuşsakta ama söylediğimiz diğer sequence container'lar array hariç onlar içinde geçerli:
+Bir container'daki öğelerin sayısını değiştirmenin yani bu ekleme ya da silme işlemi olarakta isimlendirilir yolları neler?
+
+1) container nesnelerinin atama operator fonksiyonu ile bunu yapabilirsiniz; tipik olarak container'ların:
+a) copy assigment fonksiyonu var
+b) doğal olarak move assigment fonksiyonları var bunlar special member function. Ama bunun dışında 
+c) initializer_list parametreli atama operator fonksiyonu var
+d) ismi assign olan atama fonksiyonları var
+e) resize fonksiyonu ile container'ların size'ını değiştirebiliyorsunuz ama resize container'a öğe eklemek içinde kullanılabiliyor öğe silmek içinde kullanılabiliyor. 
+Örneğin container'ın size'ı 20 iken resize'a argüman olarak 50 değerini geçerseniz 30 tane öğe eklemiş olursunuz ama 10 geçerseniz o zamanda 10 tane öğeyi silmiş olursunuz.
+Sonuçta resize ile container'ın size'ını değiştirebilirsiniz. Bunun dışında container'a öğe ekleyen fonksiyonlardan birini çağırabilirsiniz: 
+push_back fonksiyonu ile container'a sondan ekleme yapabilirsiniz. Bu arada dikkat sondan ekleme amortised-constant time'da olduğu için isimlendirilmiş fonksiyon var; ama 
+örneğin vector'de push_front diye bir fonksiyon yok. Ancak deque'da push_back olduğu gibi push_front'da var; list sınıfında yine push_back olduğu gibi push_front'da var!
+
+Eğer sondan ekleme yapmak yerine istediğiniz bir konumdan ekleme yapacaksanız ki bu durumda artık constant time algorithm değil; bu durumda da insert fonksiyonlarının 
+overload'larından birini kullanacaksınız. push_back ve insert fonksiyonları her zaman taşıma semantiği overload'una sahip. Yani L value expr. gönderirseniz const T&
+parametreli overload çalışıyor o kopyalama yapıyor. R value expr. gönderdiğimizde R value referans parametreli çalışıyor o taşıma yapıyor.  
+
+emplace fonksiyonlarını çağırırsanız; ismi emplace olan insert'ün emplace karşılığı ismi emplace_back olan push_back'in karşılığı. emplace'lerle insert'lerin ya da
+push_back'lerin farkı push_back ya da insert fonksiyonları ekleme işlemini sınıfın copy ctor'ını ya da move ctor'ını çağırarak gerçekleştirirken içinde emplace geçenler
+perfect-forwarding yaparak copy ctor ya da move ctor'ı çağırmadan doğrudan sınıfın parametreli ctor'ı ile nesneyi container'ın sağladığı bellek alanında hayata getiriyor.
+Yalnız tabii burada şöyle bir yanlış anlaşılma olmasını istemiyoruz; x ve y vector olmak üzere x.emplace_back(y); çağrı yaptığımızda bu durumda bunun push_back'ten bir farkı
+kalmayacak. Kısaca ekleme için çağırılacak fonksiyonlar:
+x = y; //copy ctor
+x = move(y); //move ctor
+x = {2, 3, 5, 7, 10}; //initializer_list parametreli ctor
+x.assign(10, 5); //assing atama fonksiyonu; özellikle bunun range parametreli oveload'u çok önemli çünkü vector'ü list'e atayamayız ama vector'e list'i atamanın yolu
+                //range parametreli assign fonksiyonunu çağırmak!
+x.resize(50); //resize fonksiyonu
+
+x.push_back(??)
+x.insert(???)
+x.emplace()
+x.emplace_back()
+
+x.emplace_back(y); 
+
+dikkat: container'ların insert fonksiyonlarının çok önemli bir özelliği daha var: geri dönüş değerleri; insert fonksiyonları insert edilmiş öğenin konumunu döndürüyorlar. 
+Örneğin diyelim ki benim bir vector'üm var: 2 5 7 9 6 insert fonksiyonuna 7'nin konumunu verdim ve o konuma 6'yı insert ettim: 2 5 6 7 9 6 insert işleminden sonra 
+container'ın yeni düzeni bu şekilde olacak ve insert fonksiyonunun geri dönüş değeri ise insert edilmiş öğeye iterator! 
+
+silme tarafı ise şöyle:
+========================
+bütün container'larda array hariç şöyle bir özellik var: sınıfların .erase() isimli 2 tane fonksiyonu oluyor. 2 overload'u oluyor. Biri iterator parametreli: x.erase(iter);
+bu o iterator konumundaki öğeyi siliyor. Diğeri ise range parametreli; o iterator range'indeki öğeleri siliyor: x.erase(iter1, iter2); 
+erase fonksiyonlarınında çok önemli bir özelliği var diyelim ki şöyle bir container'ımız var: 
+2 5 7 9 6
+    *     erase fonksiyonuna 7'nin konumunu verdim vector'den 7 değeri silenecek yani erase fonksiyonu iterator konumunu alıyor o iterator konumundaki öğeyi siliyor. Bu 
+          bütün container'lar için böyle! Bu işi yapan erase fonksiyonu container'ı şu hale getirecek:
+2 5 9 6   erase fonksiyonunun geri dönüş değeri ise silinmiş öğeden sonraki öğenin konumu yani silme işlemini yapan erase fonksiyonun geri dönüş değeri olan iterator, geçerli
+    *     bir iterator; hangi öğe ya da öğeleri silmişsem ondan sonra ilk silinmemiş öğenin konumu olacak. 
+
+
+
+Bunları daha iyi görmek için örnek üstünde inceleyelim:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> ivec(10, 5);
+
+  cout << "size = " << ivec.size()  << "cap = " << ivec.capacity() << '\n';
+  print(ivec, cout, " ");
+
+  ivec.resize(24);
+
+
+  cout << "size = " << ivec.size()  << "cap = " << ivec.capacity() << '\n';
+  print(ivec, cout, " ");
+}
+
+dikkat! örneklerde argümanları biz genelde constant expr. kullansakta öyle bir zorunluluk yok! resize fonksiyonu ile vector'ün size 10 iken 24'e çıkacak yani 14 tane öğe 
+eklenmiş olacak! Yeni eklenmiş öeğler value initialize edilecek dolayısıyla yeni eklenmiş öğelerin primitive türünden değerler tutması durumunda şu an 0 olması garanti altında!!
+Ama  eğer primitive türden öğeler tutmuyorsa bu durumda tabii ki diğer öğeler value initialize edildiği için onların default ctor'ları çağırılacak! 
+Örneğin Date isimli bir sınıfımız olsun:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<Date> dvec(10);
+
+}
+soru: bu durumda bütün öğeler default ctor edilecek değil mi? Kesilikle! vector'deki öğeleri yazdıralım:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<Date> dvec(10);
+
+  for(const auto& dt: dvec)
+    cout << dt << '\n';
+
+}
+kod çalıştğında 10 defa 1 Ocak  1900 Pazartesi yazdığını gördük çünkü sınıfın default ctor'ı date nesnesini bu halde başlatıyor. Fakat örneğin:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  Date today {10, 5, 2023 };
+  vector<Date> dvec(10, today);
+
+  for(const auto& dt: dvec)
+    cout << dt << '\n';
+
+}
+bu seferki ctor'da 10 tane öğeyide today değeri ile başlatacak!
+
+şimdi resize'ı inceleyelim:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<Date> dvec(5);
+
+  devc.resize(15);
+
+  for(const auto& dt: dvec)
+    cout << dt << '\n';
+
+}
+geriye kalan 10 tane öğe default ctor ile oluşturuldu; ancak resize'ın 2. bir overload'u daha var:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<Date> dvec(5);
+  Date dx{ 11, 11, 2011 };
+
+  devc.resize(15, dx);
+
+  for(const auto& dt: dvec)
+    cout << dt << '\n';
+
+}
+bu şu anlama gelir; sizer'ı 15'e çıkart yani 10 tane sondan öğe ekle ama sondan eklenen öğeler 2. argüman olmasaydı default construct edilecekti ama şimdi dx ile initialize 
+edilecek. Dolayısıyla ilk 5 öğenin 1 Ocak 1900 Pazartesi iken son 10 öğenin 11 Kasim 2011 Cuma olduğunu gördük. Ama resize ile container'dan öğe de silebiliriz:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  Date dx{ 11, 11, 2011 };
+  vector<Date> dvec(15, dx);
+  
+  cout << "devc.size() = " << dvec.size() << '\n';
+
+  devc.resize(3);
+
+  cout << "devc.size() = " << dvec.size() << '\n';
+
+}
+resize bu kez'de size'ı 3'e çekecek 15 tane öğeden sondan 12 tanesini silecek. Yani size 15'ken 3'e düştü. Şimdiden bir ipucu daha verelim bir mülakat sorusu için:
+container'daki tüm öğeleri silmenin bir sürü yolu var; bunu stirng sınıfında da söylemiştik bu yollardan bir tanesi de resize'ı çağırıp 0 değerini geçmek:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  Date dx{ 11, 11, 2011 };
+  vector<Date> dvec(15, dx);
+  
+  cout << "devc.size() = " << dvec.size() << '\n';
+
+  devc.resize(0);
+
+  cout << "devc.size() = " << dvec.size() << '\n';
+
+}
+ama özel bir durum yoksa bunu çağırmak yerine döngüsel bir yapı vb. söz konusu değilse container'daki öğerlein hepsini silmek istiyorsanız en okunaklı biçimi .clear() 
+fonksiyonunu çağırmak! 
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  Date dx{ 11, 11, 2011 };
+  vector<Date> dvec(15, dx);
+  
+  devc.clear();
+
+}
+
+
+push_back son derece basit sondan ekleme yapıyor:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<int> ivec;
+
+  ivec.reserve(20);
+
+  for(int i = 0; i < 20; ++i ) {
+    ivec.push_back(i);
+  }
+
+  print(ivec, cout);
+}
+her bir push_back çağrısı sondan ekleme yapıyor. Yine push_back'in 2 tane overload'u olduğunu taşıma için bir parametresi const T& diğeri T&& olan 2 tane overload'u olduğunu 
+hatırlayalım!
+
+
+kopyalama ve taşıma konusunda kafa karışıklığını gidermek için bir örnek yapalım:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "uygar",  "atakan", "ilker", "berkay", "murat" };
+  vector<string> dest;
+
+  for(size_t i{}; i < svec.size(); ++i) {
+    dest.push_back(std::move(svec[i]));
+  }
+
+  cout << "sevc.size() = " << svec.size() << '\n';
+}
+soru: for döngüsünden sonra svec'in size'ı 5 midir yoksa 0 mıdır?
+cevap: tabii ki 5'tir! Çünkü vector'den öğe silmiyorum ki sadece diğer vector'e taşıyorum! yani svec'te nesneler var sadece moved-from state'teler!! O halde daha önce 
+söylemiştik standart kütüphanemizin container'ları  moved-from state'i aslında default construct edilmiş state yapılıyor; o halde:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec{ "uygar",  "atakan", "ilker", "berkay", "murat" };
+  vector<string> dest;
+
+  for(size_t i{}; i < svec.size(); ++i) {
+    dest.push_back(std::move(svec[i]));
+  }
+
+  cout << "sevc.size() = " << svec.size() << '\n';
+
+  for(const auto& s : svec ) {
+    std::cout << s.size() << " ";
+  }
+}
+soru: en son yazdığım döngü hangi değeleri yazmalı?
+cevap: tabii ki 0 çünkü onlar moved-from state'de!! Bunu başka bir örnekle daha pekiştirelim:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+
+  string name{ "abdulmuttalip haciefendioglu" };
+
+  svec.push_back(std::move(name));
+}
+bu durumda name yine moved-from state'de değil mi? az önceki örnekten hiçbir farkı yok; yani şu an da örneğin name'in length'ini çağırsam 0 olacak. Ama şöyle yazsaydım:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector<string> svec;
+
+  string name{ "abdulmuttalip haciefendioglu" };
+
+  svec.push_back(name);
+}
+bu sefer diğer overload çağırılacaktı name'e bir şey olmayacaktı!!
+
+
+Dinamik bellek yönetiminde bellek yetersiz ise operator new fonksiyonu başarısız olduğunda her zaman bad_alloc throw ediyor!! push_back ise; push_back fonksiyonu ise strong 
+exception garati veriyor. Yani commit or rollback garantisi veriyor. Yani push_back fonksiyonunun çağırdığınızda bir exception throw ederse o zaman ekleme hiç yapılmamış 
+durumunda koruma garatisi var.
+
+Artık yavaş yavaş geri dönüş değerlerinde de dikkat edin çünkü bazı fonksiyonların geri dönüş değerleri hayati önem taşıyor!! push_back'in geri dönüş değeri yok; push_back
+void function.
+
+atama operator fonksiyonu
+============================
+atama operator fonksiyonu ile copy assigment ya da move assigment yapabilirsiniz ve bir de initializer_list parametreli atama oparator fonksiyonu da var!! Bu da çok işe
+yarıyor. 
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector <string> svec{ "ali", "can" "tan", "ata", "cem" };
+  print(svec, cout);
+
+  svec = { "naz", "eda", "gul" };  //initializer_list parametreli atama operator fonksiyonu ile vector'deki öğelerin değerini yine değiştirebilirsiniz!
+  print(svec, cout);
+}
+Bu container'ların tabii array hariç hepsi için geçerli!
+
+copy assigment var, move assigment var fakat bir de assign isimli üye fonksiyon var:
+assign fonksiyonu çok önemli çünkü siz range parametreli assign fonksiyonu ile farklı range'leri birbirine atayabiliyorsunuz!!!! Örneğin şöyle bir şey olsaydı:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  list <string> slist{ "ali", "can" "tan", "ata", "cem" };
+  vector<string> svec;
+
+  //...
+  svec = slist; /// legal mi ???
+
+}
+soru: svec = slist; diyebilir miyim?
+cevap: hayır çünkü bunların türleri farklı!! bu iki tür arasında dönüşüm yok! Ama yapmak istediğim bu olsaydı bunu assign member function ile yapacaktım:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  list <string> slist{ "ali", "can" "tan", "ata", "cem" };
+  vector<string> svec;
+
+  //...
+  svec.assign(list.begin(), list.end());  
+
+}
+işte bu assign fonksiyonuna biz range assign diyoruz. Yine burada container'ların türü farklı olabilir hatta container'daki öğelerin türleride farklı olabilir. Önemli olan 
+o range'deki öğelerin diğer range'deki öğelere assignable olması!! assign fonksiyonu ile range assign'da yapabilirim:
+#include <vector>
+#include <string>
+#include <list>
+#include <iterator>
+#include <fstream>
+#include "nutility.h"
+#include "date.h"
+
+
+int main()
+{
+  using namespace std;
+
+  vector <string> svec{ "ali", "can" "tan", "ata", "cem" };
+
+  print(svec, cout);
+
+  //burada dedim ki ben bu değerlerden vazgeçtim svec'in 5 tane bilal değeri tutmasını istiyorum:
+  svec.assign(, "bilal");
+  print(svec, cout);
+
+}
+yani assign fonksiyonları daha özel atamalara izin veriyor!
