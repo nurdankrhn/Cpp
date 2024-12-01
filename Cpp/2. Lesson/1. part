@@ -1,7 +1,7 @@
 Ders 2: 11 Ocak 2023 -  Çarşamba
 Kısım 1:
 
-Tıpkı C’de olduğu gibi C++'ta da  bir istisna olarak bir tam sayı sabiti olarak 0'ı atayabiliriz ( null pointer )
+Tıpkı C’de olduğu gibi C++'ta da  bir istisna olarak bir tam sayı sabiti olarak 0'ı pointer bir değişkene atayabiliriz ( null pointer )
 
 int main(void)
 
@@ -111,7 +111,7 @@ int main(void)
   
 }
 
-2- Değiştirmemiz gereken bir değişkeni yanlışlıkla değiştirmemize neden olabilir.
-3- const T* türünden  T* türüne veya const T türünden T türüne  implicit dönüşüm olmadığından const parametre alan bir fonksiyona aslında const olması gerekirken; const olarak tanımlamadığımız bir değişkeni fonskiyona argüman 
+2- Değiştirmememiz gereken bir değişkeni yanlışlıkla değiştirmemize neden olabilir.
+3- const T* türünden  T* türüne veya const T türünden T türüne  implicit dönüşüm olmadığından; const parametre alan bir fonksiyona aslında const olması gerekirken; const olarak tanımlamadığımız bir değişkeni fonskiyona argüman 
 olarak gönderemeyizz! Bu da fonksiyon çağrısını kısıtlayan bir durum olarak karşımıza çıkar.
 
