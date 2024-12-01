@@ -6,7 +6,7 @@ C ve C++ dillerinde türler 2 temel kategoriye ayrılıyor:
 Basic types (primitive types ) ve user defined types
 
 Basic types (primitive types )
-Dilin tasarımında zaten olan tipik olarak tam sayı gerçek sayı değerlerini tutan türlerdir.
+Dilin tasarımında zaten olan tipik olarak tam sayı, gerçek sayı değerlerini tutan türlerdir.
 
 user defined types
 Bir bildirimle bir tanımla oluşturuluyor. C'de bunun 3 şekilde yapabiliriz:
@@ -14,7 +14,7 @@ Bir bildirimle bir tanımla oluşturuluyor. C'de bunun 3 şekilde yapabiliriz:
 2. enum ile
 3. union ile
 
-C dilinde struct, enum ve union'da söz konusu tag türü tek başına betimleyemiyor. Fakat C++ta tag tek başına türü betimlemek için yeterlidir. Örneğin:
+C dilinde struct, enum ve union'da söz konusu tag türü tek başına betimleyemiyor. Fakat C++'ta tag tek başına türü betimlemek için yeterlidir. Örneğin:
 
 struct Nec{
 	int a, b, c;
@@ -29,7 +29,7 @@ C'de bir struct belirttiğimiz zaman en az 1 elemanı olmak zorunda yani boş bi
 empty class denir. Bu function overloading ve generic programlamayla ilgilidir.
 
 enumarations açısından büyük farklılık vardır. C++ dilinin en önemli özelliği time safety için yapılan kontrollerin sık bir şekilde yapılması böylece C++ statik tür sistemine ilşkin kontrollerin 
-en çok olduğu ve ayrıca çok önemli olduğu dildir.
+en çok olduğu ve ayrıca çok önemli olduğu bir dildir.
 
 Bilindiği gibi C'de de C++'ta da tag oluşturmadan user defined type oluşturabiliriz.
 
@@ -103,9 +103,9 @@ genelde NULL şu şekilde define edilmiştir: ((void*)0) ya da sadece 0 şeklind
 Bir pointer'ın NULL pointer olması ne anlama gelir?
 
 Bir pointer'ın valid (kullanılabilir) veya invalid(kullanılamaz) olması C'de şu şekilde değerlendirilerek anlaşılır:
-1. Hayatı devam etmekte olan bir nesneyi göstermesi
-2. Bir dizinin bittiği yeri göstermesi
-3. Pointer'ın NULL pointer olması
+1) Hayatı devam etmekte olan bir nesneyi göstermesi
+2) Bir dizinin bittiği yeri göstermesi
+3) Pointer'ın NULL pointer olması
 Örneğin:
 
 int main()
@@ -127,11 +127,11 @@ int main()
  	*p = 10; //ub
 }
 
-Bu da ub'dir func(p); //çöp değerde
-p = &x; //gayet normal veya sizof operatörünün operandı olması da gayet normal veya adresinin alınması vb normal
+Bu da ub'dir func(p); //indetermined değerde
+p = &x; //gayet normal veya sizeof operatörünün operandı olması da gayet normal veya adresinin alınması vb normal
 
 Dinamik yer tahsisi yapmak için bir fonskiyon yazmak istersek, fonksiyon parametresinin pointer to pointer olması çok ama çok önemlidir:
-Bazen bu gözden kaçırılıp fonksiyon paremeteresi pointer yapılıyor ve bu da olayı tamamen yanlış olmasına sebebiyet verir!!!
+Bazen bu gözden kaçırılıp fonksiyon paremeteresi pointer yapılıyor ve bu da olayın tamamen yanlış olmasına sebebiyet verir!!!
 
 #include <stdio.h>
 
@@ -156,9 +156,3 @@ int main ()
   
   	allocate_memory(&p,n);
 }
-
-
-
-
-
- 
