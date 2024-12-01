@@ -134,7 +134,7 @@ value category
 C’de R value ve L value olmak üzere 2’ye ayrılır. C++'ta ise L value PR value ve X value olmak üzere 3’e ayrılır.
 
 constant expression ve non-constant expression ( variable expression ) olarakta nitelendirilir:
-constant expression: Derleyici yani çevirici program koda baktığında bazı ifadelerin dilin kurallarına göre koda bakarak anlayabiliyor; yani run time ile hiçbir ilgisi yok. 
+constant expression: Derleyici yani çevirici program koda baktığında bazı ifadeleri; dilin kurallarına göre koda bakarak anlayabiliyor; yani run time ile hiçbir ilgisi yok. 
 Yani değeri compile time’da evalute edilen ifadelere C’de de C++'ta da constant expression denilir. Örn:
 
 int x = 10 * 20 - 5 + 9; // int x = 204; ile aynı
@@ -145,8 +145,8 @@ int a[10];
 
 sizeof(a) ----> bir const expressiondır her iki dilde de.
 
-Bu konu şundan önemlidir her 2 dilde de constant expression kullanımın zorunlu olduğu alanlar vardır:
-C’de örnek vermek gerekirse: dizi boyutunu belirtmede, switch deyiminin case label’ları, global değişkene ilk değer verme (C++'ta böyle bir zorunluluk yok), yapıların bitfield member’larında 
+Bu konu şundan dolayı önemlidir: her 2 dilde de constant expression kullanımın zorunlu olduğu alanlar vardır:
+C’de örnek vermek gerekirse: dizi boyutunu belirtmede, switch deyiminin case label’larında, global değişkene ilk değer vermede (C++'ta böyle bir zorunluluk yok), yapıların bitfield member’larında 
 kaç bitlik yer ayrılacağını gösteren ifadeler sabit ifadesi olmak zorunda. 
 
 struct Data {
@@ -159,10 +159,10 @@ int b : 5;
 
 C ve C++ dillerinde const anahtar sözcüğünün kullanımıyla ilgili incompatibilities ( uyumsuzluklar )
 
-1.const int x = 10; şeklinde tanımlanan değişkeni const expression kullanılması gereken yerlerde kullanabilir miyim? Cevap: C ve C++'ta cevaplar farklı C de HAYIR C++'ta EVET!!!
+1) const int x = 10; şeklinde tanımlanan değişkeni constant expression kullanılması gereken yerlerde kullanabilir miyim? Cevap: C ve C++'ta cevaplar farklı C de HAYIR C++'ta EVET!!!
 
-Şuna dikkat edilmeli C++'ta kural şu değil: const nesnelerin oluşturduğu ifadeler sabit ifadesidir değil ilk değerini sabit ifadesi ile almış sabit const nesneler bu şekilde kullanılabilir.
-Örneğin burada ilk değerini sabit ifade olarak almayan const değşkende const expression'ın kullanıldığı yerde kullanılamaz.
+Şuna dikkat edilmeli C++'ta kural şu değil: const nesnelerin oluşturduğu ifadeler sabit ifadesidir değil; ilk değerini sabit ifadesi ile almış sabit const nesneler bu şekilde kullanılabilir.
+Örneğin burada ilk değerini sabit ifade olarak almayan const değşkende constant expression'ın kullanıldığı yerde kullanılamaz.
 
 int foo();
 
@@ -174,19 +174,19 @@ int main()
 }
 expression statement ise geçerli bir ifade’nin sonuna ; eklenmesiyle meydana gelir.
 
-2.C dilinde kendisi const olan bir nesneye ilk değer vermemek sentaks hatası değil fakat C++'ta sentaks hatasıdır. Örn: const int x; // C de sentaks hatası değil C++'ta sentaks hatası
+2) C dilinde kendisi const olan bir nesneye ilk değer vermemek sentaks hatası değil fakat C++'ta sentaks hatasıdır. Örn: const int x; // C de sentaks hatası değil C++'ta sentaks hatası
 
 linkage ( bağlantı )
 Değişken ve fonskiyon isimlerinin bir özelliğidir. Projede birden çok kaynak dosya vardır. Ve bu kaynak dosyalarda birden fazla isimler vardır. Eğer bu isim farklı dosyalarda kullanıldığında aynı varlığa işaret 
-etmesi--> extrernal linkage. 
+eediyorsa buna--> extrernal linkage denir. 
 
-İç bağlantıya ait isimler öyle isimler ki projeyi oluşturan kaynak dosyaların birinde nereden kullanılırsa kullanılsın aynı varlığa aitken farklı kaynak dosyalarda aynı olan bu 
+İç bağlantıya ait isimler: öyle isimler ki projeyi oluşturan kaynak dosyaların birinde nereden kullanılırsa kullanılsın aynı varlığa aitken farklı kaynak dosyalarda aynı olan bu 
 isim farklı varlığa ait olur.---> internal linkage
 
 yerel değişkenler ise ---> no linkage
 
 C’de de C++'ta da global değişken ve fonksiyonlarınız default olarak external linkage’dır.  C’de eğerki global olarak tanımlanan ama aynı zamanda internal linkage sahip 
-olmasını istediğim fonskiyon ve değişkenlerin başına static keywordunu eklemem gerekir.
+olmasını istediğimiz fonskiyon ve değişkenlerin başına static keywordunu eklememiz gerekir.
 
 static int g = 10;
 
@@ -199,18 +199,6 @@ Bir makro tanımlayıp yerine gelecek ifadeyi boş bırakırsak bu makroyu ön i
 
 #define PRIVATE static
 #define PUBLIC  
-
+PRIVATE double val = 4.5;
 PUBLIC int g = 10;
-yani derleyici int g = 10; olarak görür ve makro sayesinde de kodu okuyana bilgi vermiş oluruz.
-
-
-
-
-
-
-
-
-
-
-
-
+yani derleyici int g = 10; ve static  double val = 4.5; olarak görür ve makro sayesinde de kodu okuyana bilgi vermiş oluruz.
