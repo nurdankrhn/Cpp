@@ -1,9 +1,9 @@
 2. Part
 
 C'de NULL pointer'ın kullanıldığı tipik temalar:
- 1. Adres döndüren fonksiyonlarda (malloc, calloc, fopen,  set_local fonskiyonu vb. ) --->başarısız olma durumunda NULL döndürür.
- 2.Arama fonksiyonları (strstr, strchr, strrstr, vb ) bulursa bulduğu adresi, bulamazsa NULL dönderiyor.
- 3.Bazı fonksiyon argümanlarının pointer olup ona opsiyonel olarak NULL gönderme seçeneğinin mevcut olması, time başlık dosyasındaki time_t fonksiyonu bir örnektir:
+ 1) Adres döndüren fonksiyonlarda (malloc, calloc, fopen,  set_local fonskiyonu vb. ) --->başarısız olma durumunda NULL döndürür.
+ 2) Arama fonksiyonları (strstr, strchr, strrstr, vb ) bulursa bulduğu adresi, bulamazsa NULL dönderiyor.
+ 3) Bazı fonksiyon argümanlarının pointer olup ona opsiyonel olarak NULL gönderme seçeneğinin mevcut olması, time başlık dosyasındaki time_t fonksiyonu bir örnektir:
 
  #include <time.h>
 
@@ -114,18 +114,4 @@ int main()
 {
     int p; //indetermined value'da
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
  
