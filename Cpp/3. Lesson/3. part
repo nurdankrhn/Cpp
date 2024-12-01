@@ -1,4 +1,4 @@
-int x(10); // bu şekilde ilk değer vermeye direct initialization deniyor. Bu C'de olan bir sentaks değil. Ve bu şekilde ilk değer verme boş şekilde initialization edilmez!!:
+int x(10); // bu şekilde ilk değer vermeye direct initialization deniyor. Bu C'de olan bir sentaks değil. Ve bu şekilde ilk değer verme boş şekilde initialize edilmez!!:
 
 int x(); // bu bir initialization olmaz function declaration olur!!!
 
@@ -9,7 +9,7 @@ int a [] = {2, 5, 4}; //aggregiate initialization
 ilk değer verirken küme parantezi ile verildiğini göstermek için şöyle denir: brace initialization, uniform initialization(ilk değer vermenin konu olduğu
 her yerde küme parantezini kullanabilirsin anlamında olduğu için bu isim verilmiştir!), standart'lar buna value initialization diyor.
 
-Ve değişkenler value initialization ile ilk değer verildiğinde basic türler zero initialization ile ilk değer alır. O halde:
+Ve değişkenlere value initialization ile ilk değer verildiğinde basic türler zero initialization ile ilk değer alır. O halde:
 
 int main()
 {
@@ -25,7 +25,7 @@ bool b{};//false değerinde olur
 int x { 12 }; //bu şekilde ilk değer vermeye ise direct list initialization denir!!!
 
 Küme parantezi ile ilk değer verme ile daha önceden bahsettiğimiz gibi küme parantezi kullanarak değer veremediğimiz yerlerede değer verebilir hale geldik.
-Bu yüzden uniform initialization diye isimlendirildiğinide söylemiştik. Fakat sadece bu değil bu şekilde ilk değer verme ile 2. bir nitelik daha kazandırıldı
+Bu yüzden uniform initialization diye isimlendirildiğinide söylemiştik. Fakat sadece bu değil bu şekilde ilk değer verme ile ikinci bir nitelik daha kazandırıldı
 yani küme parantezi ile ilk değer verdiğimizde diğer ilk değer verme biçimlerinde olmayan yeni bir sentaks özelliği geldi:
 Bu şekilde ilk değer verdiğimizde narrowing conversion sentaks hatası haline gelir.!!!! Değer kaybına yol açan implicit dönüşümlere narrowing conversion denir.
 
@@ -149,10 +149,3 @@ Yani most-vexing parse ifade hem fonksiyon bildirimi hem de değişken bildirimi
  
  	void func(int(int)); bu tanım derleyici tarafından şu şekilde değerlendirilir:
   	void func(int(*)(int));
-
-
-
-
-
-
-
